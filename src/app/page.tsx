@@ -10,9 +10,13 @@ export default function DashboardPage() {
         <SiteHeader />
 
         <main>
-          <div className="flex items-center gap-4">
+          <div className="flex items-stretch gap-4">
+            <div className="bg-primary text-primary-foreground font-bold text-xl rounded-2xl px-6 flex items-center justify-center shadow-lg text-center">
+                <span>Filtros<br/>de búsqueda</span>
+            </div>
+            
             <div className="bg-primary rounded-2xl p-4 flex-grow flex items-center shadow-lg">
-              <div className="flex items-end gap-x-6 w-full">
+              <div className="flex items-center gap-x-6 w-full">
                 <div className="space-y-2 flex-1">
                   <label className="text-primary-foreground text-sm font-medium px-2">Fecha de inicio</label>
                   <DatePicker />
@@ -28,7 +32,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="flex flex-shrink-0 gap-x-4">
+            <div className="flex items-center flex-shrink-0 gap-x-4">
               <Button
                 className="bg-[#63A491] hover:bg-[#579282] text-white font-bold rounded-full text-base px-8 h-10 shadow-md"
               >
