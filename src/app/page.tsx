@@ -64,7 +64,7 @@ export default function DashboardPage() {
             <UpcomingCard title="PROXIMAMENTE" />
           </div>
 
-          <Separator className="mt-8 bg-[#DCE1DE]" />
+          <Separator className="mt-8 bg-[#DCE1DE] w-[70%] mx-auto" />
         </main>
       </div>
     </div>
