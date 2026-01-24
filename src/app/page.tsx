@@ -1,12 +1,92 @@
-export default function Home() {
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Menu, ArrowDownCircle } from "lucide-react";
+
+function StatCard({ title, value }: { title: string; value: string }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
-      <h1 className="text-center text-6xl font-bold tracking-tight text-foreground font-headline md:text-8xl">
-        <span className="relative">
-          <span className="relative z-10">Hola Inmatmex</span>
-          <span className="absolute inset-x-0 bottom-2 h-4 bg-accent/50 sm:h-5 md:h-6 -z-10" />
-        </span>
-      </h1>
-    </main>
+    <Card className="border-2 border-primary rounded-xl shadow-md">
+      <CardContent className="text-center pt-6">
+        <p className="text-sm text-muted-foreground uppercase tracking-wider">{title}</p>
+        <p className="text-5xl font-bold text-chart-2 mt-2">{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function UpcomingCard({ title }: { title: string }) {
+  return (
+    <Card className="bg-primary text-primary-foreground rounded-xl shadow-md">
+      <CardContent className="flex items-center justify-center h-full pt-6 min-h-[140px]">
+        <p className="font-semibold text-lg uppercase tracking-wider">{title}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <div className="bg-background min-h-screen p-4 sm:p-6 md:p-8">
+      <div className="max-w-screen-xl mx-auto">
+        <header className="flex justify-between items-center mb-8">
+          <Button variant="ghost" size="icon" className="w-12 h-12">
+            <Menu className="w-8 h-8 text-gray-800" />
+          </Button>
+          <h1 className="text-4xl font-bold text-gray-800">Dashboard</h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-primary border-2 border-primary rounded-full w-12 h-12"
+          >
+            <ArrowDownCircle className="w-8 h-8" />
+          </Button>
+        </header>
+
+        <main>
+          <div className="flex flex-col lg:flex-row items-center gap-4 mb-8">
+            <div className="bg-primary rounded-2xl p-2 flex-grow w-full flex flex-col sm:flex-row items-center gap-3 shadow-lg">
+              <div className="bg-primary text-primary-foreground font-bold text-center text-base px-3 h-14 flex items-center justify-center rounded-lg shadow-md w-full sm:w-auto">
+                <span className="leading-tight">
+                  Filtros
+                  <br />
+                  de busqueda
+                </span>
+              </div>
+              <Input
+                type="text"
+                placeholder="Fecha de inicio"
+                className="bg-black/20 text-white placeholder:text-white/80 border-none rounded-full text-center h-12 flex-1"
+              />
+              <Input
+                type="text"
+                placeholder="Fecha de Fin"
+                className="bg-black/20 text-white placeholder:text-white/80 border-none rounded-full text-center h-12 flex-1"
+              />
+              <Input
+                type="text"
+                placeholder="Empresa"
+                className="bg-black/20 text-white placeholder:text-white/80 border-none rounded-full text-center h-12 flex-1"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold px-8 h-12 rounded-full text-base shadow-md">
+                Filtrar
+              </Button>
+              <Button className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold px-8 h-12 rounded-full text-base shadow-md">
+                Limpiar
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            <StatCard title="Etiquetas del mes" value="14,000" />
+            <StatCard title="Etiquetas (HOY)" value="340" />
+            <StatCard title="Empresa Lider" value="MTM" />
+            <UpcomingCard title="PROXIMAMENTE" />
+            <UpcomingCard title="PROXIMAMENTE" />
+          </div>
+        </main>
+      </div>
+    </div>
   );
 }
