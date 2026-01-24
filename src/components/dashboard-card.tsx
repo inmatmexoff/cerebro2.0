@@ -26,7 +26,7 @@ export function DashboardCard({ title, value, isFilled = false }: DashboardCardP
         {title}
       </h3>
       {value && (
-        <p className="text-5xl font-bold text-primary mt-2">{value}</p>
+        <p className="text-5xl font-bold text-primary mt-2 break-all">{value}</p>
       )}
     </div>
   );
