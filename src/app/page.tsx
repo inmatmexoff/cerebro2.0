@@ -35,6 +35,32 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+            <div
+              className="rounded-2xl shadow-lg border"
+              style={{ borderColor: "#137547", height: 215 }}
+            ></div>
+            <div
+              className="rounded-2xl shadow-lg border"
+              style={{ borderColor: "#137547", height: 215 }}
+            ></div>
+            <div
+              className="rounded-2xl shadow-lg border"
+              style={{ borderColor: "#137547", height: 215 }}
+            ></div>
+            <div
+              className="rounded-2xl shadow-lg border"
+              style={{ borderColor: "#137547", height: 215 }}
+            ></div>
+          </div>
+
+          <div className="mt-8 flex justify-center">
+            <hr
+              className="w-[70%]"
+              style={{ borderColor: "#DCE1DE" }}
+            />
+          </div>
         </main>
       </div>
     </div>
