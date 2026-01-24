@@ -13,8 +13,8 @@ export function SiteHeader() {
     <header className="flex justify-between items-center mb-8">
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="w-16 h-16">
-            <Menu className="w-12 h-12 text-gray-800" strokeWidth={2.5} />
+          <Button variant="ghost" size="icon" className="w-20 h-20 hover:bg-transparent">
+            <Menu className="w-16 h-16 text-gray-800" />
           </Button>
         </SheetTrigger>
         <SheetContent side="left">
