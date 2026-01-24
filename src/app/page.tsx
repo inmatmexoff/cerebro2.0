@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { SiteHeader } from "@/components/site-header";
 import { DatePicker } from "@/components/date-picker";
+import { CompanySelect } from "@/components/company-select";
 
 function StatCard({ title, value }: { title: string; value: string }) {
   return (
@@ -43,11 +43,7 @@ export default function DashboardPage() {
               </div>
               <DatePicker placeholder="Fecha de inicio" />
               <DatePicker placeholder="Fecha de Fin" />
-              <Input
-                type="text"
-                placeholder="Empresa"
-                className="bg-black/20 text-white placeholder:text-white/80 border-none rounded-full text-center h-12 flex-1"
-              />
+              <CompanySelect />
             </div>
             <div className="flex items-center gap-3">
               <Button className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold px-8 h-12 rounded-full text-base shadow-md">
