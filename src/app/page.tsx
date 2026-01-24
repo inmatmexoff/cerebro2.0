@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SiteHeader } from "@/components/site-header";
 import { DatePicker } from "@/components/date-picker";
 import { CompanySelect } from "@/components/company-select";
+import { Separator } from "@/components/ui/separator";
 
 function StatCard({ title, value }: { title: string; value: string }) {
   return (
@@ -62,6 +63,8 @@ export default function DashboardPage() {
             <UpcomingCard title="PROXIMAMENTE" />
             <UpcomingCard title="PROXIMAMENTE" />
           </div>
+
+          <Separator className="mt-8 bg-[#DCE1DE]" />
         </main>
       </div>
     </div>
