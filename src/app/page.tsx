@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SiteHeader } from "@/components/site-header";
+import { DatePicker } from "@/components/date-picker";
 
 function StatCard({ title, value }: { title: string; value: string }) {
   return (
@@ -40,16 +41,8 @@ export default function DashboardPage() {
                   de busqueda
                 </span>
               </div>
-              <Input
-                type="text"
-                placeholder="Fecha de inicio"
-                className="bg-black/20 text-white placeholder:text-white/80 border-none rounded-full text-center h-12 flex-1"
-              />
-              <Input
-                type="text"
-                placeholder="Fecha de Fin"
-                className="bg-black/20 text-white placeholder:text-white/80 border-none rounded-full text-center h-12 flex-1"
-              />
+              <DatePicker placeholder="Fecha de inicio" />
+              <DatePicker placeholder="Fecha de Fin" />
               <Input
                 type="text"
                 placeholder="Empresa"
