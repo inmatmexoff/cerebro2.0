@@ -50,7 +50,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-8">
             <DashboardCard title="ETIQUETAS DEL MES" value="1,234" />
             <DashboardCard title="ETIQUETAS (HOY)" value="56" />
-            <DashboardCard title="EMPRESA LIDER" />
+            <DashboardCard title="EMPRESA LIDER" value="HOGARDEN"/>
             <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
             <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
           </div>
