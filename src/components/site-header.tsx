@@ -14,7 +14,7 @@ export function SiteHeader() {
       <Sheet>
         <SheetTrigger asChild>
           <Button variant="ghost" className="p-0 h-auto w-auto hover:bg-transparent">
-            <Menu className="w-12 h-12 text-gray-800" />
+            <Menu className="w-24 h-24 text-gray-800" />
           </Button>
         </SheetTrigger>
         <SheetContent side="left">
@@ -26,7 +26,7 @@ export function SiteHeader() {
         variant="ghost"
         className="p-0 h-auto w-auto text-primary hover:bg-transparent hover:text-primary"
       >
-        <ArrowDownCircle className="w-12 h-12" />
+        <ArrowDownCircle className="w-24 h-24" />
       </Button>
     </header>
   )
