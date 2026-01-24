@@ -9,7 +9,7 @@ export function SiteHeader() {
     <header className="flex justify-between items-center mb-8">
       <div className="flex items-center gap-x-4">
         <Button variant="ghost" className="hover:bg-transparent">
-          <FaBars size={32} className="text-primary" />
+          <FaBars size={32} style={{ color: '#137547' }} />
         </Button>
         <h1 className="text-4xl font-bold text-gray-800">Dashboard</h1>
       </div>
