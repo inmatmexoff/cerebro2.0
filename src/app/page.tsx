@@ -62,10 +62,10 @@ export default function DashboardPage() {
               <p className="text-5xl font-bold text-primary mt-2">56</p>
             </div>
             <div
-              className="rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center text-white"
-              style={{ borderColor: "#137547", backgroundColor: "#137547", height: 215 }}
+              className="rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center"
+              style={{ borderColor: "#137547", height: 215 }}
             >
-               <h3 className="text-2xl font-bold">EMPRESA LIDER</h3>
+               <h3 className="text-2xl font-bold text-primary">EMPRESA LIDER</h3>
             </div>
             <div
               className="rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center text-white"
