@@ -6,8 +6,8 @@ import { CompanySelect } from "@/components/company-select";
 
 function StatCard({ title, value }: { title: string; value: string }) {
   return (
-    <Card className="border-2 border-primary rounded-xl shadow-md">
-      <CardContent className="text-center pt-6">
+    <Card className="border-2 border-primary rounded-xl shadow-md h-[215px]">
+      <CardContent className="text-center p-6 flex flex-col justify-center h-full">
         <p className="text-sm text-muted-foreground uppercase tracking-wider">{title}</p>
         <p className="text-5xl font-bold text-chart-2 mt-2">{value}</p>
       </CardContent>
@@ -17,8 +17,8 @@ function StatCard({ title, value }: { title: string; value: string }) {
 
 function UpcomingCard({ title }: { title: string }) {
   return (
-    <Card className="bg-primary text-primary-foreground rounded-xl shadow-md">
-      <CardContent className="flex items-center justify-center h-full pt-6 min-h-[140px]">
+    <Card className="bg-primary text-primary-foreground rounded-xl shadow-md h-[215px]">
+      <CardContent className="flex items-center justify-center h-full p-6">
         <p className="font-semibold text-lg uppercase tracking-wider">{title}</p>
       </CardContent>
     </Card>
