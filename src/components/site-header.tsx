@@ -1,7 +1,8 @@
 'use client'
 
 import { Button } from "@/components/ui/button"
-import { FaBars, FaDownload } from "react-icons/fa6";
+import { FaBars } from "react-icons/fa6";
+import { FiDownloadCloud } from "react-icons/fi";
 
 export function SiteHeader() {
   return (
@@ -13,7 +14,7 @@ export function SiteHeader() {
         <h1 className="text-4xl font-bold text-gray-800">Dashboard</h1>
       </div>
       <Button className="h-24 w-24 bg-[#BABE65] hover:bg-[#A9AD5A] rounded-2xl">
-        <FaDownload className="h-16 w-16 text-gray-700" />
+        <FiDownloadCloud className="h-16 w-16 text-gray-700" />
       </Button>
     </header>
   )
