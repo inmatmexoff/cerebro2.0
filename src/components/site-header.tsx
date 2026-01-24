@@ -25,9 +25,9 @@ export function SiteHeader() {
       <Button
         variant="ghost"
         size="icon"
-        className="text-primary border-2 border-primary rounded-full w-12 h-12"
+        className="text-primary rounded-full w-12 h-12 hover:bg-transparent hover:text-primary"
       >
-        <ArrowDownCircle className="w-8 h-8" />
+        <ArrowDownCircle className="w-10 h-10" />
       </Button>
     </header>
   )
