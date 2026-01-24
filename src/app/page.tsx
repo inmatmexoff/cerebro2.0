@@ -46,7 +46,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-8">
             <div
               className="rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center"
               style={{ borderColor: "#137547", height: 215 }}
@@ -65,7 +65,13 @@ export default function DashboardPage() {
               className="rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center text-white"
               style={{ borderColor: "#137547", backgroundColor: "#137547", height: 215 }}
             >
-               <h3 className="text-2xl font-bold">PRÓXIMAMENTE</h3>
+               <h3 className="text-2xl font-bold">EMPRESA LIDER</h3>
+            </div>
+            <div
+              className="rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center text-white"
+              style={{ borderColor: "#137547", backgroundColor: "#137547", height: 215 }}
+            >
+              <h3 className="text-2xl font-bold">PRÓXIMAMENTE</h3>
             </div>
             <div
               className="rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center text-white"
