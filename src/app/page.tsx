@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Menu, ArrowDownCircle } from "lucide-react";
+import { SiteHeader } from "@/components/site-header";
 
 function StatCard({ title, value }: { title: string; value: string }) {
   return (
@@ -28,19 +28,7 @@ export default function DashboardPage() {
   return (
     <div className="bg-background min-h-screen p-4 sm:p-6 md:p-8">
       <div className="max-w-screen-xl mx-auto">
-        <header className="flex justify-between items-center mb-8">
-          <Button variant="ghost" size="icon" className="w-12 h-12">
-            <Menu className="w-8 h-8 text-gray-800" />
-          </Button>
-          <h1 className="text-4xl font-bold text-gray-800">Dashboard</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-primary border-2 border-primary rounded-full w-12 h-12"
-          >
-            <ArrowDownCircle className="w-8 h-8" />
-          </Button>
-        </header>
+        <SiteHeader />
 
         <main>
           <div className="flex flex-col lg:flex-row items-center gap-4 mb-8">
