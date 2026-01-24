@@ -48,21 +48,31 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
             <div
-              className="rounded-2xl shadow-lg border"
+              className="rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center"
               style={{ borderColor: "#137547", height: 215 }}
-            ></div>
+            >
+              <h3 className="text-xl font-semibold text-gray-700">ETIQUETAS DEL MES</h3>
+              <p className="text-5xl font-bold text-primary mt-2">1,234</p>
+            </div>
             <div
-              className="rounded-2xl shadow-lg border"
+              className="rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center"
               style={{ borderColor: "#137547", height: 215 }}
-            ></div>
+            >
+              <h3 className="text-xl font-semibold text-gray-700">ETIQUETAS (HOY)</h3>
+              <p className="text-5xl font-bold text-primary mt-2">56</p>
+            </div>
             <div
-              className="rounded-2xl shadow-lg border"
-              style={{ borderColor: "#137547", height: 215 }}
-            ></div>
+              className="rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center text-white"
+              style={{ borderColor: "#137547", backgroundColor: "#137547", height: 215 }}
+            >
+               <h3 className="text-2xl font-bold">PRÓXIMAMENTE</h3>
+            </div>
             <div
-              className="rounded-2xl shadow-lg border"
-              style={{ borderColor: "#137547", height: 215 }}
-            ></div>
+              className="rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center text-white"
+              style={{ borderColor: "#137547", backgroundColor: "#137547", height: 215 }}
+            >
+              <h3 className="text-2xl font-bold">PRÓXIMAMENTE</h3>
+            </div>
           </div>
 
           <div className="mt-8 flex justify-center">
