@@ -14,15 +14,15 @@ export function CompanySelect() {
   const [value, setValue] = React.useState<string>()
 
   return (
-    <div className="flex-1">
+    <div className="w-full">
         <Select onValueChange={setValue} value={value}>
         <SelectTrigger
             className={cn(
-              "bg-black/20 border-none rounded-full h-12 w-full px-4 font-normal hover:bg-black/30 focus-visible:ring-0 focus-visible:ring-offset-0",
+              "bg-black/20 border-none rounded-full h-10 w-full px-4 font-normal hover:bg-black/30 focus-visible:ring-0 focus-visible:ring-offset-0",
               !value ? "text-white/80" : "text-white"
             )}
         >
-            <SelectValue placeholder="Empresa" />
+            <SelectValue />
         </SelectTrigger>
         <SelectContent>
             <SelectItem value="mtm">MTM</SelectItem>
