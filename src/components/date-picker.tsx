@@ -1,47 +1,46 @@
 "use client"
 
 import * as React from "react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale/es"
+import AirDatepicker from 'air-datepicker'
+import localeEs from 'air-datepicker/locale/es'
 
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 
 export function DatePicker() {
-  const [date, setDate] = React.useState<Date>()
-  const [open, setOpen] = React.useState(false)
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const dpInstance = React.useRef<AirDatepicker|null>(null);
+  const [date, setDate] = React.useState<Date | null>(null);
+
+  React.useEffect(() => {
+    if (inputRef.current && !dpInstance.current) {
+        dpInstance.current = new AirDatepicker(inputRef.current, {
+            locale: localeEs,
+            autoClose: true,
+            dateFormat: "dd 'de' MMMM 'de' yyyy",
+            onSelect: ({date}) => {
+                setDate(date as Date);
+            }
+        });
+    }
+
+    // Cleanup function
+    return () => {
+        if (dpInstance.current) {
+            dpInstance.current.destroy();
+            dpInstance.current = null;
+        }
+    }
+  }, []);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "bg-black/20 text-white border-none rounded-full text-center h-10 w-full justify-center font-normal hover:bg-black/30 hover:text-white",
-            !date && "text-white/80"
-          )}
-        >
-          {date ? format(date, "dd 'de' MMMM 'de' yyyy", { locale: es }) : <span>&nbsp;</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={(day) => {
-            setDate(day)
-            setOpen(false)
-          }}
-          initialFocus
-          locale={es}
-        />
-      </PopoverContent>
-    </Popover>
+    <input
+      ref={inputRef}
+      readOnly
+      placeholder="&nbsp;"
+      className={cn(
+        "bg-black/20 text-white border-none rounded-full text-center h-10 w-full justify-center font-normal hover:bg-black/30 hover:text-white cursor-pointer",
+        !date && "text-white/80"
+      )}
+    />
   )
 }
