@@ -16,7 +16,15 @@ export function DatePicker() {
         dpInstance.current = new AirDatepicker(inputRef.current, {
             locale: localeEs,
             autoClose: true,
-            dateFormat: "dd 'de' MMMM 'de' yyyy",
+            dateFormat: (date) => {
+              if (!date || Array.isArray(date)) {
+                return '';
+              }
+              const day = date.getDate();
+              const month = localeEs.months[date.getMonth()];
+              const year = date.getFullYear();
+              return `${day} de ${month} de ${year}`;
+            },
             onSelect: ({date}) => {
                 setDate(date as Date);
             }
