@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { DayPicker } from "react-day-picker"
-import { format } from "date-fns"
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi"
 
 import { cn } from "@/lib/utils"
@@ -53,11 +52,6 @@ function Calendar({
           "aria-selected:bg-accent aria-selected:text-accent-foreground",
         day_hidden: "invisible",
         ...classNames,
-      }}
-      formatters={{
-        formatWeekdayName: (day, options) => {
-          return format(day, "EEEEEE", { locale: options?.locale })
-        }
       }}
       components={{
         IconLeft: ({ className, ...props }) => (
