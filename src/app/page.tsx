@@ -350,6 +350,7 @@ export default function DashboardPage() {
     const pieChartSeries = useMemo(() => ([{
         data: chartData,
         valueFormatter,
+        highlightScope: { faded: 'global', highlighted: 'item' },
     }]), [chartData, valueFormatter]);
 
   return (
@@ -435,20 +436,24 @@ export default function DashboardPage() {
               style={{ borderColor: "#DCE1DE" }}
             />
           </div>
-          <div className="mt-8 flex justify-center" style={{ minHeight: '200px' }}>
-            {chartData.length > 0 && (
-                <PieChart
-                    series={pieChartSeries}
-                    slotProps={{
-                        legend: {
-                          direction: 'column',
-                          position: { vertical: 'middle', horizontal: 'right' },
-                        },
-                    }}
-                    margin={{ right: 150 }}
-                    width={700}
-                    height={200}
-                />
+          <div className="mt-8 flex justify-center items-center" style={{ minHeight: '200px' }}>
+            {isLoading ? (
+              <p className="text-gray-500 font-semibold">Cargando gráfico...</p>
+            ) : chartData.length > 0 ? (
+              <PieChart
+                  series={pieChartSeries}
+                  slotProps={{
+                      legend: {
+                        direction: 'column',
+                        position: { vertical: 'middle', horizontal: 'right' },
+                      },
+                  }}
+                  margin={{ right: 150 }}
+                  width={700}
+                  height={200}
+              />
+            ) : (
+              <p className="text-gray-500 font-semibold">No hay datos para mostrar.</p>
             )}
           </div>
           <div className="mt-8 flex justify-center">
