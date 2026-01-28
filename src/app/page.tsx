@@ -21,12 +21,12 @@ async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: 
       if (filters?.startDate || filters?.endDate) {
         if (filters.startDate) {
           const startOfDay = new Date(filters.startDate);
-          startOfDay.setHours(0, 0, 0, 0);
+          startOfDay.setUTCHours(0, 0, 0, 0);
           query = query.gte('created_at', startOfDay.toISOString());
         }
         if (filters.endDate) {
           const endOfDay = new Date(filters.endDate);
-          endOfDay.setHours(23, 59, 59, 999);
+          endOfDay.setUTCHours(23, 59, 59, 999);
           query = query.lte('created_at', endOfDay.toISOString());
         }
       } else { // If no specific dates, default to today
@@ -70,7 +70,7 @@ async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: 
   
 async function getLeadingCompany(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
     if (filters?.company) {
-        return filters.company;
+        return filters.company.replace(/-/g, ' ').toUpperCase();
     }
 
     try {
@@ -81,12 +81,12 @@ async function getLeadingCompany(filters?: { startDate?: Date | null, endDate?: 
       if (filters?.startDate || filters?.endDate) {
         if (filters.startDate) {
           const startOfDay = new Date(filters.startDate);
-          startOfDay.setHours(0, 0, 0, 0);
+          startOfDay.setUTCHours(0, 0, 0, 0);
           query = query.gte('created_at', startOfDay.toISOString());
         }
         if (filters.endDate) {
           const endOfDay = new Date(filters.endDate);
-          endOfDay.setHours(23, 59, 59, 999);
+          endOfDay.setUTCHours(23, 59, 59, 999);
           query = query.lte('created_at', endOfDay.toISOString());
         }
       } else { // Default to today
@@ -145,6 +145,52 @@ async function getLeadingCompany(filters?: { startDate?: Date | null, endDate?: 
     }
 }
 
+async function getMonthlyEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
+    try {
+      let query = supabasePROD
+        .from("etiquetas_i")
+        .select('*', { count: 'exact', head: true });
+
+      if (filters?.company) {
+        query = query.eq('organization', filters.company);
+      }
+
+      if (filters?.startDate || filters?.endDate) {
+        if (filters.startDate) {
+          const startOfDay = new Date(filters.startDate);
+          startOfDay.setUTCHours(0, 0, 0, 0);
+          query = query.gte('created_at', startOfDay.toISOString());
+        }
+        if (filters.endDate) {
+          const endOfDay = new Date(filters.endDate);
+          endOfDay.setUTCHours(23, 59, 59, 999);
+          query = query.lte('created_at', endOfDay.toISOString());
+        }
+      } else { 
+        const now = new Date();
+        const firstDayOfMonthUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const lastDayOfMonthUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+        query = query.gte('created_at', firstDayOfMonthUTC.toISOString()).lte('created_at', lastDayOfMonthUTC.toISOString());
+      }
+      
+      const { count, error } = await query;
+
+      if (error) {
+        console.error("Error fetching monthly etiquetas count:", error.message);
+        return 0;
+      }
+
+      return count ?? 0;
+    } catch (error) {
+      if (error instanceof Error) {
+          console.error("Error in getMonthlyEtiquetasCount:", error.message);
+      } else {
+          console.error("An unknown error occurred in getMonthlyEtiquetasCount:", error);
+      }
+      return 0;
+    }
+}
+
 export default function DashboardPage() {
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [endDate, setEndDate] = useState<Date | null>(null);
@@ -152,25 +198,28 @@ export default function DashboardPage() {
   
     const [etiquetasCount, setEtiquetasCount] = useState<number | string>('...');
     const [leadingCompany, setLeadingCompany] = useState<string>('...');
-    const [monthlyEtiquetasCount, setMonthlyEtiquetasCount] = useState<string>("1,234");
+    const [monthlyEtiquetasCount, setMonthlyEtiquetasCount] = useState<number | string>('...');
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchData = useCallback(async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
         setIsLoading(true);
         setEtiquetasCount('...');
         setLeadingCompany('...');
+        setMonthlyEtiquetasCount('...');
 
         const companyFilter = filters.company 
             ? filters.company.replace(/-/g, ' ').toUpperCase() 
             : undefined;
 
-        const [count, leader] = await Promise.all([
+        const [count, leader, monthlyCount] = await Promise.all([
           getEtiquetasCount({ ...filters, company: companyFilter }),
           getLeadingCompany({ ...filters, company: companyFilter }),
+          getMonthlyEtiquetasCount({ ...filters, company: companyFilter }),
         ]);
     
         setEtiquetasCount(count);
         setLeadingCompany(leader);
+        setMonthlyEtiquetasCount(monthlyCount);
         setIsLoading(false);
       }, []);
 
@@ -191,6 +240,7 @@ export default function DashboardPage() {
 
     const countCardTitle = (startDate || endDate || company) ? "ETIQUETAS" : "ETIQUETAS (HOY)";
     const leaderCardTitle = company ? "EMPRESA" : "EMPRESA LIDER";
+    const monthlyCardTitle = (startDate || endDate || company) ? "ETIQUETAS" : "ETIQUETAS DEL MES";
 
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
@@ -239,7 +289,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-8">
-            <DashboardCard title="ETIQUETAS DEL MES" value={monthlyEtiquetasCount} />
+            <DashboardCard title={monthlyCardTitle} value={monthlyEtiquetasCount} />
             <DashboardCard title={countCardTitle} value={etiquetasCount} />
             <DashboardCard title={leaderCardTitle} value={leadingCompany}/>
             <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
