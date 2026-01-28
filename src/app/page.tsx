@@ -297,7 +297,6 @@ export default function DashboardPage() {
         setEtiquetasCount('...');
         setLeadingCompany('...');
         setMonthlyEtiquetasCount('...');
-        setChartData([]);
 
         const companyFilter = filters.company 
             ? filters.company.replace(/-/g, ' ').toUpperCase() 
@@ -336,7 +335,7 @@ export default function DashboardPage() {
         fetchData({});
     };
 
-    const valueFormatter = (item: { value: number }) => `${item.value}`;
+    const valueFormatter = useCallback((item: { value: number }) => `${item.value}`, []);
 
     const isFilterApplied = !!(startDate || endDate || company);
     const countCardTitle = "ETIQUETAS (HOY)";
