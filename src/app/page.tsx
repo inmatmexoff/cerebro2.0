@@ -9,6 +9,7 @@ import { supabasePROD } from "@/lib/supabase";
 import React, { useState, useEffect, useCallback } from "react";
 import { PieChart } from '@mui/x-charts/PieChart';
 import UsersTable from "@/components/users-table";
+import { ClientOnly } from "@/components/client-only";
 
 async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
     try {
@@ -425,8 +426,8 @@ export default function DashboardPage() {
               style={{ borderColor: "#DCE1DE" }}
             />
           </div>
-          <div style={{display: chartData.length > 0 ? 'contents' : 'none'}}>
-            <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex justify-center" style={{ minHeight: chartData.length > 0 ? '200px' : '0' }}>
+            {chartData.length > 0 && (
                 <PieChart
                     series={[
                         {
@@ -444,16 +445,18 @@ export default function DashboardPage() {
                     width={700}
                     height={200}
                 />
-            </div>
-            <div className="mt-8 flex justify-center">
+            )}
+          </div>
+          <div className="mt-8 flex justify-center">
               <hr
                 className="w-[70%]"
                 style={{ borderColor: "#DCE1DE" }}
               />
-            </div>
           </div>
           <div className="mt-8">
-            <UsersTable />
+            <ClientOnly>
+              <UsersTable />
+            </ClientOnly>
           </div>
         </main>
       </div>
