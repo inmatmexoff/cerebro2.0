@@ -16,9 +16,16 @@ export function DashboardCard({
   const isPaloDeRosa = (val: any) =>
     typeof val === "string" && val.toUpperCase() === "PALO DE ROSA";
 
+  const isDomeska = (val: any) =>
+    typeof val === "string" && val.toUpperCase() === "DOMESKA";
+
   const valueClassName = cn(
     "font-bold text-primary mt-2 break-all",
-    isPaloDeRosa(value) ? "text-2xl" : "text-5xl"
+    isPaloDeRosa(value)
+      ? "text-2xl"
+      : isDomeska(value)
+      ? "text-4xl"
+      : "text-5xl"
   );
 
   return (
