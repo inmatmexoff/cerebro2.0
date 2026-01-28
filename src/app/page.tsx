@@ -349,8 +349,6 @@ export default function DashboardPage() {
 
     const pieChartSeries = useMemo(() => ([{
         data: chartData,
-        highlightScope: { faded: 'global', highlight: 'item' },
-        faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
         valueFormatter,
     }]), [chartData, valueFormatter]);
 
