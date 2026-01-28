@@ -16,7 +16,7 @@ export function SiteHeader() {
         size="icon"
         className="hover:bg-transparent w-20 h-20 [&_svg]:!w-auto [&_svg]:!h-auto"
       >
-        <FiDownloadCloud style={{ color: '#137547', width: '40px', height: '40px' }}/>
+        <FiDownloadCloud style={{ color: '#137547', width: '60px', height: '60px' }}/>
       </Button>
     </header>
   )
