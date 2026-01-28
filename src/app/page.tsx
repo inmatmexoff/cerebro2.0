@@ -166,10 +166,12 @@ export default function DashboardPage() {
         setIsLoading(true);
         setEtiquetasCount('...');
         setLeadingCompany('...');
-    
+
+        const companyFilter = filters.company ? (filters.company.toUpperCase()) : undefined;
+
         const [count, leader] = await Promise.all([
-          getEtiquetasCount(filters),
-          getLeadingCompany(filters),
+          getEtiquetasCount({ ...filters, company: companyFilter }),
+          getLeadingCompany({ ...filters, company: companyFilter }),
         ]);
     
         setEtiquetasCount(count);
