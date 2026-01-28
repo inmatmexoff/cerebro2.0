@@ -421,8 +421,13 @@ export default function DashboardPage() {
                             valueFormatter,
                         },
                     ]}
+                    legend={{
+                        direction: 'column',
+                        position: { vertical: 'middle', horizontal: 'right' },
+                        padding: 0,
+                    }}
+                    width={500}
                     height={200}
-                    width={200}
                 />
             </div>
           )}
