@@ -441,6 +441,7 @@ export default function DashboardPage() {
               <p className="text-gray-500 font-semibold">Cargando gráfico...</p>
             ) : chartData.length > 0 ? (
               <PieChart
+                  key={JSON.stringify(chartData)}
                   series={pieChartSeries}
                   slotProps={{
                       legend: {
