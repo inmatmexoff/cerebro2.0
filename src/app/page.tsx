@@ -425,35 +425,33 @@ export default function DashboardPage() {
               style={{ borderColor: "#DCE1DE" }}
             />
           </div>
-          {chartData.length > 0 && (
-            <>
-              <div className="mt-8 flex justify-center">
-                  <PieChart
-                      series={[
-                          {
-                              data: chartData,
-                              highlightScope: { faded: 'global', highlight: 'item' },
-                              faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
-                              valueFormatter,
-                          },
-                      ]}
-                      legend={{
-                          direction: 'column',
-                          position: { vertical: 'middle', horizontal: 'right' },
-                      }}
-                      margin={{ right: 150 }}
-                      width={700}
-                      height={200}
-                  />
-              </div>
-              <div className="mt-8 flex justify-center">
-                <hr
-                  className="w-[70%]"
-                  style={{ borderColor: "#DCE1DE" }}
+          <div style={{display: chartData.length > 0 ? 'contents' : 'none'}}>
+            <div className="mt-8 flex justify-center">
+                <PieChart
+                    series={[
+                        {
+                            data: chartData,
+                            highlightScope: { faded: 'global', highlight: 'item' },
+                            faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
+                            valueFormatter,
+                        },
+                    ]}
+                    legend={{
+                        direction: 'column',
+                        position: { vertical: 'middle', horizontal: 'right' },
+                    }}
+                    margin={{ right: 150 }}
+                    width={700}
+                    height={200}
                 />
-              </div>
-            </>
-          )}
+            </div>
+            <div className="mt-8 flex justify-center">
+              <hr
+                className="w-[70%]"
+                style={{ borderColor: "#DCE1DE" }}
+              />
+            </div>
+          </div>
           <div className="mt-8">
             <UsersTable />
           </div>
