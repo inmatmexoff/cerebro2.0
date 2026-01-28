@@ -425,25 +425,33 @@ export default function DashboardPage() {
             />
           </div>
           {chartData.length > 0 && (
-            <div className="mt-8 flex justify-center">
-                <PieChart
-                    series={[
-                        {
-                            data: chartData,
-                            highlightScope: { faded: 'global', highlight: 'item' },
-                            faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
-                            valueFormatter,
-                        },
-                    ]}
-                    legend={{
-                        direction: 'column',
-                        position: { vertical: 'middle', horizontal: 'right' },
-                        padding: 0,
-                    }}
-                    width={500}
-                    height={200}
+            <>
+              <div className="mt-8 flex justify-center">
+                  <PieChart
+                      series={[
+                          {
+                              data: chartData,
+                              highlightScope: { faded: 'global', highlight: 'item' },
+                              faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
+                              valueFormatter,
+                          },
+                      ]}
+                      legend={{
+                          direction: 'column',
+                          position: { vertical: 'middle', horizontal: 'right' },
+                          padding: 0,
+                      }}
+                      width={500}
+                      height={200}
+                  />
+              </div>
+              <div className="mt-8 flex justify-center">
+                <hr
+                  className="w-[70%]"
+                  style={{ borderColor: "#DCE1DE" }}
                 />
-            </div>
+              </div>
+            </>
           )}
         </main>
       </div>
