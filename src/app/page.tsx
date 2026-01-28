@@ -297,6 +297,11 @@ export default function DashboardPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [chartIsVisible, setChartIsVisible] = useState(true);
 
+    const isFilterApplied = !!(startDate || endDate || company);
+    const countCardTitle = isFilterApplied ? 'ETIQUETAS (FILTRADO)' : 'ETIQUETAS (HOY)';
+    const monthlyCardTitle = 'ETIQUETAS (MES)';
+    const leaderCardTitle = isFilterApplied ? 'LÍDER (FILTRADO)' : 'EMPRESA LÍDER';
+
     const fetchData = async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
         setIsLoading(true);
         setEtiquetasCount('...');
@@ -345,14 +350,18 @@ export default function DashboardPage() {
 
     const valueFormatter = useCallback((item: { value: number }) => `${item.value}`, []);
 
-    const isFilterApplied = !!(startDate || endDate || company);
-    const countCardTitle = "ETIQUETAS (HOY)";
-    const leaderCardTitle = company ? "EMPRESA" : "EMPRESA LIDER";
-    const monthlyCardTitle = "ETIQUETAS DEL MES";
-
     const chartKey = useMemo(() => {
         return (startDate?.getTime() || 'start') + '-' + (endDate?.getTime() || 'end') + '-' + (company || 'all');
     }, [startDate, endDate, company]);
+    
+    const pieChartSeries = useMemo(() => {
+        return [{
+            data: chartData,
+            valueFormatter,
+            highlightScope: { faded: 'global', highlighted: 'item' },
+        }];
+    }, [chartData, valueFormatter]);
+
 
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
@@ -407,7 +416,7 @@ export default function DashboardPage() {
               </p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-              {isFilterApplied && etiquetasCount > 0 && etiquetasCount === monthlyEtiquetasCount ? (
+              {isFilterApplied && typeof etiquetasCount === 'number' && etiquetasCount > 0 && etiquetasCount === monthlyEtiquetasCount ? (
                 <DashboardCard
                   className="lg:col-span-2"
                   title="ETIQUETAS"
@@ -444,11 +453,7 @@ export default function DashboardPage() {
               chartData.length > 0 ? (
                 <PieChart
                     key={chartKey}
-                    series={[{
-                        data: chartData,
-                        valueFormatter,
-                        highlightScope: { faded: 'global', highlighted: 'item' },
-                    }]}
+                    series={pieChartSeries}
                     slotProps={{
                         legend: {
                           direction: 'column',
