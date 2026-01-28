@@ -262,7 +262,7 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
         'PALO DE ROSA': '#FFB6C1' // Rosa
       };
   
-      return Object.entries(counts).map(([label, value]) => {
+      const result = Object.entries(counts).map(([label, value]) => {
         const upperLabel = label.toUpperCase();
         return ({
             id: upperLabel,
@@ -271,6 +271,10 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
             color: colorMap[upperLabel] || '#cccccc'
         })
       });
+
+      result.sort((a, b) => a.label.localeCompare(b.label));
+      
+      return result;
     } catch (error) {
       if (error instanceof Error) {
           console.error("Error in getEtiquetasPorEmpresa:", error.message);
@@ -322,7 +326,7 @@ export default function DashboardPage() {
 
     useEffect(() => {
         fetchData({});
-    }, [fetchData]);
+    }, []);
 
     const handleFilter = () => {
         fetchData({ startDate, endDate, company });
