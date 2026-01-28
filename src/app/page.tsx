@@ -50,8 +50,50 @@ async function getTodaysEtiquetasCount() {
   }
 }
 
+async function getLeadingCompany() {
+  try {
+    const { data, error } = await supabasePROD
+      .from('etiquetas_i')
+      .select('organization');
+
+    if (error) {
+      console.error("Error fetching organizations:", error.message);
+      return "N/A";
+    }
+
+    if (!data || data.length === 0) {
+      return "N/A";
+    }
+
+    const counts: { [key: string]: number } = data.reduce((acc: { [key: string]: number }, { organization }) => {
+      if (organization) {
+        acc[organization] = (acc[organization] || 0) + 1;
+      }
+      return acc;
+    }, {});
+
+    if (Object.keys(counts).length === 0) {
+      return "N/A";
+    }
+
+    const leadingCompany = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+    
+    return leadingCompany;
+  } catch (error) {
+    if (error instanceof Error) {
+        console.error("Error in getLeadingCompany:", error.message);
+    } else {
+        console.error("An unknown error occurred in getLeadingCompany:", error);
+    }
+    return "N/A";
+  }
+}
+
 export default async function DashboardPage() {
-  const todaysEtiquetasCount = await getTodaysEtiquetasCount();
+  const [todaysEtiquetasCount, leadingCompany] = await Promise.all([
+    getTodaysEtiquetasCount(),
+    getLeadingCompany()
+  ]);
 
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
@@ -98,7 +140,7 @@ export default async function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-8">
             <DashboardCard title="ETIQUETAS DEL MES" value="1,234" />
             <DashboardCard title="ETIQUETAS (HOY)" value={todaysEtiquetasCount} />
-            <DashboardCard title="EMPRESA LIDER" value="MTM"/>
+            <DashboardCard title="EMPRESA LIDER" value={leadingCompany}/>
             <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
             <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
           </div>
