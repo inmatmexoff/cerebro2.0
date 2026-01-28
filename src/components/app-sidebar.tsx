@@ -65,9 +65,14 @@ export function AppSidebar() {
       <SidebarHeader>
         <AppLogo />
       </SidebarHeader>
-       <div className="relative p-2">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <SidebarInput placeholder="Search" className="pl-8 rounded-lg" />
+      <div className="p-2">
+        <SidebarMenuButton tooltip="Search" className="w-full justify-center group-data-[state=expanded]/sidebar:hidden">
+          <Search />
+        </SidebarMenuButton>
+        <div className="relative group-data-[state=collapsed]/sidebar:hidden">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <SidebarInput placeholder="Search" className="pl-8 rounded-lg" />
+        </div>
       </div>
       <SidebarContent>
         <SidebarMenu>
