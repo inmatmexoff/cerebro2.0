@@ -440,8 +440,8 @@ export default function DashboardPage() {
                       legend={{
                           direction: 'column',
                           position: { vertical: 'middle', horizontal: 'right' },
-                          padding: 100,
                       }}
+                      margin={{ right: 150 }}
                       width={700}
                       height={200}
                   />
