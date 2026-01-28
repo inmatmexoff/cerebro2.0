@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard-card";
 import { supabasePROD } from "@/lib/supabase";
 import React, { useState, useEffect, useCallback } from "react";
+import { PieChart } from '@mui/x-charts/PieChart';
 
 async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
     try {
@@ -70,7 +71,7 @@ async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: 
   
 async function getLeadingCompany(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
     if (filters?.company) {
-        return filters.company.replace(/-/g, ' ').toUpperCase();
+        return filters.company;
     }
 
     try {
@@ -191,6 +192,81 @@ async function getMonthlyEtiquetasCount(filters?: { startDate?: Date | null, end
     }
 }
 
+async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDate?: Date | null }) {
+    try {
+      let query = supabasePROD
+        .from('etiquetas_i')
+        .select('organization');
+  
+      if (filters?.startDate || filters?.endDate) {
+        if (filters.startDate) {
+          const startOfDay = new Date(filters.startDate);
+          startOfDay.setUTCHours(0, 0, 0, 0);
+          query = query.gte('created_at', startOfDay.toISOString());
+        }
+        if (filters.endDate) {
+          const endOfDay = new Date(filters.endDate);
+          endOfDay.setUTCHours(23, 59, 59, 999);
+          query = query.lte('created_at', endOfDay.toISOString());
+        }
+      } else { // Default to today
+        const now = new Date();
+        const startOfDayMexicoInUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 6, 0, 0, 0));
+        
+        let gte, lt;
+  
+        if (now.getTime() < startOfDayMexicoInUTC.getTime()) {
+          lt = startOfDayMexicoInUTC.toISOString();
+          const gteDate = new Date(startOfDayMexicoInUTC);
+          gteDate.setUTCDate(gteDate.getUTCDate() - 1);
+          gte = gteDate.toISOString();
+        } else {
+          gte = startOfDayMexicoInUTC.toISOString();
+          const ltDate = new Date(startOfDayMexicoInUTC);
+          ltDate.setUTCDate(ltDate.getUTCDate() + 1);
+          lt = ltDate.toISOString();
+        }
+        
+        query = query.gte('created_at', gte).lt('created_at', lt);
+      }
+  
+      const { data, error } = await query;
+  
+      if (error) {
+        console.error("Error fetching organizations for chart:", error.message);
+        return [];
+      }
+  
+      if (!data || data.length === 0) {
+        return [];
+      }
+  
+      const counts: { [key: string]: number } = data.reduce((acc: { [key: string]: number }, { organization }) => {
+        if (organization) {
+          acc[organization] = (acc[organization] || 0) + 1;
+        }
+        return acc;
+      }, {});
+  
+      if (Object.keys(counts).length === 0) {
+        return [];
+      }
+  
+      return Object.entries(counts).map(([label, value], id) => ({
+          id,
+          value,
+          label: label.toUpperCase(),
+      }));
+    } catch (error) {
+      if (error instanceof Error) {
+          console.error("Error in getEtiquetasPorEmpresa:", error.message);
+      } else {
+          console.error("An unknown error occurred in getEtiquetasPorEmpresa:", error);
+      }
+      return [];
+    }
+}
+
 export default function DashboardPage() {
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [endDate, setEndDate] = useState<Date | null>(null);
@@ -199,6 +275,7 @@ export default function DashboardPage() {
     const [etiquetasCount, setEtiquetasCount] = useState<number | string>('...');
     const [leadingCompany, setLeadingCompany] = useState<string>('...');
     const [monthlyEtiquetasCount, setMonthlyEtiquetasCount] = useState<number | string>('...');
+    const [chartData, setChartData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchData = useCallback(async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
@@ -206,20 +283,25 @@ export default function DashboardPage() {
         setEtiquetasCount('...');
         setLeadingCompany('...');
         setMonthlyEtiquetasCount('...');
+        setChartData([]);
 
         const companyFilter = filters.company 
             ? filters.company.replace(/-/g, ' ').toUpperCase() 
             : undefined;
 
-        const [count, leader, monthlyCount] = await Promise.all([
+        const { company, ...dateFilters } = filters;
+
+        const [count, leader, monthlyCount, etiquetasPorEmpresa] = await Promise.all([
           getEtiquetasCount({ ...filters, company: companyFilter }),
           getLeadingCompany({ ...filters, company: companyFilter }),
           getMonthlyEtiquetasCount({ ...filters, company: companyFilter }),
+          getEtiquetasPorEmpresa(dateFilters),
         ]);
     
         setEtiquetasCount(count);
         setLeadingCompany(leader);
         setMonthlyEtiquetasCount(monthlyCount);
+        setChartData(etiquetasPorEmpresa);
         setIsLoading(false);
       }, []);
 
@@ -237,6 +319,8 @@ export default function DashboardPage() {
         setCompany(undefined);
         fetchData({});
     };
+
+    const valueFormatter = (item: { value: number }) => `${item.value}`;
 
     const isFilterApplied = !!(startDate || endDate || company);
     const countCardTitle = "ETIQUETAS (HOY)";
@@ -326,6 +410,22 @@ export default function DashboardPage() {
               style={{ borderColor: "#DCE1DE" }}
             />
           </div>
+          {chartData.length > 0 && (
+            <div className="mt-8 flex justify-center">
+                <PieChart
+                    series={[
+                        {
+                            data: chartData,
+                            highlightScope: { faded: 'global', highlight: 'item' },
+                            faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
+                            valueFormatter,
+                        },
+                    ]}
+                    height={200}
+                    width={200}
+                />
+            </div>
+          )}
         </main>
       </div>
     </div>
