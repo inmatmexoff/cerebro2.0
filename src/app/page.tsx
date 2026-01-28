@@ -295,6 +295,7 @@ export default function DashboardPage() {
     const [monthlyEtiquetasCount, setMonthlyEtiquetasCount] = useState<number | string>('...');
     const [chartData, setChartData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [chartIsVisible, setChartIsVisible] = useState(true);
 
     const fetchData = async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
         setIsLoading(true);
@@ -330,6 +331,7 @@ export default function DashboardPage() {
     }, []);
 
     const handleFilter = () => {
+        setChartIsVisible(false);
         fetchData({ startDate, endDate, company });
     };
 
@@ -337,6 +339,7 @@ export default function DashboardPage() {
         setStartDate(null);
         setEndDate(null);
         setCompany(undefined);
+        setChartIsVisible(true);
         fetchData({});
     };
 
@@ -432,26 +435,32 @@ export default function DashboardPage() {
           </div>
           <div className="mt-8 flex justify-center items-center" style={{ minHeight: '200px' }}>
             {isLoading ? (
-              <p className="text-gray-500 font-semibold">Cargando gráfico...</p>
-            ) : chartData.length > 0 ? (
-              <PieChart
-                  series={[{
-                    data: chartData,
-                    valueFormatter,
-                    highlightScope: { faded: 'global', highlighted: 'item' },
-                  }]}
-                  slotProps={{
-                      legend: {
-                        direction: 'column',
-                        position: { vertical: 'middle', horizontal: 'right' },
-                      },
-                  }}
-                  margin={{ right: 150 }}
-                  width={700}
-                  height={200}
-              />
+              <p className="text-gray-500 font-semibold">Cargando...</p>
+            ) : chartIsVisible ? (
+              chartData.length > 0 ? (
+                <PieChart
+                    series={[{
+                        data: chartData,
+                        valueFormatter,
+                        highlightScope: { faded: 'global', highlighted: 'item' },
+                    }]}
+                    slotProps={{
+                        legend: {
+                          direction: 'column',
+                          position: { vertical: 'middle', horizontal: 'right' },
+                        },
+                    }}
+                    margin={{ right: 150 }}
+                    width={700}
+                    height={200}
+                />
+              ) : (
+                <p className="text-gray-500 font-semibold">No hay datos para mostrar.</p>
+              )
             ) : (
-              <p className="text-gray-500 font-semibold">No hay datos para mostrar.</p>
+                <Button onClick={() => setChartIsVisible(true)} className="bg-[#63A491] hover:bg-[#579282] text-white font-bold rounded-full text-base px-8 h-10 shadow-md">
+                    Mostrar Gráfico
+                </Button>
             )}
           </div>
           <div className="mt-8 flex justify-center">
