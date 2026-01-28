@@ -323,7 +323,7 @@ export default function DashboardPage() {
 
     useEffect(() => {
         fetchData({});
-    }, [fetchData]);
+    }, []);
 
     const handleFilter = () => {
         fetchData({ startDate, endDate, company });
@@ -426,7 +426,7 @@ export default function DashboardPage() {
               style={{ borderColor: "#DCE1DE" }}
             />
           </div>
-          <div className="mt-8 flex justify-center" style={{ minHeight: chartData.length > 0 ? '200px' : '0' }}>
+          <div className="mt-8 flex justify-center" style={{ minHeight: '200px' }}>
             {chartData.length > 0 && (
                 <PieChart
                     series={[
