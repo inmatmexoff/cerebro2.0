@@ -24,7 +24,7 @@ export function DashboardCard({
     isPaloDeRosa(value)
       ? "text-2xl"
       : isDomeska(value)
-      ? "text-4xl"
+      ? "text-3xl"
       : "text-5xl"
   );
 
