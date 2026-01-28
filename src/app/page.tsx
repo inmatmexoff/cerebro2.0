@@ -3,8 +3,56 @@ import { DatePicker } from "@/components/date-picker";
 import { CompanySelect } from "@/components/company-select";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard-card";
+import { supabasePROD } from "@/lib/supabase";
 
-export default function DashboardPage() {
+async function getTodaysEtiquetasCount() {
+  try {
+    const now = new Date();
+    // Midnight in Mexico City (UTC-6) is 06:00:00 UTC.
+    // We create a date object for the start of the current UTC day at 06:00.
+    const startOfDayMexicoInUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 6, 0, 0, 0));
+    
+    let gte, lt;
+
+    if (now.getTime() < startOfDayMexicoInUTC.getTime()) {
+      // If the current time is before 6 AM UTC, "today" in Mexico is the previous UTC day's range.
+      lt = startOfDayMexicoInUTC.toISOString();
+      const gteDate = new Date(startOfDayMexicoInUTC);
+      gteDate.setUTCDate(gteDate.getUTCDate() - 1);
+      gte = gteDate.toISOString();
+    } else {
+      // If the current time is after 6 AM UTC, "today" in Mexico is the current UTC day's range.
+      gte = startOfDayMexicoInUTC.toISOString();
+      const ltDate = new Date(startOfDayMexicoInUTC);
+      ltDate.setUTCDate(ltDate.getUTCDate() + 1);
+      lt = ltDate.toISOString();
+    }
+    
+    const { count, error } = await supabasePROD
+      .from("etiquetas_i")
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', gte)
+      .lt('created_at', lt);
+
+    if (error) {
+      console.error("Error fetching today's etiquetas count:", error.message);
+      return 0;
+    }
+
+    return count ?? 0;
+  } catch (error) {
+    if (error instanceof Error) {
+        console.error("Error in getTodaysEtiquetasCount:", error.message);
+    } else {
+        console.error("An unknown error occurred in getTodaysEtiquetasCount:", error);
+    }
+    return 0;
+  }
+}
+
+export default async function DashboardPage() {
+  const todaysEtiquetasCount = await getTodaysEtiquetasCount();
+
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
       <div className="max-w-screen-xl mx-auto">
@@ -49,7 +97,7 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-8">
             <DashboardCard title="ETIQUETAS DEL MES" value="1,234" />
-            <DashboardCard title="ETIQUETAS (HOY)" value="56" />
+            <DashboardCard title="ETIQUETAS (HOY)" value={todaysEtiquetasCount} />
             <DashboardCard title="EMPRESA LIDER" value="MTM"/>
             <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
             <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
