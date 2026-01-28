@@ -296,7 +296,7 @@ export default function DashboardPage() {
     const [chartData, setChartData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const fetchData = useCallback(async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
+    const fetchData = async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
         setIsLoading(true);
         setEtiquetasCount('...');
         setLeadingCompany('...');
@@ -322,10 +322,11 @@ export default function DashboardPage() {
         setMonthlyEtiquetasCount(monthlyCount);
         setChartData(etiquetasPorEmpresa);
         setIsLoading(false);
-      }, []);
+      };
 
     useEffect(() => {
         fetchData({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleFilter = () => {
