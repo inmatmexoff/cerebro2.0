@@ -27,7 +27,7 @@ async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: 
           nextDay.setDate(nextDay.getDate() + 1);
           query = query.lt('created_at', nextDay.toISOString());
         }
-      } else if (!filters?.company) { // Only default to today if no filters at all for dates
+      } else { // If no specific dates, default to today
         const now = new Date();
         const startOfDayMexicoInUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 6, 0, 0, 0));
         
@@ -83,13 +83,34 @@ async function getLeadingCompany(filters?: { startDate?: Date | null, endDate?: 
         .from('etiquetas_i')
         .select('organization');
   
-      if (filters?.startDate) {
-        query = query.gte('created_at', filters.startDate.toISOString());
-      }
-      if (filters?.endDate) {
-        const nextDay = new Date(filters.endDate);
-        nextDay.setDate(nextDay.getDate() + 1);
-        query = query.lt('created_at', nextDay.toISOString());
+      if (filters?.startDate || filters?.endDate) {
+        if (filters.startDate) {
+          query = query.gte('created_at', filters.startDate.toISOString());
+        }
+        if (filters.endDate) {
+          const nextDay = new Date(filters.endDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          query = query.lt('created_at', nextDay.toISOString());
+        }
+      } else { // Default to today
+        const now = new Date();
+        const startOfDayMexicoInUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 6, 0, 0, 0));
+        
+        let gte, lt;
+  
+        if (now.getTime() < startOfDayMexicoInUTC.getTime()) {
+          lt = startOfDayMexicoInUTC.toISOString();
+          const gteDate = new Date(startOfDayMexicoInUTC);
+          gteDate.setUTCDate(gteDate.getUTCDate() - 1);
+          gte = gteDate.toISOString();
+        } else {
+          gte = startOfDayMexicoInUTC.toISOString();
+          const ltDate = new Date(startOfDayMexicoInUTC);
+          ltDate.setUTCDate(ltDate.getUTCDate() + 1);
+          lt = ltDate.toISOString();
+        }
+        
+        query = query.gte('created_at', gte).lt('created_at', lt);
       }
   
       const { data, error } = await query;
@@ -168,6 +189,7 @@ export default function DashboardPage() {
     };
 
     const countCardTitle = (startDate || endDate || company) ? "ETIQUETAS" : "ETIQUETAS (HOY)";
+    const leaderCardTitle = company ? "EMPRESA" : "EMPRESA LIDER";
 
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
@@ -218,7 +240,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-8">
             <DashboardCard title="ETIQUETAS DEL MES" value={monthlyEtiquetasCount} />
             <DashboardCard title={countCardTitle} value={etiquetasCount} />
-            <DashboardCard title="EMPRESA LIDER" value={leadingCompany}/>
+            <DashboardCard title={leaderCardTitle} value={leadingCompany}/>
             <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
             <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
           </div>
