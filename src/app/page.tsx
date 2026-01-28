@@ -6,7 +6,7 @@ import { CompanySelect } from "@/components/company-select";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard-card";
 import { supabasePROD } from "@/lib/supabase";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { PieChart } from '@mui/x-charts/PieChart';
 import UsersTable from "@/components/users-table";
 import { ClientOnly } from "@/components/client-only";
@@ -262,10 +262,10 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
         'PALO DE ROSA': '#FFB6C1' // Rosa
       };
   
-      return Object.entries(counts).map(([label, value], id) => {
+      return Object.entries(counts).map(([label, value]) => {
         const upperLabel = label.toUpperCase();
         return ({
-            id,
+            id: upperLabel,
             value,
             label: upperLabel,
             color: colorMap[upperLabel] || '#cccccc'
@@ -322,7 +322,7 @@ export default function DashboardPage() {
 
     useEffect(() => {
         fetchData({});
-    }, []);
+    }, [fetchData]);
 
     const handleFilter = () => {
         fetchData({ startDate, endDate, company });
@@ -341,6 +341,20 @@ export default function DashboardPage() {
     const countCardTitle = "ETIQUETAS (HOY)";
     const leaderCardTitle = company ? "EMPRESA" : "EMPRESA LIDER";
     const monthlyCardTitle = "ETIQUETAS DEL MES";
+
+    const pieChartSeries = useMemo(() => ([{
+        data: chartData,
+        highlightScope: { faded: 'global', highlight: 'item' },
+        faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
+        valueFormatter,
+    }]), [chartData, valueFormatter]);
+
+    const pieChartLegend = useMemo(() => ({
+        direction: 'column' as const,
+        position: { vertical: 'middle' as const, horizontal: 'right' as const },
+    }), []);
+
+    const pieChartMargin = useMemo(() => ({ right: 150 }), []);
 
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
@@ -395,7 +409,7 @@ export default function DashboardPage() {
               </p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-              {isFilterApplied && etiquetasCount === monthlyEtiquetasCount ? (
+              {isFilterApplied && etiquetasCount > 0 && etiquetasCount === monthlyEtiquetasCount ? (
                 <DashboardCard
                   className="lg:col-span-2"
                   title="ETIQUETAS"
@@ -428,19 +442,9 @@ export default function DashboardPage() {
           <div className="mt-8 flex justify-center" style={{ minHeight: '200px' }}>
             {chartData.length > 0 && (
                 <PieChart
-                    series={[
-                        {
-                            data: chartData,
-                            highlightScope: { faded: 'global', highlight: 'item' },
-                            faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
-                            valueFormatter,
-                        },
-                    ]}
-                    legend={{
-                        direction: 'column',
-                        position: { vertical: 'middle', horizontal: 'right' },
-                    }}
-                    margin={{ right: 150 }}
+                    series={pieChartSeries}
+                    legend={pieChartLegend}
+                    margin={pieChartMargin}
                     width={700}
                     height={200}
                 />
