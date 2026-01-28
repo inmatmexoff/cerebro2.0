@@ -239,9 +239,9 @@ export default function DashboardPage() {
     };
 
     const isFilterApplied = !!(startDate || endDate || company);
-    const countCardTitle = isFilterApplied ? "ETIQUETAS" : "ETIQUETAS (HOY)";
+    const countCardTitle = "ETIQUETAS (HOY)";
     const leaderCardTitle = company ? "EMPRESA" : "EMPRESA LIDER";
-    const monthlyCardTitle = isFilterApplied ? "ETIQUETAS" : "ETIQUETAS DEL MES";
+    const monthlyCardTitle = "ETIQUETAS DEL MES";
 
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
@@ -296,8 +296,13 @@ export default function DashboardPage() {
               </p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-              <DashboardCard title={monthlyCardTitle} value={monthlyEtiquetasCount} />
-              <DashboardCard title={countCardTitle} value={etiquetasCount} />
+              <DashboardCard
+                className="lg:col-span-2"
+                title={isFilterApplied ? 'ETIQUETAS' : monthlyCardTitle}
+                value={isFilterApplied ? etiquetasCount : monthlyEtiquetasCount}
+                secondaryTitle={isFilterApplied ? undefined : countCardTitle}
+                secondaryValue={isFilterApplied ? undefined : etiquetasCount}
+              />
               <DashboardCard title={leaderCardTitle} value={leadingCompany}/>
               <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
               <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
