@@ -238,9 +238,10 @@ export default function DashboardPage() {
         fetchData({});
     };
 
-    const countCardTitle = (startDate || endDate || company) ? "ETIQUETAS" : "ETIQUETAS (HOY)";
+    const isFilterApplied = !!(startDate || endDate || company);
+    const countCardTitle = isFilterApplied ? "ETIQUETAS" : "ETIQUETAS (HOY)";
     const leaderCardTitle = company ? "EMPRESA" : "EMPRESA LIDER";
-    const monthlyCardTitle = (startDate || endDate || company) ? "ETIQUETAS" : "ETIQUETAS DEL MES";
+    const monthlyCardTitle = isFilterApplied ? "ETIQUETAS" : "ETIQUETAS DEL MES";
 
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
@@ -288,12 +289,19 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-8">
-            <DashboardCard title={monthlyCardTitle} value={monthlyEtiquetasCount} />
-            <DashboardCard title={countCardTitle} value={etiquetasCount} />
-            <DashboardCard title={leaderCardTitle} value={leadingCompany}/>
-            <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
-            <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
+          <div className="mt-8">
+            {isFilterApplied && (
+              <p className="text-center font-semibold text-gray-600 mb-4">
+                Se está aplicando un filtro
+              </p>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+              <DashboardCard title={monthlyCardTitle} value={monthlyEtiquetasCount} />
+              <DashboardCard title={countCardTitle} value={etiquetasCount} />
+              <DashboardCard title={leaderCardTitle} value={leadingCompany}/>
+              <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
+              <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
+            </div>
           </div>
 
           <div className="mt-8 flex justify-center">
