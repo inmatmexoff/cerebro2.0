@@ -347,12 +347,6 @@ export default function DashboardPage() {
     const leaderCardTitle = company ? "EMPRESA" : "EMPRESA LIDER";
     const monthlyCardTitle = "ETIQUETAS DEL MES";
 
-    const pieChartSeries = useMemo(() => ([{
-        data: chartData,
-        valueFormatter,
-        highlightScope: { faded: 'global', highlighted: 'item' },
-    }]), [chartData, valueFormatter]);
-
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
       <div className="max-w-screen-xl mx-auto">
@@ -441,8 +435,11 @@ export default function DashboardPage() {
               <p className="text-gray-500 font-semibold">Cargando gráfico...</p>
             ) : chartData.length > 0 ? (
               <PieChart
-                  key={JSON.stringify(chartData)}
-                  series={pieChartSeries}
+                  series={[{
+                    data: chartData,
+                    valueFormatter,
+                    highlightScope: { faded: 'global', highlighted: 'item' },
+                  }]}
                   slotProps={{
                       legend: {
                         direction: 'column',
