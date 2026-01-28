@@ -30,7 +30,7 @@ export function DashboardCard({ title, value, isFilled = false }: DashboardCardP
       {value && (
         <p className={cn(
             "font-bold text-primary mt-2 break-all",
-            isPaloDeRosa ? "text-4xl" : "text-5xl"
+            isPaloDeRosa ? "text-3xl" : "text-5xl"
         )}>
             {value}
         </p>
