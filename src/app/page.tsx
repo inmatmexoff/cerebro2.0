@@ -70,14 +70,7 @@ async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: 
   
 async function getLeadingCompany(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
     if (filters?.company) {
-        const companyMap: { [key: string]: string } = {
-            "mtm": "MTM",
-            "tal": "TAL",
-            "domeska": "DOMESKA",
-            "hogarden": "HOGARDEN",
-            "palo-de-rosa": "PALO DE ROSA"
-        };
-        return companyMap[filters.company] || filters.company.toUpperCase();
+        return filters.company;
     }
 
     try {
@@ -167,7 +160,9 @@ export default function DashboardPage() {
         setEtiquetasCount('...');
         setLeadingCompany('...');
 
-        const companyFilter = filters.company ? (filters.company.toUpperCase()) : undefined;
+        const companyFilter = filters.company 
+            ? filters.company.replace(/-/g, ' ').toUpperCase() 
+            : undefined;
 
         const [count, leader] = await Promise.all([
           getEtiquetasCount({ ...filters, company: companyFilter }),
