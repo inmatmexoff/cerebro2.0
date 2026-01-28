@@ -296,13 +296,24 @@ export default function DashboardPage() {
               </p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-              <DashboardCard
-                className="lg:col-span-2"
-                title={isFilterApplied ? 'ETIQUETAS' : monthlyCardTitle}
-                value={isFilterApplied ? etiquetasCount : monthlyEtiquetasCount}
-                secondaryTitle={isFilterApplied ? undefined : countCardTitle}
-                secondaryValue={isFilterApplied ? undefined : etiquetasCount}
-              />
+              {isFilterApplied && etiquetasCount === monthlyEtiquetasCount ? (
+                <DashboardCard
+                  className="lg:col-span-2"
+                  title="ETIQUETAS"
+                  value={etiquetasCount}
+                />
+              ) : (
+                <>
+                  <DashboardCard
+                    title={monthlyCardTitle}
+                    value={monthlyEtiquetasCount}
+                  />
+                  <DashboardCard
+                    title={countCardTitle}
+                    value={etiquetasCount}
+                  />
+                </>
+              )}
               <DashboardCard title={leaderCardTitle} value={leadingCompany}/>
               <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
               <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
