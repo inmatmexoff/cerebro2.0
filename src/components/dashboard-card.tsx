@@ -7,6 +7,8 @@ interface DashboardCardProps {
 }
 
 export function DashboardCard({ title, value, isFilled = false }: DashboardCardProps) {
+  const isPaloDeRosa = typeof value === 'string' && value.toUpperCase() === 'PALO DE ROSA';
+
   return (
     <div
       className={cn(
@@ -26,7 +28,12 @@ export function DashboardCard({ title, value, isFilled = false }: DashboardCardP
         {title}
       </h3>
       {value && (
-        <p className="text-5xl font-bold text-primary mt-2 break-all">{value}</p>
+        <p className={cn(
+            "font-bold text-primary mt-2 break-all",
+            isPaloDeRosa ? "text-4xl" : "text-5xl"
+        )}>
+            {value}
+        </p>
       )}
     </div>
   );
