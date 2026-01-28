@@ -350,6 +350,10 @@ export default function DashboardPage() {
     const leaderCardTitle = company ? "EMPRESA" : "EMPRESA LIDER";
     const monthlyCardTitle = "ETIQUETAS DEL MES";
 
+    const chartKey = useMemo(() => {
+        return (startDate?.getTime() || 'start') + '-' + (endDate?.getTime() || 'end') + '-' + (company || 'all');
+    }, [startDate, endDate, company]);
+
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
       <div className="max-w-screen-xl mx-auto">
@@ -439,6 +443,7 @@ export default function DashboardPage() {
             ) : chartIsVisible ? (
               chartData.length > 0 ? (
                 <PieChart
+                    key={chartKey}
                     series={[{
                         data: chartData,
                         valueFormatter,
