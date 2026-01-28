@@ -19,11 +19,16 @@ export function DashboardCard({
   const isDomeska = (val: any) =>
     typeof val === "string" && val.toUpperCase() === "DOMESKA";
 
+  const isHogarden = (val: any) =>
+    typeof val === "string" && val.toUpperCase() === "HOGARDEN";
+
   const valueClassName = cn(
     "font-bold text-primary mt-2 break-all",
     isPaloDeRosa(value)
-      ? "text-2xl"
+      ? "text-xl"
       : isDomeska(value)
+      ? "text-3xl"
+      : isHogarden(value)
       ? "text-3xl"
       : "text-5xl"
   );
