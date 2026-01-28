@@ -20,12 +20,14 @@ async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: 
   
       if (filters?.startDate || filters?.endDate) {
         if (filters.startDate) {
-          query = query.gte('created_at', filters.startDate.toISOString());
+          const startOfDay = new Date(filters.startDate);
+          startOfDay.setHours(0, 0, 0, 0);
+          query = query.gte('created_at', startOfDay.toISOString());
         }
         if (filters.endDate) {
-          const nextDay = new Date(filters.endDate);
-          nextDay.setDate(nextDay.getDate() + 1);
-          query = query.lt('created_at', nextDay.toISOString());
+          const endOfDay = new Date(filters.endDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          query = query.lte('created_at', endOfDay.toISOString());
         }
       } else { // If no specific dates, default to today
         const now = new Date();
@@ -85,12 +87,14 @@ async function getLeadingCompany(filters?: { startDate?: Date | null, endDate?: 
   
       if (filters?.startDate || filters?.endDate) {
         if (filters.startDate) {
-          query = query.gte('created_at', filters.startDate.toISOString());
+          const startOfDay = new Date(filters.startDate);
+          startOfDay.setHours(0, 0, 0, 0);
+          query = query.gte('created_at', startOfDay.toISOString());
         }
         if (filters.endDate) {
-          const nextDay = new Date(filters.endDate);
-          nextDay.setDate(nextDay.getDate() + 1);
-          query = query.lt('created_at', nextDay.toISOString());
+          const endOfDay = new Date(filters.endDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          query = query.lte('created_at', endOfDay.toISOString());
         }
       } else { // Default to today
         const now = new Date();
