@@ -8,6 +8,7 @@ import { DashboardCard } from "@/components/dashboard-card";
 import { supabasePROD } from "@/lib/supabase";
 import React, { useState, useEffect, useCallback } from "react";
 import { PieChart } from '@mui/x-charts/PieChart';
+import UsersTable from "@/components/users-table";
 
 async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
     try {
@@ -253,7 +254,7 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
       }
 
       const colorMap: { [key: string]: string } = {
-        'MTM': '#137547',        // Verde Oscuro
+        'MTM': '#1B5E20',        // Verde Oscuro
         'HOGARDEN': '#90EE90',  // Verde Claro
         'DOMESKA': '#9370DB',   // Morado
         'TAL': '#4682B4',        // Azul
@@ -439,9 +440,9 @@ export default function DashboardPage() {
                       legend={{
                           direction: 'column',
                           position: { vertical: 'middle', horizontal: 'right' },
-                          padding: 0,
+                          padding: 100,
                       }}
-                      width={500}
+                      width={700}
                       height={200}
                   />
               </div>
@@ -453,6 +454,9 @@ export default function DashboardPage() {
               </div>
             </>
           )}
+          <div className="mt-8">
+            <UsersTable />
+          </div>
         </main>
       </div>
     </div>
