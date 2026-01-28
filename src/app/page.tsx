@@ -251,12 +251,24 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
       if (Object.keys(counts).length === 0) {
         return [];
       }
+
+      const colorMap: { [key: string]: string } = {
+        'MTM': '#137547',        // Verde Oscuro
+        'HOGARDEN': '#90EE90',  // Verde Claro
+        'DOMESKA': '#9370DB',   // Morado
+        'TAL': '#4682B4',        // Azul
+        'PALO DE ROSA': '#FFB6C1' // Rosa
+      };
   
-      return Object.entries(counts).map(([label, value], id) => ({
-          id,
-          value,
-          label: label.toUpperCase(),
-      }));
+      return Object.entries(counts).map(([label, value], id) => {
+        const upperLabel = label.toUpperCase();
+        return ({
+            id,
+            value,
+            label: upperLabel,
+            color: colorMap[upperLabel] || '#cccccc'
+        })
+      });
     } catch (error) {
       if (error instanceof Error) {
           console.error("Error in getEtiquetasPorEmpresa:", error.message);
@@ -289,12 +301,14 @@ export default function DashboardPage() {
             ? filters.company.replace(/-/g, ' ').toUpperCase() 
             : undefined;
 
-        const { company, ...dateFilters } = filters;
+        const { company: originalCompany, ...dateFilters } = filters;
+
+        const effectiveCompanyFilter = companyFilter || (filters.company ? filters.company.toUpperCase() : undefined);
 
         const [count, leader, monthlyCount, etiquetasPorEmpresa] = await Promise.all([
-          getEtiquetasCount({ ...filters, company: companyFilter }),
-          getLeadingCompany({ ...filters, company: companyFilter }),
-          getMonthlyEtiquetasCount({ ...filters, company: companyFilter }),
+          getEtiquetasCount({ ...filters, company: effectiveCompanyFilter }),
+          getLeadingCompany({ ...filters, company: effectiveCompanyFilter }),
+          getMonthlyEtiquetasCount({ ...filters, company: effectiveCompanyFilter }),
           getEtiquetasPorEmpresa(dateFilters),
         ]);
     
