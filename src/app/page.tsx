@@ -302,7 +302,6 @@ export default function DashboardPage() {
     const monthlyCardTitle = 'ETIQUETAS (MES)';
     const leaderCardTitle = isFilterApplied ? 'LÍDER (FILTRADO)' : 'EMPRESA LÍDER';
 
-
     const fetchData = useCallback(async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
         setIsLoading(true);
         setEtiquetasCount('...');
@@ -351,13 +350,29 @@ export default function DashboardPage() {
     };
 
   const RADIAN = Math.PI / 180;
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+    if (percent === 0) return null;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
     return (
-      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontWeight="bold">
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor="middle"
+        dominantBaseline="central"
+        style={{
+          fontSize: '1rem',
+          fontWeight: '600',
+          paintOrder: 'stroke',
+          stroke: '#000000',
+          strokeWidth: '1px',
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'miter',
+        }}
+      >
         {`${(percent * 100).toFixed(0)}%`}
       </text>
     );
@@ -446,12 +461,12 @@ export default function DashboardPage() {
               style={{ borderColor: "#DCE1DE" }}
             />
           </div>
-          <div className="mt-8 flex justify-center items-center" style={{ minHeight: '300px', width: '100%' }}>
+          <div className="mt-8 flex justify-center items-center" style={{ minHeight: '400px', width: '100%' }}>
             {isLoading ? (
               <p className="text-gray-500 font-semibold">Cargando...</p>
             ) : chartIsVisible ? (
               chartDataRef.current.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={400}>
                   <PieChart>
                     <Pie
                       data={chartDataRef.current}
@@ -459,7 +474,7 @@ export default function DashboardPage() {
                       nameKey="label"
                       cx="50%"
                       cy="50%"
-                      outerRadius={100}
+                      outerRadius={150}
                       fill="#8884d8"
                       labelLine={false}
                       label={renderCustomizedLabel}
