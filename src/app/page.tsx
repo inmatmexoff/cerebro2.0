@@ -454,6 +454,7 @@ export default function DashboardPage() {
               <DashboardCard
                 title="ANALISIS POR SKU"
                 isFilled={false}
+                href="/analisis-sku"
                 icon={<Barcode className="h-8 w-8 text-primary" />}
               />
             </div>

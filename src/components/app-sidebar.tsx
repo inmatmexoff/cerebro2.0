@@ -34,6 +34,7 @@ import {
   Workflow,
   KeyRound,
   BarChartBig,
+  Barcode,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -82,6 +83,14 @@ export function AppSidebar() {
               <Link href="/producto-estrella">
                 <Star />
                 <span>Producto Estrella</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Análisis por SKU" isActive={pathname === '/analisis-sku'}>
+              <Link href="/analisis-sku">
+                <Barcode />
+                <span>Análisis por SKU</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
