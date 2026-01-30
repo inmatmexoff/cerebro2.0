@@ -6,7 +6,7 @@ import localeEs from 'air-datepicker/locale/es'
 
 import { cn } from "@/lib/utils"
 
-export function DatePicker({ value, onChange }: { value: Date | null, onChange: (date: Date | null) => void }) {
+export function DatePicker({ value, onChange, id }: { value: Date | null, onChange: (date: Date | null) => void, id?: string }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const dpInstanceRef = React.useRef<AirDatepicker|null>(null);
 
@@ -62,6 +62,7 @@ export function DatePicker({ value, onChange }: { value: Date | null, onChange: 
 
   return (
     <input
+      id={id}
       ref={inputRef}
       readOnly
       placeholder="Seleccionar fecha"
