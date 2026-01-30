@@ -449,7 +449,6 @@ export default function DashboardPage() {
             ) : chartIsVisible ? (
               chartData.length > 0 ? (
                 <PieChart
-                    key={JSON.stringify(chartData)}
                     series={pieChartSeries}
                     slotProps={{
                         legend: {
