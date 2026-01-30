@@ -6,7 +6,7 @@ import { CompanySelect } from "@/components/company-select";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard-card";
 import { supabasePROD } from "@/lib/supabase";
-import React, from "react";
+import React, { useCallback } from "react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import UsersTable from "@/components/users-table";
 import { ClientOnly } from "@/components/client-only";
@@ -342,7 +342,7 @@ export default function DashboardPage() {
 
     const handleFilter = async () => {
         setChartIsVisible(false);
-        await fetchData({ startDate, endDate, company: company === '' ? undefined : company });
+        await fetchData({ startDate, endDate, company: company === 'all' ? undefined : company });
         setChartIsVisible(true);
     };
 

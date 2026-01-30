@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
 
 export function CompanySelect({ value, onValueChange }: { value?: string, onValueChange: (value: string) => void }) {
   return (
@@ -18,7 +17,7 @@ export function CompanySelect({ value, onValueChange }: { value?: string, onValu
             <SelectValue placeholder="Seleccionar empresa" />
         </SelectTrigger>
         <SelectContent>
-            <SelectItem value="">Todas las empresas</SelectItem>
+            <SelectItem value="all">Todas las empresas</SelectItem>
             <SelectItem value="mtm">MTM</SelectItem>
             <SelectItem value="tal">TAL</SelectItem>
             <SelectItem value="domeska">DOMESKA</SelectItem>
