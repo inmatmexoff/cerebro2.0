@@ -9,8 +9,24 @@ import { cn } from "@/lib/utils"
 
 export function DatePicker({ value, onChange }: { value: Date | null, onChange: (date: Date | null) => void }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const dpInstance = React.useRef<AirDatepicker|null>(null);
+  const dpInstanceRef = React.useRef<AirDatepicker|null>(null);
   const { state } = useSidebar();
+
+  React.useEffect(() => {
+    if (inputRef.current) {
+      dpInstanceRef.current = new AirDatepicker(inputRef.current, {
+        locale: localeEs,
+        autoClose: true,
+        onSelect: ({ date }) => {
+          onChange(date as Date | null);
+        },
+      });
+    }
+    return () => {
+      dpInstanceRef.current?.destroy();
+      dpInstanceRef.current = null;
+    };
+  }, [onChange]);
 
   const dateFormat = React.useCallback((d: Date | Date[]) => {
     if (!d || Array.isArray(d)) {
@@ -31,26 +47,20 @@ export function DatePicker({ value, onChange }: { value: Date | null, onChange: 
   }, [state]);
   
   React.useEffect(() => {
-    if (inputRef.current) {
-        if (!dpInstance.current) {
-            dpInstance.current = new AirDatepicker(inputRef.current, {
-                locale: localeEs,
-                autoClose: true,
-                onSelect: ({date}) => {
-                    onChange(date as Date | null);
-                }
-            });
-        }
-        
-        dpInstance.current.update({ dateFormat });
+    const dp = dpInstanceRef.current;
+    if (!dp) return;
+    
+    dp.update({ dateFormat });
 
-        if (value) {
-            dpInstance.current.selectDate(value, true);
-        } else {
-            dpInstance.current.clear();
-        }
+    if (value) {
+      const selectedDate = dp.selectedDates[0];
+      if (!selectedDate || selectedDate.getTime() !== value.getTime()) {
+        dp.selectDate(value, true);
+      }
+    } else {
+      dp.clear();
     }
-  }, [value, onChange, dateFormat]);
+  }, [value, dateFormat]);
 
   React.useEffect(() => {
     if (inputRef.current && !value) {

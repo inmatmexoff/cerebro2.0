@@ -6,7 +6,7 @@ import { CompanySelect } from "@/components/company-select";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard-card";
 import { supabasePROD } from "@/lib/supabase";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import UsersTable from "@/components/users-table";
 import { ClientOnly } from "@/components/client-only";
@@ -293,7 +293,7 @@ export default function DashboardPage() {
     const [etiquetasCount, setEtiquetasCount] = useState<number | string>('...');
     const [leadingCompany, setLeadingCompany] = useState<string>('...');
     const [monthlyEtiquetasCount, setMonthlyEtiquetasCount] = useState<number | string>('...');
-    const chartDataRef = React.useRef<any[]>([]);
+    const chartDataRef = useRef<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [chartIsVisible, setChartIsVisible] = useState(true);
     
@@ -303,7 +303,7 @@ export default function DashboardPage() {
     const leaderCardTitle = isFilterApplied ? 'LÍDER (FILTRADO)' : 'EMPRESA LÍDER';
 
 
-    const fetchData = async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
+    const fetchData = useCallback(async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
         setIsLoading(true);
         setEtiquetasCount('...');
         setLeadingCompany('...');
@@ -329,12 +329,11 @@ export default function DashboardPage() {
         setMonthlyEtiquetasCount(monthlyCount);
         chartDataRef.current = etiquetasPorEmpresa;
         setIsLoading(false);
-      };
+      }, []);
 
     useEffect(() => {
         fetchData({});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [fetchData]);
 
     const handleFilter = async () => {
         setChartIsVisible(false);
@@ -350,6 +349,19 @@ export default function DashboardPage() {
         await fetchData({});
         setChartIsVisible(true);
     };
+
+  const RADIAN = Math.PI / 180;
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontWeight="bold">
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
 
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
@@ -449,6 +461,8 @@ export default function DashboardPage() {
                       cy="50%"
                       outerRadius={100}
                       fill="#8884d8"
+                      labelLine={false}
+                      label={renderCustomizedLabel}
                     >
                       {chartDataRef.current.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
