@@ -6,7 +6,7 @@ import { CompanySelect } from "@/components/company-select";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard-card";
 import { supabasePROD } from "@/lib/supabase";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { PieChart } from '@mui/x-charts/PieChart';
 import UsersTable from "@/components/users-table";
 import { ClientOnly } from "@/components/client-only";
@@ -285,15 +285,6 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
     }
 }
 
-function isSameChartData(a: any[], b: any[]) {
-  if (a.length !== b.length) return false;
-  return a.every((item, i) =>
-    item.id === b[i].id &&
-    item.value === b[i].value &&
-    item.color === b[i].color
-  );
-}
-
 export default function DashboardPage() {
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [endDate, setEndDate] = useState<Date | null>(null);
@@ -302,7 +293,7 @@ export default function DashboardPage() {
     const [etiquetasCount, setEtiquetasCount] = useState<number | string>('...');
     const [leadingCompany, setLeadingCompany] = useState<string>('...');
     const [monthlyEtiquetasCount, setMonthlyEtiquetasCount] = useState<number | string>('...');
-    const [chartData, setChartData] = useState<any[]>([]);
+    const chartDataRef = React.useRef<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [chartIsVisible, setChartIsVisible] = useState(true);
     
@@ -336,9 +327,7 @@ export default function DashboardPage() {
         setEtiquetasCount(count);
         setLeadingCompany(leader);
         setMonthlyEtiquetasCount(monthlyCount);
-        setChartData(prev =>
-          isSameChartData(prev, etiquetasPorEmpresa) ? prev : etiquetasPorEmpresa
-        );
+        chartDataRef.current = etiquetasPorEmpresa;
         setIsLoading(false);
       };
 
@@ -361,20 +350,6 @@ export default function DashboardPage() {
         await fetchData({});
         setChartIsVisible(true);
     };
-
-    const pieChartSeries = useMemo(() => [{
-        data: chartData,
-    }], [chartData]);
-
-    const pieChartSlotProps = useMemo(() => ({
-        legend: {
-            direction: 'column' as const,
-            position: { vertical: 'middle' as const, horizontal: 'right' as const },
-        },
-    }), []);
-
-    const pieChartMargin = useMemo(() => ({ right: 150 }), []);
-
 
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
@@ -463,11 +438,21 @@ export default function DashboardPage() {
             {isLoading ? (
               <p className="text-gray-500 font-semibold">Cargando...</p>
             ) : chartIsVisible ? (
-              chartData.length > 0 ? (
+              chartDataRef.current.length > 0 ? (
                 <PieChart
-                    series={pieChartSeries}
-                    slotProps={pieChartSlotProps}
-                    margin={pieChartMargin}
+                    series={[
+                      {
+                        data: chartDataRef.current,
+                        valueFormatter: (item) => `${item.value}`,
+                      },
+                    ]}
+                    slotProps={{
+                      legend: {
+                        direction: 'column',
+                        position: { vertical: 'middle', horizontal: 'right' },
+                      },
+                    }}
+                    margin={{ right: 150 }}
                     width={700}
                     height={200}
                 />
