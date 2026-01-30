@@ -447,9 +447,9 @@ export default function DashboardPage() {
               <DashboardCard title={leaderCardTitle} value={leadingCompany}/>
               <DashboardCard 
                 title="PRODUCTO ESTRELLA" 
-                isFilled={true} 
+                isFilled={false} 
                 href="/producto-estrella"
-                icon={<Star className="text-primary-foreground h-8 w-8" />}
+                icon={<Star className="h-8 w-8 text-primary" fill="currentColor" />}
               />
               <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
             </div>

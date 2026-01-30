@@ -45,17 +45,16 @@ export function DashboardCard({
     <Card
       className={cn(
         "flex flex-col justify-center items-center text-center",
-        isFilled && "bg-primary text-primary-foreground",
-        href && "hover:bg-primary/90 transition-colors",
+        isFilled ? "bg-primary text-primary-foreground" : "bg-card text-card-foreground",
+        href && (isFilled ? "hover:bg-primary/90" : "hover:bg-accent/20"),
+        href && "transition-colors",
         className
       )}
       style={{ height: 215 }}
     >
       <CardContent className="p-4">
-        {icon}
         <h3 className={cn(
           "font-semibold",
-           icon && "mt-2",
           isFilled ? "text-2xl font-bold" : "text-xl text-gray-700"
         )}>
           {title}
@@ -65,6 +64,7 @@ export function DashboardCard({
               {value}
           </p>
         )}
+        {icon && <div className="mt-2">{icon}</div>}
       </CardContent>
     </Card>
   );
