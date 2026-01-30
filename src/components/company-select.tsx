@@ -18,6 +18,7 @@ export function CompanySelect({ value, onValueChange }: { value?: string, onValu
             <SelectValue placeholder="Seleccionar empresa" />
         </SelectTrigger>
         <SelectContent>
+            <SelectItem value="">Todas las empresas</SelectItem>
             <SelectItem value="mtm">MTM</SelectItem>
             <SelectItem value="tal">TAL</SelectItem>
             <SelectItem value="domeska">DOMESKA</SelectItem>

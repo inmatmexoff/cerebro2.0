@@ -6,13 +6,13 @@ import { CompanySelect } from "@/components/company-select";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard-card";
 import { supabasePROD } from "@/lib/supabase";
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, from "react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import UsersTable from "@/components/users-table";
 import { ClientOnly } from "@/components/client-only";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search } from "lucide-react";
+import { Search, Star } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
@@ -292,23 +292,23 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
 }
 
 export default function DashboardPage() {
-    const [startDate, setStartDate] = useState<Date | null>(null);
-    const [endDate, setEndDate] = useState<Date | null>(null);
-    const [company, setCompany] = useState<string | undefined>();
+    const [startDate, setStartDate] = React.useState<Date | null>(null);
+    const [endDate, setEndDate] = React.useState<Date | null>(null);
+    const [company, setCompany] = React.useState<string | undefined>();
   
-    const [etiquetasCount, setEtiquetasCount] = useState<number | string>('...');
-    const [leadingCompany, setLeadingCompany] = useState<string>('...');
-    const [monthlyEtiquetasCount, setMonthlyEtiquetasCount] = useState<number | string>('...');
-    const chartDataRef = useRef<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [chartIsVisible, setChartIsVisible] = useState(true);
+    const [etiquetasCount, setEtiquetasCount] = React.useState<number | string>('...');
+    const [leadingCompany, setLeadingCompany] = React.useState<string>('...');
+    const [monthlyEtiquetasCount, setMonthlyEtiquetasCount] = React.useState<number | string>('...');
+    const chartDataRef = React.useRef<any[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [chartIsVisible, setChartIsVisible] = React.useState(true);
     
     const isFilterApplied = !!(startDate || endDate || company);
     const countCardTitle = isFilterApplied ? 'ETIQUETAS (FILTRADO)' : 'ETIQUETAS (HOY)';
     const monthlyCardTitle = 'ETIQUETAS (MES)';
     const leaderCardTitle = isFilterApplied ? 'LÍDER (FILTRADO)' : 'EMPRESA LÍDER';
 
-    const fetchData = useCallback(async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
+    const fetchData = React.useCallback(async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
         setIsLoading(true);
         setEtiquetasCount('...');
         setLeadingCompany('...');
@@ -336,13 +336,13 @@ export default function DashboardPage() {
         setIsLoading(false);
       }, []);
 
-    useEffect(() => {
+    React.useEffect(() => {
         fetchData({});
     }, [fetchData]);
 
     const handleFilter = async () => {
         setChartIsVisible(false);
-        await fetchData({ startDate, endDate, company });
+        await fetchData({ startDate, endDate, company: company === '' ? undefined : company });
         setChartIsVisible(true);
     };
 
@@ -445,7 +445,12 @@ export default function DashboardPage() {
                 </>
               )}
               <DashboardCard title={leaderCardTitle} value={leadingCompany}/>
-              <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
+              <DashboardCard 
+                title="PRODUCTO ESTRELLA" 
+                isFilled={true} 
+                href="/producto-estrella"
+                icon={<Star className="text-primary-foreground h-8 w-8" />}
+              />
               <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
             </div>
           </div>

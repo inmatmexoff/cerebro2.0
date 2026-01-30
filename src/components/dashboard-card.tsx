@@ -1,11 +1,15 @@
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
+import React from "react";
 
 interface DashboardCardProps {
   title: string;
   value?: string | number;
   isFilled?: boolean;
   className?: string;
+  href?: string;
+  icon?: React.ReactNode;
 }
 
 export function DashboardCard({
@@ -13,6 +17,8 @@ export function DashboardCard({
   value,
   isFilled = false,
   className,
+  href,
+  icon,
 }: DashboardCardProps) {
   const isPaloDeRosa = (val: any) =>
     typeof val === "string" && val.toUpperCase() === "PALO DE ROSA";
@@ -35,18 +41,21 @@ export function DashboardCard({
       : "text-5xl"
   );
 
-  return (
+  const cardComponent = (
     <Card
       className={cn(
         "flex flex-col justify-center items-center text-center",
         isFilled && "bg-primary text-primary-foreground",
+        href && "hover:bg-primary/90 transition-colors",
         className
       )}
       style={{ height: 215 }}
     >
       <CardContent className="p-4">
+        {icon}
         <h3 className={cn(
           "font-semibold",
+           icon && "mt-2",
           isFilled ? "text-2xl font-bold" : "text-xl text-gray-700"
         )}>
           {title}
@@ -59,4 +68,10 @@ export function DashboardCard({
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return <Link href={href}>{cardComponent}</Link>;
+  }
+
+  return cardComponent;
 }
