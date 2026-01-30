@@ -364,11 +364,11 @@ export default function DashboardPage() {
         textAnchor="middle"
         dominantBaseline="central"
         style={{
-          fontSize: '1rem',
-          fontWeight: '600',
+          fontSize: '1.25rem',
+          fontWeight: 'bold',
           paintOrder: 'stroke',
           stroke: '#000000',
-          strokeWidth: '1px',
+          strokeWidth: '2px',
           strokeLinecap: 'butt',
           strokeLinejoin: 'miter',
         }}
@@ -461,12 +461,12 @@ export default function DashboardPage() {
               style={{ borderColor: "#DCE1DE" }}
             />
           </div>
-          <div className="mt-8 flex justify-center items-center" style={{ minHeight: '400px', width: '100%' }}>
+          <div className="mt-8 flex justify-center items-center" style={{ minHeight: '500px', width: '100%' }}>
             {isLoading ? (
               <p className="text-gray-500 font-semibold">Cargando...</p>
             ) : chartIsVisible ? (
               chartDataRef.current.length > 0 ? (
-                <ResponsiveContainer width="100%" height={400}>
+                <ResponsiveContainer width="100%" height={500}>
                   <PieChart>
                     <Pie
                       data={chartDataRef.current}
@@ -474,7 +474,7 @@ export default function DashboardPage() {
                       nameKey="label"
                       cx="50%"
                       cy="50%"
-                      outerRadius={150}
+                      outerRadius={200}
                       fill="#8884d8"
                       labelLine={false}
                       label={renderCustomizedLabel}
