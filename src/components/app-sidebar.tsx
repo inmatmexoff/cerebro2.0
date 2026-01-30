@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Sidebar,
   SidebarContent,
@@ -58,6 +60,8 @@ function AppLogo() {
 
 export function AppSidebar() {
   const { state } = useSidebar();
+  const pathname = usePathname();
+
   return (
     <Sidebar collapsible="icon" className="group/sidebar">
       <SidebarHeader>
@@ -66,9 +70,19 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Dashboard" isActive>
-              <LayoutGrid />
-              <span>Dashboard</span>
+            <SidebarMenuButton asChild tooltip="Dashboard" isActive={pathname === '/'}>
+              <Link href="/">
+                <LayoutGrid />
+                <span>Dashboard</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Producto Estrella" isActive={pathname === '/producto-estrella'}>
+              <Link href="/producto-estrella">
+                <Star />
+                <span>Producto Estrella</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
