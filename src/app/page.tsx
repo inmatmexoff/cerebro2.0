@@ -12,7 +12,7 @@ import UsersTable from "@/components/users-table";
 import { ClientOnly } from "@/components/client-only";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Star } from "lucide-react";
+import { Search, Star, Barcode } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
@@ -451,7 +451,11 @@ export default function DashboardPage() {
                 href="/producto-estrella"
                 icon={<Star className="h-8 w-8 text-primary" fill="currentColor" />}
               />
-              <DashboardCard title="PRÓXIMAMENTE" isFilled={true} />
+              <DashboardCard
+                title="ANALISIS POR SKU"
+                isFilled={false}
+                icon={<Barcode className="h-8 w-8 text-primary" />}
+              />
             </div>
           </div>
 
