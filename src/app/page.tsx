@@ -10,6 +10,10 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import UsersTable from "@/components/users-table";
 import { ClientOnly } from "@/components/client-only";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Search } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
     try {
@@ -381,50 +385,39 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
+    <div className="bg-muted/50 min-h-screen p-4 sm:p-6 md:p-8">
       <div className="max-w-screen-xl mx-auto">
         <SiteHeader />
 
         <main>
-          <div className="flex items-stretch gap-4">
-            <div className="bg-primary text-primary-foreground font-bold text-xl rounded-2xl px-6 flex items-center justify-center shadow-lg text-center">
-                <span>Filtros<br/>de búsqueda</span>
-            </div>
-            
-            <div className="bg-primary rounded-2xl p-4 flex-grow flex items-center shadow-lg">
-              <div className="flex items-center gap-x-6 w-full">
-                <div className="space-y-2 flex-1">
-                  <label className="text-primary-foreground text-sm font-medium px-2">Fecha de inicio</label>
+          <Card className="mb-8">
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap items-end gap-6">
+                <div className="space-y-2 flex-1 min-w-[200px]">
+                  <Label>Fecha de inicio</Label>
                   <DatePicker value={startDate} onChange={setStartDate} />
                 </div>
-                <div className="space-y-2 flex-1">
-                  <label className="text-primary-foreground text-sm font-medium px-2">Fecha de Fin</label>
+                <div className="space-y-2 flex-1 min-w-[200px]">
+                  <Label>Fecha de Fin</Label>
                   <DatePicker value={endDate} onChange={setEndDate} />
                 </div>
-                <div className="space-y-2 flex-1">
-                  <label className="text-primary-foreground text-sm font-medium px-2">Empresa</label>
+                <div className="space-y-2 flex-1 min-w-[200px]">
+                  <Label>Empresa</Label>
                   <CompanySelect value={company} onValueChange={setCompany} />
                 </div>
+                <div className="flex items-center gap-x-2">
+                  <Button onClick={handleFilter} disabled={isLoading}>
+                    <Search className="mr-2 h-4 w-4" />
+                    {isLoading ? "Filtrando..." : "Filtrar"}
+                  </Button>
+                  <Button onClick={handleClear} disabled={isLoading} variant="ghost">
+                    Limpiar
+                  </Button>
+                </div>
               </div>
-            </div>
-
-            <div className="flex items-center flex-shrink-0 gap-x-4">
-              <Button
-                onClick={handleFilter}
-                disabled={isLoading}
-                className="bg-[#63A491] hover:bg-[#579282] text-white font-bold rounded-full text-base px-8 h-10 shadow-md"
-              >
-                {isLoading ? "Filtrando..." : "Filtrar"}
-              </Button>
-              <Button
-                onClick={handleClear}
-                disabled={isLoading}
-                className="bg-[#BABE65] hover:bg-[#A9AD5A] text-white font-bold rounded-full text-base px-8 h-10 shadow-md"
-              >
-                Limpiar
-              </Button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+          
 
           <div className="mt-8">
             {isFilterApplied && (
@@ -457,12 +450,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="mt-8 flex justify-center">
-            <hr
-              className="w-[70%]"
-              style={{ borderColor: "#DCE1DE" }}
-            />
-          </div>
+          <Separator className="my-8 w-[70%] mx-auto" />
+
           <div className="mt-8 flex justify-center items-center" style={{ minHeight: '500px', width: '100%' }}>
             {isLoading ? (
               <p className="text-gray-500 font-semibold">Cargando...</p>
@@ -502,12 +491,7 @@ export default function DashboardPage() {
                 </Button>
             )}
           </div>
-          <div className="mt-8 flex justify-center">
-              <hr
-                className="w-[70%]"
-                style={{ borderColor: "#DCE1DE" }}
-              />
-          </div>
+          <Separator className="my-8 w-[70%] mx-auto" />
           <div className="mt-8">
             <ClientOnly>
               <UsersTable />

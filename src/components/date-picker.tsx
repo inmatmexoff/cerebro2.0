@@ -3,14 +3,12 @@
 import * as React from "react"
 import AirDatepicker from 'air-datepicker'
 import localeEs from 'air-datepicker/locale/es'
-import { useSidebar } from "@/components/ui/sidebar"
 
 import { cn } from "@/lib/utils"
 
 export function DatePicker({ value, onChange }: { value: Date | null, onChange: (date: Date | null) => void }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const dpInstanceRef = React.useRef<AirDatepicker|null>(null);
-  const { state } = useSidebar();
 
   React.useEffect(() => {
     if (inputRef.current) {
@@ -33,18 +31,12 @@ export function DatePicker({ value, onChange }: { value: Date | null, onChange: 
       return '';
     }
 
-    if (state === 'expanded') {
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}-${month}-${year}`;
-    } else {
-      const day = d.getDate();
-      const month = localeEs.months[d.getMonth()];
-      const year = d.getFullYear();
-      return `${day} de ${month} de ${year}`;
-    }
-  }, [state]);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+
+  }, []);
   
   React.useEffect(() => {
     const dp = dpInstanceRef.current;
@@ -72,10 +64,11 @@ export function DatePicker({ value, onChange }: { value: Date | null, onChange: 
     <input
       ref={inputRef}
       readOnly
-      placeholder="&nbsp;"
+      placeholder="Seleccionar fecha"
       className={cn(
-        "bg-black/20 text-white border-none rounded-full text-center h-10 w-full justify-center font-normal hover:bg-black/30 hover:text-white cursor-pointer",
-        !value && "text-white/80"
+        "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        !value && "text-muted-foreground",
+        "cursor-pointer"
       )}
     />
   )

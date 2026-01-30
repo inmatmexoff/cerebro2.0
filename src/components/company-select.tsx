@@ -14,12 +14,7 @@ export function CompanySelect({ value, onValueChange }: { value?: string, onValu
   return (
     <div className="w-full">
         <Select onValueChange={onValueChange} value={value}>
-        <SelectTrigger
-            className={cn(
-              "bg-black/20 border-none rounded-full h-10 w-full px-4 font-normal hover:bg-black/30 focus-visible:ring-0 focus-visible:ring-offset-0",
-              !value ? "text-white/80" : "text-white"
-            )}
-        >
+        <SelectTrigger>
             <SelectValue placeholder="Seleccionar empresa" />
         </SelectTrigger>
         <SelectContent>

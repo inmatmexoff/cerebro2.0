@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface DashboardCardProps {
   title: string;
@@ -23,7 +24,8 @@ export function DashboardCard({
     typeof val === "string" && val.toUpperCase() === "HOGARDEN";
 
   const valueClassName = cn(
-    "font-bold text-primary mt-2 break-all",
+    "font-bold mt-2 break-all",
+    isFilled ? "text-primary-foreground" : "text-primary",
     isPaloDeRosa(value)
       ? "text-xl"
       : isDomeska(value)
@@ -34,29 +36,27 @@ export function DashboardCard({
   );
 
   return (
-    <div
+    <Card
       className={cn(
-        "rounded-2xl shadow-lg border p-4 flex flex-col justify-center items-center text-center",
-        isFilled ? "text-white" : "",
+        "flex flex-col justify-center items-center text-center",
+        isFilled && "bg-primary text-primary-foreground",
         className
       )}
-      style={{
-        borderColor: "#137547",
-        height: 215,
-        backgroundColor: isFilled ? "#137547" : "transparent",
-      }}
+      style={{ height: 215 }}
     >
-      <h3 className={cn(
-        "font-semibold",
-        isFilled ? "text-2xl font-bold" : "text-xl text-gray-700"
-      )}>
-        {title}
-      </h3>
-      {value !== undefined && (
-        <p className={valueClassName}>
-            {value}
-        </p>
-      )}
-    </div>
+      <CardContent className="p-4">
+        <h3 className={cn(
+          "font-semibold",
+          isFilled ? "text-2xl font-bold" : "text-xl text-gray-700"
+        )}>
+          {title}
+        </h3>
+        {value !== undefined && (
+          <p className={valueClassName}>
+              {value}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
