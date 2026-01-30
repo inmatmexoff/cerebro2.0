@@ -64,7 +64,7 @@ export function DashboardCard({
               {value}
           </p>
         )}
-        {icon && <div className="mt-2">{icon}</div>}
+        {icon && <div className="mt-2 flex justify-center">{icon}</div>}
       </CardContent>
     </Card>
   );
