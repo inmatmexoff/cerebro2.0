@@ -285,6 +285,15 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
     }
 }
 
+function isSameChartData(a: any[], b: any[]) {
+  if (a.length !== b.length) return false;
+  return a.every((item, i) =>
+    item.id === b[i].id &&
+    item.value === b[i].value &&
+    item.color === b[i].color
+  );
+}
+
 export default function DashboardPage() {
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [endDate, setEndDate] = useState<Date | null>(null);
@@ -327,7 +336,9 @@ export default function DashboardPage() {
         setEtiquetasCount(count);
         setLeadingCompany(leader);
         setMonthlyEtiquetasCount(monthlyCount);
-        setChartData(etiquetasPorEmpresa);
+        setChartData(prev =>
+          isSameChartData(prev, etiquetasPorEmpresa) ? prev : etiquetasPorEmpresa
+        );
         setIsLoading(false);
       };
 
@@ -336,28 +347,27 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleFilter = () => {
+    const handleFilter = async () => {
         setChartIsVisible(false);
-        fetchData({ startDate, endDate, company });
+        await fetchData({ startDate, endDate, company });
+        setChartIsVisible(true);
     };
 
-    const handleClear = () => {
+    const handleClear = async () => {
         setStartDate(null);
         setEndDate(null);
         setCompany(undefined);
+        setChartIsVisible(false);
+        await fetchData({});
         setChartIsVisible(true);
-        fetchData({});
     };
 
     const valueFormatter = useCallback((item: { value: number }) => `${item.value}`, []);
     
-    const pieChartSeries = useMemo(() => {
-        return [{
-            data: chartData,
-            valueFormatter,
-            highlightScope: { faded: 'global', highlighted: 'item' },
-        }];
-    }, [chartData, valueFormatter]);
+    const pieChartSeries = useMemo(() => [{
+        data: chartData,
+        valueFormatter,
+    }], [chartData, valueFormatter]);
 
 
   return (
