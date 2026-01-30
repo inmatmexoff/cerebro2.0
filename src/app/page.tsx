@@ -262,14 +262,16 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
         'PALO DE ROSA': '#FFB6C1' // Rosa
       };
   
-      const result = Object.entries(counts).map(([label, value]) => {
-        const upperLabel = label.toUpperCase();
-        return ({
-            id: upperLabel,
-            value,
-            label: upperLabel,
-            color: colorMap[upperLabel] || '#cccccc'
-        })
+      const result = Object.entries(counts)
+        .filter(([_, value]) => value > 0)
+        .map(([label, value]) => {
+          const upperLabel = label.toUpperCase();
+          return ({
+              id: upperLabel,
+              value,
+              label: upperLabel,
+              color: colorMap[upperLabel] || '#cccccc'
+          })
       });
 
       result.sort((a, b) => a.label.localeCompare(b.label));
@@ -474,7 +476,7 @@ export default function DashboardPage() {
                       nameKey="label"
                       cx="50%"
                       cy="50%"
-                      outerRadius={200}
+                      outerRadius={250}
                       fill="#8884d8"
                       labelLine={false}
                       label={renderCustomizedLabel}
