@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard-card";
 import { supabasePROD } from "@/lib/supabase";
 import React, { useState, useEffect, useRef } from "react";
-import { PieChart } from '@mui/x-charts/PieChart';
+import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import UsersTable from "@/components/users-table";
 import { ClientOnly } from "@/components/client-only";
 
@@ -434,28 +434,34 @@ export default function DashboardPage() {
               style={{ borderColor: "#DCE1DE" }}
             />
           </div>
-          <div className="mt-8 flex justify-center items-center" style={{ minHeight: '200px' }}>
+          <div className="mt-8 flex justify-center items-center" style={{ minHeight: '300px', width: '100%' }}>
             {isLoading ? (
               <p className="text-gray-500 font-semibold">Cargando...</p>
             ) : chartIsVisible ? (
               chartDataRef.current.length > 0 ? (
-                <PieChart
-                    series={[
-                      {
-                        data: chartDataRef.current,
-                        valueFormatter: (item) => `${item.value}`,
-                      },
-                    ]}
-                    slotProps={{
-                      legend: {
-                        direction: 'column',
-                        position: { vertical: 'middle', horizontal: 'right' },
-                      },
-                    }}
-                    margin={{ right: 150 }}
-                    width={700}
-                    height={200}
-                />
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={chartDataRef.current}
+                      dataKey="value"
+                      nameKey="label"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      fill="#8884d8"
+                    >
+                      {chartDataRef.current.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend
+                      layout="vertical"
+                      verticalAlign="middle"
+                      align="right"
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               ) : (
                 <p className="text-gray-500 font-semibold">No hay datos para mostrar.</p>
               )
