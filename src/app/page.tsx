@@ -362,12 +362,9 @@ export default function DashboardPage() {
         setChartIsVisible(true);
     };
 
-    const valueFormatter = useCallback((item: { value: number }) => `${item.value}`, []);
-    
     const pieChartSeries = useMemo(() => [{
         data: chartData,
-        valueFormatter,
-    }], [chartData, valueFormatter]);
+    }], [chartData]);
 
     const pieChartSlotProps = useMemo(() => ({
         legend: {
