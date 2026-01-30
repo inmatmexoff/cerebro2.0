@@ -296,11 +296,12 @@ export default function DashboardPage() {
     const [chartData, setChartData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [chartIsVisible, setChartIsVisible] = useState(true);
-
+    
     const isFilterApplied = !!(startDate || endDate || company);
     const countCardTitle = isFilterApplied ? 'ETIQUETAS (FILTRADO)' : 'ETIQUETAS (HOY)';
     const monthlyCardTitle = 'ETIQUETAS (MES)';
     const leaderCardTitle = isFilterApplied ? 'LÍDER (FILTRADO)' : 'EMPRESA LÍDER';
+
 
     const fetchData = async (filters: { startDate?: Date | null, endDate?: Date | null, company?: string }) => {
         setIsLoading(true);
@@ -349,10 +350,6 @@ export default function DashboardPage() {
     };
 
     const valueFormatter = useCallback((item: { value: number }) => `${item.value}`, []);
-
-    const chartKey = useMemo(() => {
-        return (startDate?.getTime() || 'start') + '-' + (endDate?.getTime() || 'end') + '-' + (company || 'all');
-    }, [startDate, endDate, company]);
     
     const pieChartSeries = useMemo(() => {
         return [{
@@ -452,7 +449,7 @@ export default function DashboardPage() {
             ) : chartIsVisible ? (
               chartData.length > 0 ? (
                 <PieChart
-                    key={chartKey}
+                    key={JSON.stringify(chartData)}
                     series={pieChartSeries}
                     slotProps={{
                         legend: {
