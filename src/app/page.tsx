@@ -369,6 +369,15 @@ export default function DashboardPage() {
         valueFormatter,
     }], [chartData, valueFormatter]);
 
+    const pieChartSlotProps = useMemo(() => ({
+        legend: {
+            direction: 'column' as const,
+            position: { vertical: 'middle' as const, horizontal: 'right' as const },
+        },
+    }), []);
+
+    const pieChartMargin = useMemo(() => ({ right: 150 }), []);
+
 
   return (
     <div className="bg-white min-h-screen p-4 sm:p-6 md:p-8">
@@ -460,13 +469,8 @@ export default function DashboardPage() {
               chartData.length > 0 ? (
                 <PieChart
                     series={pieChartSeries}
-                    slotProps={{
-                        legend: {
-                          direction: 'column',
-                          position: { vertical: 'middle', horizontal: 'right' },
-                        },
-                    }}
-                    margin={{ right: 150 }}
+                    slotProps={pieChartSlotProps}
+                    margin={pieChartMargin}
                     width={700}
                     height={200}
                 />
