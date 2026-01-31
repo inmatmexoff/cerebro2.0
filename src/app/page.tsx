@@ -369,7 +369,7 @@ export default function DashboardPage() {
           fill="white"
           textAnchor="middle"
           dominantBaseline="central"
-          className="text-base font-bold"
+          className="text-sm md:text-base font-bold"
           style={{
             paintOrder: 'stroke',
             stroke: '#000000',
@@ -404,12 +404,12 @@ export default function DashboardPage() {
                   <Label>Empresa</Label>
                   <CompanySelect value={company} onValueChange={setCompany} />
                 </div>
-                <div className="flex w-full sm:w-auto items-center gap-x-2">
-                  <Button size="sm" onClick={handleFilter} disabled={isLoading} className="flex-grow sm:flex-grow-0">
+                <div className="flex w-full flex-col sm:flex-row sm:w-auto items-center gap-2">
+                  <Button size="sm" onClick={handleFilter} disabled={isLoading} className="w-full sm:w-auto">
                     <Search className="mr-2 h-4 w-4" />
                     {isLoading ? "Filtrando..." : "Filtrar"}
                   </Button>
-                  <Button size="sm" onClick={handleClear} disabled={isLoading} variant="ghost" className="flex-shrink-0">
+                  <Button size="sm" onClick={handleClear} disabled={isLoading} variant="ghost" className="w-full sm:w-auto flex-shrink-0">
                     Limpiar
                   </Button>
                 </div>
@@ -419,30 +419,30 @@ export default function DashboardPage() {
           
           <div className="mt-8">
             {isFilterApplied ? (
-                <div className="grid grid-cols-2 gap-6 px-4 sm:px-0">
-                  <DashboardCard
-                    className="col-span-2"
-                    title="ETIQUETAS"
-                    value={etiquetasCount}
-                  />
-                  <DashboardCard title={leaderCardTitle} value={leadingCompany} />
-                  <DashboardCard
-                    title="PRODUCTO ESTRELLA"
-                    isFilled={false}
-                    href="/producto-estrella"
-                    icon={<Star className="h-8 w-8 text-primary" fill="currentColor" />}
-                  />
-                  <div className="col-span-2 flex justify-center">
-                    <div className="w-1/2">
-                      <DashboardCard
-                        title="ANALISIS POR SKU"
-                        isFilled={false}
-                        href="/analisis-sku"
-                        icon={<Barcode className="h-8 w-8 text-primary" />}
-                      />
-                    </div>
-                  </div>
-                </div>
+                 <div className="grid grid-cols-2 gap-6 px-4 sm:px-0">
+                   <DashboardCard
+                     className="col-span-2"
+                     title="ETIQUETAS"
+                     value={etiquetasCount}
+                   />
+                   <DashboardCard title={leaderCardTitle} value={leadingCompany} />
+                   <DashboardCard
+                     title="PRODUCTO ESTRELLA"
+                     isFilled={false}
+                     href="/producto-estrella"
+                     icon={<Star className="h-8 w-8 text-primary" fill="currentColor" />}
+                   />
+                   <div className="col-span-2 flex justify-center">
+                     <div className="w-1/2">
+                       <DashboardCard
+                         title="ANALISIS POR SKU"
+                         isFilled={false}
+                         href="/analisis-sku"
+                         icon={<Barcode className="h-8 w-8 text-primary" />}
+                       />
+                     </div>
+                   </div>
+                 </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-6">
                  <DashboardCard
