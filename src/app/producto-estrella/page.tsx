@@ -20,7 +20,7 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { DatePicker } from '@/components/date-picker';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Progress } from '@/components/ui/progress';
 import {
   Table,
@@ -60,8 +60,8 @@ const SimpleAnalysisView = ({
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex-1">
+      <header className="space-y-4">
+        <div>
           <Link
             href="/"
             className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
@@ -69,12 +69,12 @@ const SimpleAnalysisView = ({
             <ArrowLeft className="w-4 h-4 mr-2" />
             Volver al Dashboard
           </Link>
-          <div className="flex items-center gap-3">
-            <Star className="w-8 h-8 text-yellow-400" />
-            <div>
-              <h1 className="text-3xl font-bold">
-                Análisis de Productos Estrella
-              </h1>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">
+              Análisis de Productos Estrella
+            </h1>
+            <div className="flex items-start gap-2">
+              <Star className="w-5 h-5 text-yellow-500 mt-1 shrink-0" />
               <p className="text-muted-foreground">
                 Los productos que representan el 80% del total de etiquetas
                 impresas (Principio de Pareto).
@@ -82,7 +82,7 @@ const SimpleAnalysisView = ({
             </div>
           </div>
         </div>
-        <Button onClick={onSwitchToMultiPeriod}>
+        <Button onClick={onSwitchToMultiPeriod} className="w-full sm:w-auto">
           <BarChartBig className="w-4 h-4 mr-2" />
           Analizar Multiperiodo
         </Button>
@@ -93,7 +93,7 @@ const SimpleAnalysisView = ({
             <CardTitle>Filtros de Periodo</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-4">
               <div className="grid gap-1.5">
                 <Label htmlFor="fecha-inicio">Fecha Inicio</Label>
                 <DatePicker
@@ -102,19 +102,24 @@ const SimpleAnalysisView = ({
                   onChange={setStartDate}
                 />
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="fecha-fin">Fecha Fin</Label>
-                <DatePicker
-                  id="fecha-fin"
-                  value={endDate}
-                  onChange={setEndDate}
-                />
+              <div className="flex items-end gap-2">
+                <div className="grid gap-1.5 flex-1">
+                  <Label htmlFor="fecha-fin">Fecha Fin</Label>
+                  <DatePicker
+                    id="fecha-fin"
+                    value={endDate}
+                    onChange={setEndDate}
+                  />
+                </div>
+                <Button className="h-9 shrink-0">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filtrar
+                </Button>
               </div>
-              <Button>
-                <Filter className="w-4 h-4 mr-2" />
-                Filtrar
-              </Button>
-              <Button variant="ghost">
+              <Button
+                variant="ghost"
+                className="text-muted-foreground p-0 h-auto justify-start hover:bg-transparent hover:text-primary"
+              >
                 <X className="w-4 h-4 mr-2" />
                 Limpiar
               </Button>
