@@ -408,11 +408,11 @@ export default function DashboardPage() {
                   <CompanySelect value={company} onValueChange={setCompany} />
                 </div>
                 <div className="flex w-full sm:w-auto items-center gap-x-2">
-                  <Button onClick={handleFilter} disabled={isLoading} className="flex-grow sm:flex-grow-0">
+                  <Button size="sm" onClick={handleFilter} disabled={isLoading} className="flex-grow sm:flex-grow-0">
                     <Search className="mr-2 h-4 w-4" />
                     {isLoading ? "Filtrando..." : "Filtrar"}
                   </Button>
-                  <Button onClick={handleClear} disabled={isLoading} variant="ghost">
+                  <Button size="sm" onClick={handleClear} disabled={isLoading} variant="ghost" className="flex-shrink-0">
                     Limpiar
                   </Button>
                 </div>
