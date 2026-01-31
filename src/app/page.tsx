@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Star, Barcode } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
     try {
@@ -303,7 +302,6 @@ export default function DashboardPage() {
     const chartDataRef = React.useRef<any[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [chartIsVisible, setChartIsVisible] = React.useState(true);
-    const isMobile = useIsMobile();
     
     const isFilterApplied = !!(startDate || endDate || company);
     const countCardTitle = isFilterApplied ? 'ETIQUETAS (FILTRADO)' : 'ETIQUETAS (HOY)';
@@ -371,9 +369,8 @@ export default function DashboardPage() {
           fill="white"
           textAnchor="middle"
           dominantBaseline="central"
+          className="text-base font-bold"
           style={{
-            fontSize: isMobile ? '1rem' : '1.25rem',
-            fontWeight: 'bold',
             paintOrder: 'stroke',
             stroke: '#000000',
             strokeWidth: '2px',
@@ -384,7 +381,7 @@ export default function DashboardPage() {
           {`${(percent * 100).toFixed(0)}%`}
         </text>
       );
-    }, [isMobile]);
+    }, []);
 
   return (
     <div className="bg-muted/50 min-h-screen p-4 sm:p-6 md:p-8">
@@ -421,56 +418,51 @@ export default function DashboardPage() {
           </Card>
           
           <div className="mt-8">
-            {isFilterApplied && (
-              <p className="text-center font-semibold text-gray-600 mb-4">
-                Se está aplicando un filtro
-              </p>
-            )}
             {isFilterApplied ? (
-              <div className="grid grid-cols-2 gap-6 px-4 sm:px-0">
-                <DashboardCard
-                  className="col-span-2"
-                  title="ETIQUETAS"
-                  value={etiquetasCount}
-                />
-                <DashboardCard title={leaderCardTitle} value={leadingCompany} />
-                <DashboardCard
-                  title="PRODUCTO ESTRELLA"
-                  isFilled={false}
-                  href="/producto-estrella"
-                  icon={<Star className="h-8 w-8 text-primary" fill="currentColor" />}
-                />
-                <div className="col-span-2 flex justify-center">
-                  <div className="w-1/2">
-                    <DashboardCard
-                      title="ANALISIS POR SKU"
-                      isFilled={false}
-                      href="/analisis-sku"
-                      icon={<Barcode className="h-8 w-8 text-primary" />}
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                {typeof etiquetasCount === 'number' && etiquetasCount > 0 && etiquetasCount === monthlyEtiquetasCount ? (
+                <div className="grid grid-cols-2 gap-6 px-4 sm:px-0">
                   <DashboardCard
-                    className="col-span-2 md:col-span-1 lg:col-span-2"
+                    className="col-span-2"
                     title="ETIQUETAS"
                     value={etiquetasCount}
                   />
-                ) : (
-                  <>
+                  <DashboardCard title={leaderCardTitle} value={leadingCompany} />
+                  <DashboardCard
+                    title="PRODUCTO ESTRELLA"
+                    isFilled={false}
+                    href="/producto-estrella"
+                    icon={<Star className="h-8 w-8 text-primary" fill="currentColor" />}
+                  />
+                  <div className="col-span-2 flex justify-center">
+                    <div className="w-1/2">
+                      <DashboardCard
+                        title="ANALISIS POR SKU"
+                        isFilled={false}
+                        href="/analisis-sku"
+                        icon={<Barcode className="h-8 w-8 text-primary" />}
+                      />
+                    </div>
+                  </div>
+                </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                 <DashboardCard
+                    className="col-span-2 md:col-span-1 lg:col-span-2"
+                    title={
+                        typeof etiquetasCount === 'number' && etiquetasCount > 0 && etiquetasCount === monthlyEtiquetasCount 
+                        ? "ETIQUETAS" 
+                        : monthlyCardTitle
+                    }
+                    value={
+                        typeof etiquetasCount === 'number' && etiquetasCount > 0 && etiquetasCount === monthlyEtiquetasCount 
+                        ? etiquetasCount 
+                        : monthlyEtiquetasCount
+                    }
+                />
+                 {!(typeof etiquetasCount === 'number' && etiquetasCount > 0 && etiquetasCount === monthlyEtiquetasCount) && (
                     <DashboardCard
-                      className="col-span-2 md:col-span-1"
-                      title={monthlyCardTitle}
-                      value={monthlyEtiquetasCount}
+                        title={countCardTitle}
+                        value={etiquetasCount}
                     />
-                    <DashboardCard
-                      title={countCardTitle}
-                      value={etiquetasCount}
-                    />
-                  </>
                 )}
                 <DashboardCard title={leaderCardTitle} value={leadingCompany}/>
                 <DashboardCard 
@@ -492,12 +484,12 @@ export default function DashboardPage() {
 
           <Separator className="my-8 w-[70%] mx-auto" />
 
-          <div className="mt-8 flex justify-center items-center" style={{ minHeight: isMobile ? 300 : 500, width: '100%' }}>
+          <div className="mt-8 flex justify-center items-center h-[300px] md:h-[500px] w-full">
             {isLoading ? (
               <p className="text-gray-500 font-semibold">Cargando...</p>
             ) : chartIsVisible ? (
               chartDataRef.current.length > 0 ? (
-                <ResponsiveContainer width="100%" height={isMobile ? 300 : 500}>
+                <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={chartDataRef.current}
@@ -505,7 +497,7 @@ export default function DashboardPage() {
                       nameKey="label"
                       cx="50%"
                       cy="50%"
-                      outerRadius={isMobile ? 100 : 250}
+                      outerRadius="80%"
                       fill="#8884d8"
                       labelLine={false}
                       label={renderCustomizedLabel}
@@ -516,9 +508,9 @@ export default function DashboardPage() {
                     </Pie>
                     <Tooltip />
                     <Legend
-                      layout={isMobile ? 'horizontal' : 'vertical'}
-                      verticalAlign={isMobile ? 'bottom' : 'middle'}
-                      align={isMobile ? 'center' : 'right'}
+                      layout="horizontal"
+                      verticalAlign="bottom"
+                      align="center"
                     />
                   </PieChart>
                 </ResponsiveContainer>
