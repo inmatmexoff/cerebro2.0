@@ -532,7 +532,7 @@ export default function DashboardPage() {
             )}
           </div>
           <Separator className="my-8 w-[70%] mx-auto" />
-          <div className="mt-8">
+          <div className="mt-8 w-full overflow-x-auto">
             <ClientOnly>
               <UsersTable />
             </ClientOnly>
