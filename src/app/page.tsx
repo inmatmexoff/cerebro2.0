@@ -418,48 +418,75 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
           
-
           <div className="mt-8">
             {isFilterApplied && (
               <p className="text-center font-semibold text-gray-600 mb-4">
                 Se está aplicando un filtro
               </p>
             )}
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-6">
-              {isFilterApplied && typeof etiquetasCount === 'number' && etiquetasCount > 0 && etiquetasCount === monthlyEtiquetasCount ? (
+            {isFilterApplied ? (
+              <div className="grid grid-cols-2 gap-6 px-4 sm:px-0">
                 <DashboardCard
-                  className="col-span-2 md:col-span-1 lg:col-span-2"
+                  className="col-span-2"
                   title="ETIQUETAS"
                   value={etiquetasCount}
                 />
-              ) : (
-                <>
+                <DashboardCard title={leaderCardTitle} value={leadingCompany} />
+                <DashboardCard
+                  title="PRODUCTO ESTRELLA"
+                  isFilled={false}
+                  href="/producto-estrella"
+                  icon={<Star className="h-8 w-8 text-primary" fill="currentColor" />}
+                />
+                <div className="col-span-2 flex justify-center">
+                  <div className="w-1/2">
+                    <DashboardCard
+                      title="ANALISIS POR SKU"
+                      isFilled={false}
+                      href="/analisis-sku"
+                      icon={<Barcode className="h-8 w-8 text-primary" />}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                {typeof etiquetasCount === 'number' && etiquetasCount > 0 && etiquetasCount === monthlyEtiquetasCount ? (
                   <DashboardCard
-                    className="col-span-2 md:col-span-1"
-                    title={monthlyCardTitle}
-                    value={monthlyEtiquetasCount}
-                  />
-                  <DashboardCard
-                    title={countCardTitle}
+                    className="col-span-2 md:col-span-1 lg:col-span-2"
+                    title="ETIQUETAS"
                     value={etiquetasCount}
                   />
-                </>
-              )}
-              <DashboardCard title={leaderCardTitle} value={leadingCompany}/>
-              <DashboardCard 
-                title="PRODUCTO ESTRELLA" 
-                isFilled={false} 
-                href="/producto-estrella"
-                icon={<Star className="h-8 w-8 text-primary" fill="currentColor" />}
-              />
-              <DashboardCard
-                title="ANALISIS POR SKU"
-                isFilled={false}
-                href="/analisis-sku"
-                icon={<Barcode className="h-8 w-8 text-primary" />}
-              />
-            </div>
+                ) : (
+                  <>
+                    <DashboardCard
+                      className="col-span-2 md:col-span-1"
+                      title={monthlyCardTitle}
+                      value={monthlyEtiquetasCount}
+                    />
+                    <DashboardCard
+                      title={countCardTitle}
+                      value={etiquetasCount}
+                    />
+                  </>
+                )}
+                <DashboardCard title={leaderCardTitle} value={leadingCompany}/>
+                <DashboardCard 
+                  title="PRODUCTO ESTRELLA" 
+                  isFilled={false} 
+                  href="/producto-estrella"
+                  icon={<Star className="h-8 w-8 text-primary" fill="currentColor" />}
+                />
+                <DashboardCard
+                  title="ANALISIS POR SKU"
+                  isFilled={false}
+                  href="/analisis-sku"
+                  icon={<Barcode className="h-8 w-8 text-primary" />}
+                />
+              </div>
+            )}
           </div>
+
 
           <Separator className="my-8 w-[70%] mx-auto" />
 
