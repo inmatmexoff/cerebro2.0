@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
-  Star,
   BarChartBig,
   Filter,
   X,
@@ -61,28 +60,24 @@ const SimpleAnalysisView = ({
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <header className="space-y-4">
-        <div>
-          <Link
-            href="/"
-            className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver al Dashboard
-          </Link>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">
-              Análisis de Productos Estrella
-            </h1>
-            <div className="flex items-start gap-2">
-              <Star className="w-5 h-5 text-yellow-500 mt-1 shrink-0" />
-              <p className="text-muted-foreground">
-                Los productos que representan el 80% del total de etiquetas
-                impresas (Principio de Pareto).
-              </p>
-            </div>
-          </div>
+        <Link
+          href="/"
+          className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Volver al Dashboard
+        </Link>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">
+            Análisis de Productos Estrella
+          </h1>
+          <p className="text-muted-foreground">
+            Los productos que representan el 80% del total de etiquetas
+            impresas (Principio de Pareto).
+          </p>
         </div>
-        <Button onClick={onSwitchToMultiPeriod} className="w-full sm:w-auto">
+
+        <Button onClick={onSwitchToMultiPeriod} className="w-full">
           <BarChartBig className="w-4 h-4 mr-2" />
           Analizar Multiperiodo
         </Button>
@@ -275,7 +270,6 @@ const MultiPeriodAnalysisView = ({
             Volver al Dashboard
           </Link>
           <div className="flex items-center gap-3">
-            <Star className="w-8 h-8 text-yellow-400" />
             <div>
               <h1 className="text-3xl font-bold">
                 Análisis de Productos Estrella
