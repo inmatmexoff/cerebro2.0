@@ -60,7 +60,7 @@ function AppLogo() {
                     <line x1="12" y1="22.08" x2="12" y2="12"></line>
                 </svg>
             </div>
-            <div className={cn("duration-200", "group-data-[collapsible=icon]/sidebar:opacity-0 group-data-[collapsible=icon]/sidebar:hidden")}>
+            <div className={cn("duration-200", "group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:hidden")}>
                 <h2 className="font-bold text-lg">Inmatmex</h2>
                 <div className="text-xs text-sidebar-foreground/70 flex items-center">
                     21 members
@@ -83,7 +83,7 @@ export function AppSidebar() {
   }, [pathname]);
 
   return (
-    <Sidebar collapsible="icon" className="group/sidebar">
+    <Sidebar collapsible="icon">
       <SidebarHeader>
         <AppLogo />
       </SidebarHeader>
