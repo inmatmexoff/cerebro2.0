@@ -425,16 +425,17 @@ export default function DashboardPage() {
                 Se está aplicando un filtro
               </p>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-6">
               {isFilterApplied && typeof etiquetasCount === 'number' && etiquetasCount > 0 && etiquetasCount === monthlyEtiquetasCount ? (
                 <DashboardCard
-                  className="lg:col-span-2"
+                  className="col-span-2 md:col-span-1 lg:col-span-2"
                   title="ETIQUETAS"
                   value={etiquetasCount}
                 />
               ) : (
                 <>
                   <DashboardCard
+                    className="col-span-2 md:col-span-1"
                     title={monthlyCardTitle}
                     value={monthlyEtiquetasCount}
                   />
