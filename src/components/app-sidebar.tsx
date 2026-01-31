@@ -6,23 +6,15 @@ import React, { useState, useEffect } from 'react';
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarGroup,
-  SidebarGroupLabel,
   useSidebar,
   SidebarMenuSub,
   SidebarMenuSubItem,
   SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from '@/components/ui/avatar';
 import {
   Collapsible,
   CollapsibleContent,
@@ -30,19 +22,8 @@ import {
 } from '@/components/ui/collapsible';
 import {
   LayoutGrid,
-  MessageSquare,
-  CheckSquare,
-  StickyNote,
-  Mail,
-  Flag,
   Settings,
   Star,
-  Building,
-  Users,
-  MoreHorizontal,
-  Workflow,
-  KeyRound,
-  BarChartBig,
   Barcode,
   Receipt,
   ChevronRight,
@@ -71,7 +52,6 @@ function AppLogo() {
 }
 
 export function AppSidebar() {
-  const { state } = useSidebar();
   const pathname = usePathname();
   const [corteDeCajaOpen, setCorteDeCajaOpen] = useState(false);
   const [configuracionOpen, setConfiguracionOpen] = useState(false);
@@ -196,104 +176,8 @@ export function AppSidebar() {
               </CollapsibleContent>
             </Collapsible>
           </SidebarMenuItem>
-
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Messages">
-              <MessageSquare />
-              <span>Messages</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Tasks">
-              <CheckSquare />
-              <span>Tasks</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Notes">
-              <StickyNote />
-              <span>Notes</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Emails">
-              <Mail />
-              <span>Emails</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Reports">
-              <Flag />
-              <span>Reports</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Workflows">
-                <Workflow />
-                <span>Workflows</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
         </SidebarMenu>
-        <SidebarGroup>
-          <SidebarGroupLabel>Favorites</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Key Accounts">
-                    <KeyRound />
-                    <span>Key Accounts</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Strategic Initiatives">
-                    <BarChartBig />
-                    <span>Strategic Initiatives</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Focus Areas">
-                    <Star />
-                    <span>Focus Areas</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Starred Items">
-                    <Star />
-                    <span>Starred Items</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Records</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Companies">
-                    <Building />
-                    <span>Companies</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <SidebarMenuButton tooltip="People">
-                    <Users />
-                    <span>People</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <div className="flex items-center gap-3">
-            <Avatar className="size-8">
-                <AvatarImage src="https://picsum.photos/seed/liam/40/40" data-ai-hint="man face" />
-                <AvatarFallback>LS</AvatarFallback>
-            </Avatar>
-            <div className={cn("duration-200", state === 'collapsed' && 'opacity-0 hidden')}>
-                <p className="font-semibold text-sm">Liam Smith</p>
-                <p className="text-xs text-sidebar-foreground/70">smith@example.com</p>
-            </div>
-            <MoreHorizontal className={cn("ml-auto duration-200", state === 'collapsed' && 'opacity-0 hidden')} />
-        </div>
-      </SidebarFooter>
     </Sidebar>
   );
 }
