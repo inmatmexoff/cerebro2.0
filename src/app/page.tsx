@@ -392,21 +392,21 @@ export default function DashboardPage() {
         <main>
           <Card className="mb-8">
             <CardContent className="pt-6">
-              <div className="flex flex-wrap items-end gap-6">
-                <div className="space-y-2 flex-1 min-w-[200px]">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap items-end gap-4">
+                <div className="space-y-2 w-full sm:flex-1 sm:min-w-[200px]">
                   <Label>Fecha de inicio</Label>
                   <DatePicker value={startDate} onChange={setStartDate} />
                 </div>
-                <div className="space-y-2 flex-1 min-w-[200px]">
+                <div className="space-y-2 w-full sm:flex-1 sm:min-w-[200px]">
                   <Label>Fecha de Fin</Label>
                   <DatePicker value={endDate} onChange={setEndDate} />
                 </div>
-                <div className="space-y-2 flex-1 min-w-[200px]">
+                <div className="space-y-2 w-full sm:flex-1 sm:min-w-[200px]">
                   <Label>Empresa</Label>
                   <CompanySelect value={company} onValueChange={setCompany} />
                 </div>
-                <div className="flex items-center gap-x-2">
-                  <Button onClick={handleFilter} disabled={isLoading}>
+                <div className="flex w-full sm:w-auto items-center gap-x-2">
+                  <Button onClick={handleFilter} disabled={isLoading} className="flex-grow sm:flex-grow-0">
                     <Search className="mr-2 h-4 w-4" />
                     {isLoading ? "Filtrando..." : "Filtrar"}
                   </Button>
