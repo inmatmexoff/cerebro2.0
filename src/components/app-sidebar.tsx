@@ -50,7 +50,7 @@ import {
 import { cn } from '@/lib/utils';
 
 function AppLogo() {
-    const { state, toggleSidebar } = useSidebar();
+    const { toggleSidebar } = useSidebar();
     return (
         <button onClick={toggleSidebar} className="flex items-center gap-3 w-full text-left">
             <div className="bg-foreground text-background size-8 flex items-center justify-center rounded-lg shrink-0">
@@ -60,7 +60,7 @@ function AppLogo() {
                     <line x1="12" y1="22.08" x2="12" y2="12"></line>
                 </svg>
             </div>
-            <div className={cn("duration-200", state === 'collapsed' && 'opacity-0 hidden')}>
+            <div className={cn("duration-200", "group-data-[collapsed=icon]/sidebar:opacity-0 group-data-[collapsed=icon]/sidebar:hidden")}>
                 <h2 className="font-bold text-lg">Inmatmex</h2>
                 <div className="text-xs text-sidebar-foreground/70 flex items-center">
                     21 members
@@ -74,9 +74,11 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const pathname = usePathname();
   const [corteDeCajaOpen, setCorteDeCajaOpen] = useState(false);
+  const [configuracionOpen, setConfiguracionOpen] = useState(false);
 
   useEffect(() => {
     setCorteDeCajaOpen(pathname.startsWith('/corte-de-caja'));
+    setConfiguracionOpen(pathname.startsWith('/configuracion'));
   }, [pathname]);
 
   return (
@@ -139,6 +141,39 @@ export function AppSidebar() {
                       <Link href="/corte-de-caja/historial">Historial</Link>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton asChild isActive={pathname === '/corte-de-caja/publicaciones'}>
+                      <Link href="/corte-de-caja/publicaciones">Publicaciones</Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                </SidebarMenuSub>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarMenuItem>
+          
+          <SidebarMenuItem>
+            <Collapsible open={configuracionOpen} onOpenChange={setConfiguracionOpen} className="w-full">
+              <CollapsibleTrigger className="w-full">
+                <SidebarMenuButton tooltip="Configuración" className="w-full justify-between" isActive={pathname.startsWith('/configuracion')}>
+                  <div className="flex items-center gap-2">
+                    <Settings />
+                    <span>Configuración</span>
+                  </div>
+                  <ChevronRight className={cn("h-4 w-4 transition-transform", configuracionOpen && "rotate-90")} />
+                </SidebarMenuButton>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarMenuSub>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton asChild isActive={pathname === '/configuracion/categorias'}>
+                      <Link href="/configuracion/categorias">Categorías</Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton asChild isActive={pathname === '/configuracion/proveedores'}>
+                      <Link href="/configuracion/proveedores">Proveedores</Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
                 </SidebarMenuSub>
               </CollapsibleContent>
             </Collapsible>
@@ -172,12 +207,6 @@ export function AppSidebar() {
             <SidebarMenuButton tooltip="Reports">
               <Flag />
               <span>Reports</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Automations">
-              <Settings />
-              <span>Automations</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
