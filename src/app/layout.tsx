@@ -2,7 +2,8 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Providers } from './providers';
 import { AppSidebar } from '@/components/app-sidebar';
-import { MobileNav } from '@/components/mobile-nav';
+import { SidebarProvider } from '@/context/sidebar-provider';
+import { MainContentWrapper } from '@/components/main-content-wrapper';
 
 export const metadata: Metadata = {
   title: 'Inmatmex Welcome',
@@ -24,13 +25,12 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <Providers>
+          <SidebarProvider>
             <AppSidebar />
-            <div className="flex flex-col md:pl-64">
-              <MobileNav />
-              <main className='flex-1 bg-muted/40'>
-                {children}
-              </main>
-            </div>
+            <MainContentWrapper>
+              {children}
+            </MainContentWrapper>
+          </SidebarProvider>
         </Providers>
       </body>
     </html>

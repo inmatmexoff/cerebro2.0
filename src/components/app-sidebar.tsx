@@ -10,6 +10,7 @@ import {
   Barcode,
   Receipt,
   ChevronRight,
+  ChevronsLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -17,11 +18,17 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { useSidebar } from '@/context/sidebar-provider';
+import { Button } from './ui/button';
 
 function AppLogo() {
+  const { isCollapsed } = useSidebar();
   return (
     <div
-      className="flex items-center gap-3 w-full text-left p-4 border-b"
+      className={cn(
+        'flex h-14 items-center gap-3 w-full text-left p-4 border-b',
+        isCollapsed && 'justify-center px-2'
+      )}
     >
       <div className="bg-foreground text-background size-8 flex items-center justify-center rounded-lg shrink-0">
         <svg
@@ -39,68 +46,81 @@ function AppLogo() {
           <line x1="12" y1="22.08" x2="12" y2="12"></line>
         </svg>
       </div>
-      <div>
+      <div className={cn('whitespace-nowrap transition-opacity', isCollapsed ? 'opacity-0 w-0' : 'opacity-100')}>
         <h2 className="font-bold text-lg">Inmatmex</h2>
-        <div className="text-xs text-muted-foreground flex items-center">
-          21 members
-        </div>
       </div>
     </div>
   );
 }
 
+
 export function AppSidebar() {
   const pathname = usePathname();
+  const { isCollapsed, toggleSidebar } = useSidebar();
+  
   const [corteDeCajaOpen, setCorteDeCajaOpen] = React.useState(
-    pathname.startsWith('/corte-de-caja') || pathname.startsWith('/configuracion')
+    pathname.startsWith('/corte-de-caja')
   );
   const [configuracionOpen, setConfiguracionOpen] = React.useState(
     pathname.startsWith('/configuracion')
   );
 
+  React.useEffect(() => {
+    if (isCollapsed) {
+        setCorteDeCajaOpen(false);
+        setConfiguracionOpen(false);
+    }
+  }, [isCollapsed]);
+
   return (
-    <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 z-10 border-r bg-background">
+    <aside className={cn(
+      "hidden md:flex flex-col fixed inset-y-0 z-10 border-r bg-background transition-[width] duration-300 ease-in-out",
+      isCollapsed ? "w-20" : "w-64"
+    )}>
       <AppLogo />
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-2 space-y-1">
         <Link
           href="/"
           className={cn(
             'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary font-medium',
-            pathname === '/' && 'bg-muted text-primary'
+            pathname === '/' && 'bg-muted text-primary',
+            isCollapsed && 'justify-center'
           )}
         >
-          <LayoutGrid className="h-4 w-4" />
-          Dashboard
+          <LayoutGrid className="h-4 w-4 shrink-0" />
+          <span className={cn(isCollapsed && 'hidden')}>Dashboard</span>
         </Link>
         <Link
           href="/producto-estrella"
           className={cn(
             'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary font-medium',
-            pathname === '/producto-estrella' && 'bg-muted text-primary'
+            pathname === '/producto-estrella' && 'bg-muted text-primary',
+            isCollapsed && 'justify-center'
           )}
         >
-          <Star className="h-4 w-4" />
-          Producto Estrella
+          <Star className="h-4 w-4 shrink-0" />
+          <span className={cn(isCollapsed && 'hidden')}>Producto Estrella</span>
         </Link>
         <Link
           href="/analisis-sku"
           className={cn(
             'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary font-medium',
-            pathname === '/analisis-sku' && 'bg-muted text-primary'
+            pathname === '/analisis-sku' && 'bg-muted text-primary',
+            isCollapsed && 'justify-center'
           )}
         >
-          <Barcode className="h-4 w-4" />
-          Análisis por SKU
+          <Barcode className="h-4 w-4 shrink-0" />
+           <span className={cn(isCollapsed && 'hidden')}>Análisis por SKU</span>
         </Link>
         
-        <Collapsible open={corteDeCajaOpen} onOpenChange={setCorteDeCajaOpen} className="w-full">
-            <CollapsibleTrigger className='w-full'>
-                <div className={cn("flex items-center justify-between w-full rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary font-medium", pathname.startsWith('/corte-de-caja') && 'text-primary')}>
+        <Collapsible open={corteDeCajaOpen} onOpenChange={setCorteDeCajaOpen}>
+            <CollapsibleTrigger disabled={isCollapsed} className='w-full'>
+                <div className={cn("flex items-center w-full rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary font-medium", pathname.startsWith('/corte-de-caja') && 'text-primary bg-muted', isCollapsed ? 'justify-center' : 'justify-between')}>
                     <div className="flex items-center gap-3">
-                       <Receipt className="h-4 w-4" />
-                       <span>Corte de Caja</span>
+                       <Receipt className="h-4 w-4 shrink-0" />
+                       <span className={cn(isCollapsed && 'hidden')}>Corte de Caja</span>
                     </div>
-                   <ChevronRight className={cn('h-4 w-4 shrink-0 transition-transform', corteDeCajaOpen && 'rotate-90')} />
+                   <ChevronRight className={cn('h-4 w-4 shrink-0 transition-transform', isCollapsed && 'hidden', corteDeCajaOpen && 'rotate-90')} />
                 </div>
             </CollapsibleTrigger>
             <CollapsibleContent className="pl-10 mt-1 space-y-1">
@@ -110,7 +130,7 @@ export function AppSidebar() {
                  <Link href="/corte-de-caja/publicaciones" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/corte-de-caja/publicaciones' && "text-primary")}>Publicaciones</Link>
 
                  <Collapsible open={configuracionOpen} onOpenChange={setConfiguracionOpen} className="w-full pt-1">
-                    <CollapsibleTrigger className='w-full'>
+                    <CollapsibleTrigger className='w-full' disabled={isCollapsed}>
                         <div className={cn("flex items-center justify-between w-full text-sm text-muted-foreground transition-all hover:text-primary", pathname.startsWith('/configuracion') && 'text-primary')}>
                            <div className="flex items-center gap-2">
                               <Settings className="w-4 h-4"/>
@@ -127,6 +147,11 @@ export function AppSidebar() {
             </CollapsibleContent>
         </Collapsible>
       </nav>
+      <div className="mt-auto p-2 border-t">
+        <Button variant="ghost" className="w-full" onClick={toggleSidebar}>
+            <ChevronsLeft className={cn("h-5 w-5 shrink-0 transition-transform duration-300", isCollapsed && "rotate-180")} />
+        </Button>
+      </div>
     </aside>
   );
 }
