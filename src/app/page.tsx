@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Star, Barcode } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
     try {
@@ -302,6 +303,7 @@ export default function DashboardPage() {
     const chartDataRef = React.useRef<any[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [chartIsVisible, setChartIsVisible] = React.useState(true);
+    const isMobile = useIsMobile();
     
     const isFilterApplied = !!(startDate || endDate || company);
     const countCardTitle = isFilterApplied ? 'ETIQUETAS (FILTRADO)' : 'ETIQUETAS (HOY)';
@@ -355,34 +357,34 @@ export default function DashboardPage() {
         setChartIsVisible(true);
     };
 
-  const RADIAN = Math.PI / 180;
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
-    if (percent === 0) return null;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="white"
-        textAnchor="middle"
-        dominantBaseline="central"
-        style={{
-          fontSize: '1.25rem',
-          fontWeight: 'bold',
-          paintOrder: 'stroke',
-          stroke: '#000000',
-          strokeWidth: '2px',
-          strokeLinecap: 'butt',
-          strokeLinejoin: 'miter',
-        }}
-      >
-        {`${(percent * 100).toFixed(0)}%`}
-      </text>
-    );
-  };
+    const RADIAN = Math.PI / 180;
+    const renderCustomizedLabel = useCallback(({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+      if (percent === 0) return null;
+      const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  
+      return (
+        <text
+          x={x}
+          y={y}
+          fill="white"
+          textAnchor="middle"
+          dominantBaseline="central"
+          style={{
+            fontSize: isMobile ? '1rem' : '1.25rem',
+            fontWeight: 'bold',
+            paintOrder: 'stroke',
+            stroke: '#000000',
+            strokeWidth: '2px',
+            strokeLinecap: 'butt',
+            strokeLinejoin: 'miter',
+          }}
+        >
+          {`${(percent * 100).toFixed(0)}%`}
+        </text>
+      );
+    }, [isMobile]);
 
   return (
     <div className="bg-muted/50 min-h-screen p-4 sm:p-6 md:p-8">
@@ -490,12 +492,12 @@ export default function DashboardPage() {
 
           <Separator className="my-8 w-[70%] mx-auto" />
 
-          <div className="mt-8 flex justify-center items-center" style={{ minHeight: '500px', width: '100%' }}>
+          <div className="mt-8 flex justify-center items-center" style={{ minHeight: isMobile ? 300 : 500, width: '100%' }}>
             {isLoading ? (
               <p className="text-gray-500 font-semibold">Cargando...</p>
             ) : chartIsVisible ? (
               chartDataRef.current.length > 0 ? (
-                <ResponsiveContainer width="100%" height={500}>
+                <ResponsiveContainer width="100%" height={isMobile ? 300 : 500}>
                   <PieChart>
                     <Pie
                       data={chartDataRef.current}
@@ -503,7 +505,7 @@ export default function DashboardPage() {
                       nameKey="label"
                       cx="50%"
                       cy="50%"
-                      outerRadius={250}
+                      outerRadius={isMobile ? 100 : 250}
                       fill="#8884d8"
                       labelLine={false}
                       label={renderCustomizedLabel}
@@ -514,9 +516,9 @@ export default function DashboardPage() {
                     </Pie>
                     <Tooltip />
                     <Legend
-                      layout="vertical"
-                      verticalAlign="middle"
-                      align="right"
+                      layout={isMobile ? 'horizontal' : 'vertical'}
+                      verticalAlign={isMobile ? 'bottom' : 'middle'}
+                      align={isMobile ? 'center' : 'right'}
                     />
                   </PieChart>
                 </ResponsiveContainer>
