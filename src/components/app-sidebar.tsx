@@ -116,7 +116,7 @@ export function AppSidebar() {
           
           <SidebarMenuItem>
             <Collapsible open={corteDeCajaOpen} onOpenChange={setCorteDeCajaOpen} className="w-full">
-              <CollapsibleTrigger className="w-full">
+              <CollapsibleTrigger asChild>
                 <SidebarMenuButton tooltip="Corte de Caja" className="w-full justify-between" isActive={pathname.startsWith('/corte-de-caja') || pathname.startsWith('/configuracion')}>
                   <div className="flex items-center gap-2">
                     <Receipt />
@@ -150,7 +150,7 @@ export function AppSidebar() {
                   
                   <SidebarMenuSubItem>
                     <Collapsible open={configuracionOpen} onOpenChange={setConfiguracionOpen} className="w-full">
-                      <CollapsibleTrigger className="w-full">
+                      <CollapsibleTrigger asChild>
                         <div
                           data-sidebar="menu-sub-button"
                           data-active={pathname.startsWith('/configuracion')}
