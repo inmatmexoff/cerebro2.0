@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -13,12 +14,20 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   useSidebar,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from '@/components/ui/avatar';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   LayoutGrid,
   MessageSquare,
@@ -36,6 +45,7 @@ import {
   BarChartBig,
   Barcode,
   Receipt,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -63,6 +73,11 @@ function AppLogo() {
 export function AppSidebar() {
   const { state } = useSidebar();
   const pathname = usePathname();
+  const [corteDeCajaOpen, setCorteDeCajaOpen] = useState(false);
+
+  useEffect(() => {
+    setCorteDeCajaOpen(pathname.startsWith('/corte-de-caja'));
+  }, [pathname]);
 
   return (
     <Sidebar collapsible="icon" className="group/sidebar">
@@ -95,14 +110,40 @@ export function AppSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Corte de Caja" isActive={pathname === '/corte-de-caja'}>
-              <Link href="/corte-de-caja">
-                <Receipt />
-                <span>Corte de Caja</span>
-              </Link>
-            </SidebarMenuButton>
+            <Collapsible open={corteDeCajaOpen} onOpenChange={setCorteDeCajaOpen} className="w-full">
+              <CollapsibleTrigger className="w-full">
+                <SidebarMenuButton tooltip="Corte de Caja" className="w-full justify-between" isActive={pathname.startsWith('/corte-de-caja')}>
+                  <div className="flex items-center gap-2">
+                    <Receipt />
+                    <span>Corte de Caja</span>
+                  </div>
+                  <ChevronRight className={cn("h-4 w-4 transition-transform", corteDeCajaOpen && "rotate-90")} />
+                </SidebarMenuButton>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarMenuSub>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton asChild isActive={pathname === '/corte-de-caja'}>
+                      <Link href="/corte-de-caja">Resumen</Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton asChild isActive={pathname === '/corte-de-caja/nuevo-corte'}>
+                      <Link href="/corte-de-caja/nuevo-corte">Nuevo Corte</Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton asChild isActive={pathname === '/corte-de-caja/historial'}>
+                      <Link href="/corte-de-caja/historial">Historial</Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                </SidebarMenuSub>
+              </CollapsibleContent>
+            </Collapsible>
           </SidebarMenuItem>
+
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Messages">
               <MessageSquare />
