@@ -24,12 +24,13 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <Providers>
-          <SidebarProvider defaultOpen={false}>
+          {/* <SidebarProvider defaultOpen={false}>
             <AppSidebar />
             <SidebarInset>
               {children}
             </SidebarInset>
-          </SidebarProvider>
+          </SidebarProvider> */}
+          {children}
         </Providers>
       </body>
     </html>
