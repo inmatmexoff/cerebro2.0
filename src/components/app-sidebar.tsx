@@ -77,8 +77,9 @@ export function AppSidebar() {
   const [configuracionOpen, setConfiguracionOpen] = useState(false);
 
   useEffect(() => {
-    setCorteDeCajaOpen(pathname.startsWith('/corte-de-caja'));
-    setConfiguracionOpen(pathname.startsWith('/configuracion'));
+    const isConfig = pathname.startsWith('/configuracion');
+    setCorteDeCajaOpen(pathname.startsWith('/corte-de-caja') || isConfig);
+    setConfiguracionOpen(isConfig);
   }, [pathname]);
 
   return (
@@ -116,7 +117,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <Collapsible open={corteDeCajaOpen} onOpenChange={setCorteDeCajaOpen} className="w-full">
               <CollapsibleTrigger className="w-full">
-                <SidebarMenuButton tooltip="Corte de Caja" className="w-full justify-between" isActive={pathname.startsWith('/corte-de-caja')}>
+                <SidebarMenuButton tooltip="Corte de Caja" className="w-full justify-between" isActive={pathname.startsWith('/corte-de-caja') || pathname.startsWith('/configuracion')}>
                   <div className="flex items-center gap-2">
                     <Receipt />
                     <span>Corte de Caja</span>
@@ -146,33 +147,43 @@ export function AppSidebar() {
                       <Link href="/corte-de-caja/publicaciones">Publicaciones</Link>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
-                </SidebarMenuSub>
-              </CollapsibleContent>
-            </Collapsible>
-          </SidebarMenuItem>
-          
-          <SidebarMenuItem>
-            <Collapsible open={configuracionOpen} onOpenChange={setConfiguracionOpen} className="w-full">
-              <CollapsibleTrigger className="w-full">
-                <SidebarMenuButton tooltip="Configuración" className="w-full justify-between" isActive={pathname.startsWith('/configuracion')}>
-                  <div className="flex items-center gap-2">
-                    <Settings />
-                    <span>Configuración</span>
-                  </div>
-                  <ChevronRight className={cn("h-4 w-4 transition-transform", configuracionOpen && "rotate-90")} />
-                </SidebarMenuButton>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SidebarMenuSub>
+                  
                   <SidebarMenuSubItem>
-                    <SidebarMenuSubButton asChild isActive={pathname === '/configuracion/categorias'}>
-                      <Link href="/configuracion/categorias">Categorías</Link>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                  <SidebarMenuSubItem>
-                    <SidebarMenuSubButton asChild isActive={pathname === '/configuracion/proveedores'}>
-                      <Link href="/configuracion/proveedores">Proveedores</Link>
-                    </SidebarMenuSubButton>
+                    <Collapsible open={configuracionOpen} onOpenChange={setConfiguracionOpen} className="w-full">
+                      <CollapsibleTrigger className="w-full">
+                        <div
+                          data-sidebar="menu-sub-button"
+                          data-active={pathname.startsWith('/configuracion')}
+                           className={cn(
+                            "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
+                            "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
+                            "text-sm",
+                            "group-data-[collapsible=icon]:hidden",
+                            "w-full justify-between cursor-pointer"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Settings />
+                            <span>Configuración</span>
+                          </div>
+                          <ChevronRight className={cn("h-4 w-4 transition-transform", configuracionOpen && "rotate-90")} />
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                           <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild isActive={pathname === '/configuracion/categorias'}>
+                              <Link href="/configuracion/categorias">Categorías</Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild isActive={pathname === '/configuracion/proveedores'}>
+                              <Link href="/configuracion/proveedores">Proveedores</Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </Collapsible>
                   </SidebarMenuSubItem>
                 </SidebarMenuSub>
               </CollapsibleContent>
