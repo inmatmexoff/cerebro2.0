@@ -384,7 +384,7 @@ export default function DashboardPage() {
     }, []);
 
   return (
-    <div className="bg-muted/50 min-h-screen p-4 sm:p-6 md:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-screen-xl mx-auto">
         <SiteHeader />
 

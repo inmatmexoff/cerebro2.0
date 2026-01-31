@@ -24,12 +24,12 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <Providers>
-            <div className="flex min-h-screen w-full">
-              <AppSidebar />
-              <div className="flex flex-col flex-1">
-                <MobileNav />
+            <AppSidebar />
+            <div className="flex flex-col md:pl-64">
+              <MobileNav />
+              <main className='flex-1 bg-muted/40'>
                 {children}
-              </div>
+              </main>
             </div>
         </Providers>
       </body>

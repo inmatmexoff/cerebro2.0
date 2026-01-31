@@ -59,7 +59,7 @@ export function AppSidebar() {
   );
 
   return (
-    <aside className="hidden md:flex w-64 flex-shrink-0 border-r bg-background flex-col">
+    <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 z-10 border-r bg-background">
       <AppLogo />
       <nav className="flex-1 p-4 space-y-1">
         <Link
