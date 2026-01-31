@@ -30,32 +30,31 @@ export function DashboardCard({
     typeof val === "string" && val.toUpperCase() === "HOGARDEN";
 
   const valueClassName = cn(
-    "font-bold mt-2 break-all",
+    "font-bold mt-1 sm:mt-2 break-words", // break-words instead of break-all
     isFilled ? "text-primary-foreground" : "text-primary",
     isPaloDeRosa(value)
-      ? "text-xl"
+      ? "text-lg sm:text-xl"
       : isDomeska(value)
-      ? "text-3xl"
+      ? "text-2xl sm:text-3xl"
       : isHogarden(value)
-      ? "text-3xl"
-      : "text-5xl"
+      ? "text-2xl sm:text-3xl"
+      : "text-4xl sm:text-5xl"
   );
 
   const cardComponent = (
     <Card
       className={cn(
-        "flex flex-col justify-center items-center text-center",
+        "flex flex-col justify-center items-center text-center h-44 sm:h-[215px]",
         isFilled ? "bg-primary text-primary-foreground" : "bg-card text-card-foreground",
         href && (isFilled ? "hover:bg-primary/90" : "hover:bg-accent/20"),
         href && "transition-colors",
         className
       )}
-      style={{ height: 215 }}
     >
-      <CardContent className="p-4">
+      <CardContent className="p-3 sm:p-4">
         <h3 className={cn(
           "font-semibold",
-          isFilled ? "text-2xl font-bold" : "text-xl text-gray-700"
+          isFilled ? "text-lg sm:text-2xl font-bold" : "text-base sm:text-xl text-gray-700"
         )}>
           {title}
         </h3>
@@ -64,7 +63,7 @@ export function DashboardCard({
               {value}
           </p>
         )}
-        {icon && <div className="mt-2 flex justify-center">{icon}</div>}
+        {icon && <div className={cn("mt-2 flex justify-center", "[&_svg]:h-6 [&_svg]:w-6 sm:[&_svg]:h-8 sm:[&_svg]:w-8")}>{icon}</div>}
       </CardContent>
     </Card>
   );

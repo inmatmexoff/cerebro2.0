@@ -393,7 +393,7 @@ export default function DashboardPage() {
 
         <main>
           <Card className="mb-8">
-            <CardContent className="pt-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:flex-wrap items-end gap-4">
                 <div className="space-y-2 w-full sm:flex-1 sm:min-w-[200px]">
                   <Label>Fecha de inicio</Label>
