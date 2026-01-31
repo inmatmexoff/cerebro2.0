@@ -117,13 +117,20 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <Collapsible open={corteDeCajaOpen} onOpenChange={setCorteDeCajaOpen} className="w-full">
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip="Corte de Caja" className="w-full justify-between" isActive={pathname.startsWith('/corte-de-caja') || pathname.startsWith('/configuracion')}>
+                <div
+                  data-active={pathname.startsWith('/corte-de-caja') || pathname.startsWith('/configuracion')}
+                  className={cn(
+                    "flex h-8 items-center w-full justify-between gap-2 rounded-md p-2 text-left text-sm text-sidebar-foreground outline-none ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 cursor-pointer",
+                    "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:font-medium",
+                    "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2"
+                  )}
+                >
                   <div className="flex items-center gap-2">
                     <Receipt />
-                    <span>Corte de Caja</span>
+                    <span className="group-data-[collapsible=icon]:hidden">Corte de Caja</span>
                   </div>
-                  <ChevronRight className={cn("h-4 w-4 transition-transform", corteDeCajaOpen && "rotate-90")} />
-                </SidebarMenuButton>
+                  <ChevronRight className={cn("h-4 w-4 shrink-0 transition-transform group-data-[collapsible=icon]:hidden", corteDeCajaOpen && "rotate-90")} />
+                </div>
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarMenuSub>
