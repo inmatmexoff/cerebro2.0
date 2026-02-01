@@ -15,6 +15,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Search, Star, Barcode } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
+const MEXICO_TIMEZONE_OFFSET = 6; // UTC-6
+
 async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
     try {
       let query = supabasePROD
@@ -28,33 +30,29 @@ async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: 
       if (filters?.startDate || filters?.endDate) {
         if (filters.startDate) {
           const startOfDay = new Date(filters.startDate);
-          startOfDay.setUTCHours(0, 0, 0, 0);
+          startOfDay.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
           query = query.gte('created_at', startOfDay.toISOString());
         }
         if (filters.endDate) {
-          const endOfDay = new Date(filters.endDate);
-          endOfDay.setUTCHours(23, 59, 59, 999);
-          query = query.lte('created_at', endOfDay.toISOString());
+          const endOfDayBoundary = new Date(filters.endDate);
+          endOfDayBoundary.setUTCDate(endOfDayBoundary.getUTCDate() + 1);
+          endOfDayBoundary.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
+          query = query.lt('created_at', endOfDayBoundary.toISOString());
         }
       } else { // If no specific dates, default to today
         const now = new Date();
-        const startOfDayMexicoInUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 6, 0, 0, 0));
+        let todayStart: Date;
         
-        let gte, lt;
-  
-        if (now.getTime() < startOfDayMexicoInUTC.getTime()) {
-          lt = startOfDayMexicoInUTC.toISOString();
-          const gteDate = new Date(startOfDayMexicoInUTC);
-          gteDate.setUTCDate(gteDate.getUTCDate() - 1);
-          gte = gteDate.toISOString();
+        if (now.getUTCHours() < MEXICO_TIMEZONE_OFFSET) {
+            const yesterday = new Date(now);
+            yesterday.setUTCDate(now.getUTCDate() - 1);
+            todayStart = new Date(Date.UTC(yesterday.getUTCFullYear(), yesterday.getUTCMonth(), yesterday.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
         } else {
-          gte = startOfDayMexicoInUTC.toISOString();
-          const ltDate = new Date(startOfDayMexicoInUTC);
-          ltDate.setUTCDate(ltDate.getUTCDate() + 1);
-          lt = ltDate.toISOString();
+            todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
         }
         
-        query = query.gte('created_at', gte).lt('created_at', lt);
+        const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+        query = query.gte('created_at', todayStart.toISOString()).lt('created_at', todayEnd.toISOString());
       }
       
       const { count, error } = await query;
@@ -88,33 +86,29 @@ async function getLeadingCompany(filters?: { startDate?: Date | null, endDate?: 
       if (filters?.startDate || filters?.endDate) {
         if (filters.startDate) {
           const startOfDay = new Date(filters.startDate);
-          startOfDay.setUTCHours(0, 0, 0, 0);
+          startOfDay.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
           query = query.gte('created_at', startOfDay.toISOString());
         }
         if (filters.endDate) {
-          const endOfDay = new Date(filters.endDate);
-          endOfDay.setUTCHours(23, 59, 59, 999);
-          query = query.lte('created_at', endOfDay.toISOString());
+          const endOfDayBoundary = new Date(filters.endDate);
+          endOfDayBoundary.setUTCDate(endOfDayBoundary.getUTCDate() + 1);
+          endOfDayBoundary.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
+          query = query.lt('created_at', endOfDayBoundary.toISOString());
         }
       } else { // Default to today
         const now = new Date();
-        const startOfDayMexicoInUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 6, 0, 0, 0));
+        let todayStart: Date;
         
-        let gte, lt;
-  
-        if (now.getTime() < startOfDayMexicoInUTC.getTime()) {
-          lt = startOfDayMexicoInUTC.toISOString();
-          const gteDate = new Date(startOfDayMexicoInUTC);
-          gteDate.setUTCDate(gteDate.getUTCDate() - 1);
-          gte = gteDate.toISOString();
+        if (now.getUTCHours() < MEXICO_TIMEZONE_OFFSET) {
+            const yesterday = new Date(now);
+            yesterday.setUTCDate(now.getUTCDate() - 1);
+            todayStart = new Date(Date.UTC(yesterday.getUTCFullYear(), yesterday.getUTCMonth(), yesterday.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
         } else {
-          gte = startOfDayMexicoInUTC.toISOString();
-          const ltDate = new Date(startOfDayMexicoInUTC);
-          ltDate.setUTCDate(ltDate.getUTCDate() + 1);
-          lt = ltDate.toISOString();
+            todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
         }
         
-        query = query.gte('created_at', gte).lt('created_at', lt);
+        const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+        query = query.gte('created_at', todayStart.toISOString()).lt('created_at', todayEnd.toISOString());
       }
   
       const { data, error } = await query;
@@ -165,19 +159,33 @@ async function getMonthlyEtiquetasCount(filters?: { startDate?: Date | null, end
       if (filters?.startDate || filters?.endDate) {
         if (filters.startDate) {
           const startOfDay = new Date(filters.startDate);
-          startOfDay.setUTCHours(0, 0, 0, 0);
+          startOfDay.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
           query = query.gte('created_at', startOfDay.toISOString());
         }
         if (filters.endDate) {
-          const endOfDay = new Date(filters.endDate);
-          endOfDay.setUTCHours(23, 59, 59, 999);
-          query = query.lte('created_at', endOfDay.toISOString());
+          const endOfDayBoundary = new Date(filters.endDate);
+          endOfDayBoundary.setUTCDate(endOfDayBoundary.getUTCDate() + 1);
+          endOfDayBoundary.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
+          query = query.lt('created_at', endOfDayBoundary.toISOString());
         }
       } else { 
         const now = new Date();
-        const firstDayOfMonthUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-        const lastDayOfMonthUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
-        query = query.gte('created_at', firstDayOfMonthUTC.toISOString()).lte('created_at', lastDayOfMonthUTC.toISOString());
+        let year: number, month: number;
+
+        if (now.getUTCHours() < MEXICO_TIMEZONE_OFFSET) {
+            const yesterday = new Date(now);
+            yesterday.setUTCDate(now.getUTCDate() - 1);
+            year = yesterday.getUTCFullYear();
+            month = yesterday.getUTCMonth();
+        } else {
+            year = now.getUTCFullYear();
+            month = now.getUTCMonth();
+        }
+        
+        const monthStart = new Date(Date.UTC(year, month, 1, MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
+        const monthEnd = new Date(Date.UTC(year, month + 1, 1, MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
+
+        query = query.gte('created_at', monthStart.toISOString()).lt('created_at', monthEnd.toISOString());
       }
       
       const { count, error } = await query;
@@ -207,33 +215,29 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
       if (filters?.startDate || filters?.endDate) {
         if (filters.startDate) {
           const startOfDay = new Date(filters.startDate);
-          startOfDay.setUTCHours(0, 0, 0, 0);
+          startOfDay.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
           query = query.gte('created_at', startOfDay.toISOString());
         }
         if (filters.endDate) {
-          const endOfDay = new Date(filters.endDate);
-          endOfDay.setUTCHours(23, 59, 59, 999);
-          query = query.lte('created_at', endOfDay.toISOString());
+          const endOfDayBoundary = new Date(filters.endDate);
+          endOfDayBoundary.setUTCDate(endOfDayBoundary.getUTCDate() + 1);
+          endOfDayBoundary.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
+          query = query.lt('created_at', endOfDayBoundary.toISOString());
         }
       } else { // Default to today
         const now = new Date();
-        const startOfDayMexicoInUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 6, 0, 0, 0));
+        let todayStart: Date;
         
-        let gte, lt;
-  
-        if (now.getTime() < startOfDayMexicoInUTC.getTime()) {
-          lt = startOfDayMexicoInUTC.toISOString();
-          const gteDate = new Date(startOfDayMexicoInUTC);
-          gteDate.setUTCDate(gteDate.getUTCDate() - 1);
-          gte = gteDate.toISOString();
+        if (now.getUTCHours() < MEXICO_TIMEZONE_OFFSET) {
+            const yesterday = new Date(now);
+            yesterday.setUTCDate(now.getUTCDate() - 1);
+            todayStart = new Date(Date.UTC(yesterday.getUTCFullYear(), yesterday.getUTCMonth(), yesterday.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
         } else {
-          gte = startOfDayMexicoInUTC.toISOString();
-          const ltDate = new Date(startOfDayMexicoInUTC);
-          ltDate.setUTCDate(ltDate.getUTCDate() + 1);
-          lt = ltDate.toISOString();
+            todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
         }
         
-        query = query.gte('created_at', gte).lt('created_at', lt);
+        const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+        query = query.gte('created_at', todayStart.toISOString()).lt('created_at', todayEnd.toISOString());
       }
   
       const { data, error } = await query;
