@@ -22,11 +22,12 @@ import { useSidebar } from '@/context/sidebar-provider';
 import { Button } from './ui/button';
 
 function AppLogo() {
-  const { isCollapsed } = useSidebar();
+  const { isCollapsed, toggleSidebar } = useSidebar();
   return (
     <div
+      onClick={toggleSidebar}
       className={cn(
-        'flex h-14 items-center gap-3 w-full text-left p-4 border-b',
+        'flex h-14 items-center gap-3 w-full text-left p-4 border-b cursor-pointer',
         isCollapsed && 'justify-center px-2'
       )}
     >
