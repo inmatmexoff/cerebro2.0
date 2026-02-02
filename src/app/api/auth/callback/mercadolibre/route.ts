@@ -4,14 +4,15 @@ import { ML_APP_ID, ML_CLIENT_SECRET, ML_REDIRECT_URI } from '@/lib/ml-config';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
+  const origin = request.nextUrl.origin;
 
   if (!code) {
     const errorDescription = searchParams.get('error_description') || 'No code provided by Mercado Libre.';
-    return NextResponse.redirect(new URL(`/mercadolibre?error=${encodeURIComponent(errorDescription)}`, request.url));
+    return NextResponse.redirect(`${origin}/mercadolibre?error=${encodeURIComponent(errorDescription)}`);
   }
 
   try {
-    const response = await fetch('https://api.mercadolibre.com/oauth/token', {
+    const response = await fetch('https://api.mercadolibre.com.mx/oauth/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -31,20 +32,21 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       console.error('Error fetching Mercado Libre token:', data);
       const errorMessage = data.message || 'Authentication failed';
-      return NextResponse.redirect(new URL(`/mercadolibre?error=${encodeURIComponent(errorMessage)}`, request.url));
+      return NextResponse.redirect(`${origin}/mercadolibre?error=${encodeURIComponent(errorMessage)}`);
     }
 
     // Here you would typically save the access_token, refresh_token, etc., to a secure place like a database or session.
     console.log('Mercado Libre Tokens Received:', data);
 
     // Redirect to a success page or the dashboard.
-    const redirectUrl = new URL('/', request.url);
-    redirectUrl.searchParams.set('ml_connected', 'true');
-
+    const redirectUrl = `${origin}/?ml_connected=true`;
     return NextResponse.redirect(redirectUrl);
 
   } catch (error) {
     console.error('Internal server error during Mercado Libre auth:', error);
-    return NextResponse.redirect(new URL('/mercadolibre?error=Internal-server-error', request.url));
+    if (error instanceof Error) {
+        return NextResponse.redirect(`${origin}/mercadolibre?error=${encodeURIComponent(error.message)}`);
+    }
+    return NextResponse.redirect(`${origin}/mercadolibre?error=Internal-server-error`);
   }
 }
