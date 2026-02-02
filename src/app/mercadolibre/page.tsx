@@ -19,7 +19,7 @@ export default function MercadoLibrePage() {
       redirect_uri: ML_REDIRECT_URI,
     });
 
-    window.location.href = `https://auth.mercadolibre.com/authorization?${params}`;
+    window.location.href = `https://auth.mercadolibre.com.mx/authorization?${params}`;
   };
 
   return (
