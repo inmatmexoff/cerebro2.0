@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Cable } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ML_APP_ID, ML_REDIRECT_URI } from '@/lib/ml-config';
+import { ML_APP_ID, ML_CALLBACK_PATH } from '@/lib/ml-config';
 
 export default function MercadoLibrePage() {
   const handleLogin = () => {
@@ -13,12 +13,17 @@ export default function MercadoLibrePage() {
         alert("El App ID de Mercado Libre no está configurado.");
         return;
     }
+    // Dynamically construct the redirect URI using the window's origin.
+    // This is crucial to avoid using "localhost", which Mercado Libre blocks.
+    const redirectUri = `${window.location.origin}${ML_CALLBACK_PATH}`;
+
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: ML_APP_ID,
-      redirect_uri: ML_REDIRECT_URI,
+      redirect_uri: redirectUri,
     });
 
+    // Using the Mexico-specific authorization URL.
     window.location.href = `https://auth.mercadolibre.com.mx/authorization?${params}`;
   };
 

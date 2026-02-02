@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ML_APP_ID, ML_CLIENT_SECRET, ML_REDIRECT_URI } from '@/lib/ml-config';
+import { ML_APP_ID, ML_CLIENT_SECRET, ML_CALLBACK_PATH } from '@/lib/ml-config';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const origin = request.nextUrl.origin;
+
+  // Dynamically construct the redirect URI using the request's origin.
+  const redirectUri = `${origin}${ML_CALLBACK_PATH}`;
 
   if (!code) {
     const errorDescription = searchParams.get('error_description') || 'No code provided by Mercado Libre.';
@@ -23,7 +26,7 @@ export async function GET(request: NextRequest) {
         client_id: ML_APP_ID,
         client_secret: ML_CLIENT_SECRET,
         code: code,
-        redirect_uri: ML_REDIRECT_URI,
+        redirect_uri: redirectUri,
       }),
     });
 
