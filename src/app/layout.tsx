@@ -4,6 +4,7 @@ import { Providers } from './providers';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarProvider } from '@/context/sidebar-provider';
 import { MainContentWrapper } from '@/components/main-content-wrapper';
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: 'Inmatmex Welcome',
@@ -32,6 +33,7 @@ export default function RootLayout({
             </MainContentWrapper>
           </SidebarProvider>
         </Providers>
+        <Toaster />
       </body>
     </html>
   );

@@ -2,12 +2,14 @@
 
 import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Upload, FileSpreadsheet, X } from 'lucide-react';
+import { ArrowLeft, Upload, Save, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { supabasePROD } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 
 // Define which columns to extract
@@ -18,11 +20,53 @@ const COLUMN_MAPPING: { [key: string]: number } = {
 const COLUMN_INDEXES = Object.values(COLUMN_MAPPING);
 
 
+const DB_COLUMN_TO_EXCEL_INDEX = {
+    num_venta: 0,         // A
+    fecha_venta: 1,       // B
+    unidades: 2,          // G
+    ing_xunidad: 3,       // H
+    cargo_venta: 4,       // I
+    ing_xenvio: 5,        // J
+    costo_envio: 6,       // K
+    cargo_difpeso: 7,     // M
+    anu_reembolsos: 8,    // N
+    total: 9,             // O
+    venta_xpublicidad: 10, // P
+    sku: 11,              // Q
+    num_publi: 12,        // R
+    tienda: 13,           // S
+    tip_publi: 14,        // W
+};
+
+// Helper to parse currency strings like "$ 1,234.50" into numbers
+const parseCurrency = (value: any): number | null => {
+    if (typeof value === 'number') {
+        return value;
+    }
+    if (typeof value !== 'string' || !value) {
+        return null;
+    }
+    const num = parseFloat(value.replace(/[^0-9.-]+/g,""));
+    return isNaN(num) ? null : num;
+};
+
+// Helper to parse boolean values
+const parseBoolean = (value: any): boolean => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+        return ['si', 'sí', 'yes', 'true', '1'].includes(value.toLowerCase());
+    }
+    return false; // default to false
+};
+
+
 export default function ExcelVentasPage() {
     const [headers, setHeaders] = useState<string[]>([]);
     const [data, setData] = useState<any[][]>([]);
     const [fileName, setFileName] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         const file = acceptedFiles[0];
@@ -45,11 +89,10 @@ export default function ExcelVentasPage() {
                     setError("No se pudo leer el archivo.");
                     return;
                 }
-                const workbook = XLSX.read(binaryStr, { type: 'binary' });
+                const workbook = XLSX.read(binaryStr, { type: 'binary', cellDates: true });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
                 
-                // Using sheet_to_json with header: 1 to get an array of arrays
                 const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
                 if (json.length < 7) {
@@ -57,14 +100,12 @@ export default function ExcelVentasPage() {
                     return;
                 }
 
-                // Get headers from row 6 (index 5)
                 const headerRow = json[5] || [];
                 const extractedHeaders = COLUMN_INDEXES.map(colIndex => headerRow[colIndex] || `Columna ${colIndex + 1}`);
 
-                // Get data from row 7 onwards (index 6)
                 const extractedData = json.slice(6).map(row => {
                     return COLUMN_INDEXES.map(colIndex => row[colIndex]);
-                }).filter(row => row.some(cell => cell !== "" && cell !== null && cell !== undefined)); // Filter out empty rows
+                }).filter(row => row.some(cell => cell !== "" && cell !== null && cell !== undefined));
 
                 if (extractedData.length === 0) {
                      setError("No se encontraron datos en las columnas y filas especificadas.");
@@ -104,6 +145,82 @@ export default function ExcelVentasPage() {
         setError(null);
     };
 
+    const handleSaveData = async () => {
+        if (data.length === 0) {
+            toast({
+                variant: "destructive",
+                title: "No hay datos para guardar",
+                description: "Carga un archivo y procesa los datos primero.",
+            });
+            return;
+        }
+
+        setIsSaving(true);
+        setError(null);
+
+        try {
+            const recordsToInsert = data.map(row => {
+                const saleDateValue = row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta];
+                let saleDate: Date | null = null;
+                if (saleDateValue instanceof Date) {
+                    saleDate = saleDateValue;
+                } else if (typeof saleDateValue === 'string') {
+                    const parsed = new Date(saleDateValue);
+                    if (!isNaN(parsed.getTime())) saleDate = parsed;
+                } else if (typeof saleDateValue === 'number') {
+                    saleDate = new Date(Math.round((saleDateValue - 25569) * 86400 * 1000));
+                }
+
+                return {
+                    num_venta: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ''),
+                    fecha_venta: saleDate ? saleDate.toISOString() : null,
+                    unidades: parseInt(String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades]), 10) || null,
+                    ing_xunidad: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]),
+                    cargo_venta: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]),
+                    ing_xenvio: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]),
+                    costo_envio: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
+                    cargo_difpeso: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]),
+                    anu_reembolsos: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]),
+                    total: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]),
+                    venta_xpublicidad: parseBoolean(row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad]),
+                    sku: String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''),
+                    num_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_publi] || ''),
+                    tienda: String(row[DB_COLUMN_TO_EXCEL_INDEX.tienda] || ''),
+                    tip_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi] || ''),
+                };
+            }).filter(record => record.num_venta);
+
+            if (recordsToInsert.length === 0) {
+                throw new Error("No se encontraron registros válidos para guardar.");
+            }
+
+            const { error: insertError } = await supabasePROD.from('ml_sales').insert(recordsToInsert);
+
+            if (insertError) {
+                throw insertError;
+            }
+
+            toast({
+                title: "Datos guardados",
+                description: `Se guardaron ${recordsToInsert.length} registros exitosamente.`,
+            });
+
+            clearFile();
+
+        } catch (e: any) {
+            console.error("Error saving data to Supabase:", e);
+            const errorMessage = e.message || "Ocurrió un problema al conectar con la base de datos.";
+            setError(`Error al guardar: ${errorMessage}`);
+            toast({
+                variant: "destructive",
+                title: "Error al guardar los datos",
+                description: errorMessage,
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
@@ -118,7 +235,7 @@ export default function ExcelVentasPage() {
                     <div>
                         <h1 className="text-3xl font-bold">Cargar Excel de Ventas</h1>
                         <p className="text-muted-foreground">
-                            Sube un archivo para leer y visualizar los datos de ventas.
+                            Sube un archivo para leer, visualizar y guardar los datos de ventas.
                         </p>
                     </div>
                 </header>
@@ -183,7 +300,9 @@ export default function ExcelVentasPage() {
                                             {data.map((row, rowIndex) => (
                                                 <TableRow key={rowIndex}>
                                                     {row.map((cell, cellIndex) => (
-                                                        <TableCell key={cellIndex}>{cell}</TableCell>
+                                                        <TableCell key={cellIndex}>
+                                                           {cell instanceof Date ? cell.toLocaleDateString() : String(cell)}
+                                                        </TableCell>
                                                     ))}
                                                 </TableRow>
                                             ))}
@@ -194,11 +313,14 @@ export default function ExcelVentasPage() {
                         </Card>
                     )}
 
-                    {/* Keep the original button but maybe disable it or change its function */}
                     <div className="flex justify-center items-center py-8">
-                      <Button disabled={data.length === 0}>
-                        <FileSpreadsheet className="w-4 h-4 mr-2" />
-                        Procesar Datos Cargados
+                      <Button onClick={handleSaveData} disabled={data.length === 0 || isSaving}>
+                        {isSaving ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                            <Save className="w-4 h-4 mr-2" />
+                        )}
+                        {isSaving ? "Guardando..." : "Guardar Datos"}
                       </Button>
                     </div>
 
