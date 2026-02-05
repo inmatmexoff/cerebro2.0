@@ -202,42 +202,53 @@ export default function ExcelVentasPage() {
         setError(null);
 
         try {
-            const allSkusFromExcel = [...new Set(data.map(row => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')).filter(sku => sku))];
-            
-            if (allSkusFromExcel.length === 0) {
-                throw new Error("No se encontraron SKUs en los datos cargados.");
-            }
+            // --- VALIDATION STAGE ---
+            const allNumVentasFromExcel = [...new Set(data.map(row => String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || '')).filter(Boolean))];
+            const allSkusFromExcel = [...new Set(data.map(row => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')).filter(Boolean))];
 
-            const { data: existingSkusData, error: skusError } = await supabasePROD
-                .from('sku_m')
-                .select('sku')
-                .in('sku', allSkusFromExcel);
+            if (allSkusFromExcel.length === 0) throw new Error("No se encontraron SKUs en los datos cargados.");
+            if (allNumVentasFromExcel.length === 0) throw new Error("No se encontraron números de venta válidos en los datos cargados.");
 
-            if (skusError) {
-                throw new Error(skusError.message);
-            }
+            // Fetch existing sales and SKUs in parallel
+            const [
+                { data: existingSalesData, error: salesError },
+                { data: existingSkusData, error: skusError }
+            ] = await Promise.all([
+                supabasePROD.from('ml_sales').select('num_venta').in('num_venta', allNumVentasFromExcel),
+                supabasePROD.from('sku_m').select('sku').in('sku', allSkusFromExcel)
+            ]);
 
+            if (salesError) throw salesError;
+            if (skusError) throw skusError;
+
+            const existingNumVentasSet = new Set(existingSalesData.map(item => item.num_venta));
             const existingSkusSet = new Set(existingSkusData.map(item => item.sku));
             
+            // --- FILTERING STAGE ---
             const validData = data.filter(row => {
                 const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
-                return existingSkusSet.has(sku);
+                const numVenta = String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || '');
+                return existingSkusSet.has(sku) && !existingNumVentasSet.has(numVenta);
             });
             
-            const skippedCount = data.length - validData.length;
-            const skippedSkus = data
+            const skippedForSkuCount = data.filter(row => !existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))).length;
+            const skippedForDuplicationCount = data.filter(row => 
+                existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')) &&
+                existingNumVentasSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ''))
+            ).length;
+
+            const skippedSkus = [...new Set(data
                 .filter(row => !existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')))
-                .map(row => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))
-                .filter((sku, index, self) => sku && self.indexOf(sku) === index); 
+                .map(row => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')))];
 
             if (validData.length === 0) {
-                let errorMessage = "Ninguno de los SKUs en el archivo existe en la base de datos. No se guardaron registros.";
-                if (skippedSkus.length > 0) {
-                    errorMessage += ` SKUs no encontrados: ${skippedSkus.slice(0, 5).join(', ')}${skippedSkus.length > 5 ? '...' : ''}`;
-                }
-                throw new Error(errorMessage);
+                let errorMessage = "No hay registros nuevos para guardar. ";
+                if (skippedForDuplicationCount > 0) errorMessage += `Se encontraron ${skippedForDuplicationCount} registros duplicados. `;
+                if (skippedForSkuCount > 0) errorMessage += `Se encontraron ${skippedForSkuCount} registros con SKUs no existentes.`;
+                throw new Error(errorMessage.trim());
             }
             
+            // --- INSERTION STAGE ---
             const recordsToInsert = validData.map(row => {
                 const saleDateValue = row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta];
                 let saleDate: Date | null = null;
@@ -273,7 +284,7 @@ export default function ExcelVentasPage() {
             }).filter(record => record.num_venta);
 
             if (recordsToInsert.length === 0) {
-                throw new Error("No se encontraron registros válidos para guardar después de la validación de SKU.");
+                throw new Error("No se encontraron registros válidos para guardar después de la validación.");
             }
 
             const { error: insertError } = await supabasePROD.from('ml_sales').insert(recordsToInsert);
@@ -285,9 +296,13 @@ export default function ExcelVentasPage() {
                 throw new Error(insertError.message);
             }
             
-            let successDescription = `Se guardaron ${recordsToInsert.length} registros exitosamente.`;
-            if (skippedCount > 0) {
-                successDescription += ` Se omitieron ${skippedCount} registros por SKUs no existentes.`;
+            // --- NOTIFICATION STAGE ---
+            let successDescription = `Se guardaron ${recordsToInsert.length} registros nuevos exitosamente.`;
+            if (skippedForDuplicationCount > 0) {
+                successDescription += ` Se omitieron ${skippedForDuplicationCount} registros duplicados.`;
+            }
+             if (skippedForSkuCount > 0) {
+                successDescription += ` Se omitieron ${skippedForSkuCount} registros por SKUs no existentes.`;
             }
 
             toast({
@@ -306,7 +321,7 @@ export default function ExcelVentasPage() {
             clearFile();
 
         } catch (e: any) {
-            console.error("Error saving data to Supabase:", e);
+            console.error("Error saving data to Supabase:", e.message);
             const errorMessage = e.message || "Ocurrió un problema al conectar con la base de datos.";
             setError(`Error al guardar: ${errorMessage}`);
             toast({
