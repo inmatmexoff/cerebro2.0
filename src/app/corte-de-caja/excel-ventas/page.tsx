@@ -159,7 +159,46 @@ export default function ExcelVentasPage() {
         setError(null);
 
         try {
-            const recordsToInsert = data.map(row => {
+            // Get unique SKUs from the uploaded data
+            const allSkusFromExcel = [...new Set(data.map(row => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')).filter(sku => sku))];
+            
+            if (allSkusFromExcel.length === 0) {
+                throw new Error("No se encontraron SKUs en los datos cargados.");
+            }
+
+            // Fetch existing SKUs from the sku_m table
+            const { data: existingSkusData, error: skusError } = await supabasePROD
+                .from('sku_m')
+                .select('sku')
+                .in('sku', allSkusFromExcel);
+
+            if (skusError) {
+                throw skusError;
+            }
+
+            const existingSkusSet = new Set(existingSkusData.map(item => item.sku));
+            
+            // Filter data to only include records with existing SKUs
+            const validData = data.filter(row => {
+                const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
+                return existingSkusSet.has(sku);
+            });
+            
+            const skippedCount = data.length - validData.length;
+            const skippedSkus = data
+                .filter(row => !existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')))
+                .map(row => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))
+                .filter((sku, index, self) => sku && self.indexOf(sku) === index); // Unique skipped SKUs
+
+            if (validData.length === 0) {
+                let errorMessage = "Ninguno de los SKUs en el archivo existe en la base de datos. No se guardaron registros.";
+                if (skippedSkus.length > 0) {
+                    errorMessage += ` SKUs no encontrados: ${skippedSkus.slice(0, 5).join(', ')}${skippedSkus.length > 5 ? '...' : ''}`;
+                }
+                throw new Error(errorMessage);
+            }
+            
+            const recordsToInsert = validData.map(row => {
                 const saleDateValue = row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta];
                 let saleDate: Date | null = null;
                 if (saleDateValue instanceof Date) {
@@ -168,6 +207,7 @@ export default function ExcelVentasPage() {
                     const parsed = new Date(saleDateValue);
                     if (!isNaN(parsed.getTime())) saleDate = parsed;
                 } else if (typeof saleDateValue === 'number') {
+                    // Excel date (serial number) to JS Date
                     saleDate = new Date(Math.round((saleDateValue - 25569) * 86400 * 1000));
                 }
 
@@ -191,7 +231,7 @@ export default function ExcelVentasPage() {
             }).filter(record => record.num_venta);
 
             if (recordsToInsert.length === 0) {
-                throw new Error("No se encontraron registros válidos para guardar.");
+                throw new Error("No se encontraron registros válidos para guardar después de la validación de SKU.");
             }
 
             const { error: insertError } = await supabasePROD.from('ml_sales').insert(recordsToInsert);
@@ -199,11 +239,24 @@ export default function ExcelVentasPage() {
             if (insertError) {
                 throw insertError;
             }
+            
+            let successDescription = `Se guardaron ${recordsToInsert.length} registros exitosamente.`;
+            if (skippedCount > 0) {
+                successDescription += ` Se omitieron ${skippedCount} registros por SKUs no existentes.`;
+            }
 
             toast({
                 title: "Datos guardados",
-                description: `Se guardaron ${recordsToInsert.length} registros exitosamente.`,
+                description: successDescription,
             });
+
+            if (skippedSkus.length > 0) {
+                toast({
+                    variant: "default",
+                    title: "SKUs Omitidos",
+                    description: `Los siguientes SKUs no se encontraron: ${skippedSkus.slice(0, 3).join(', ')}${skippedSkus.length > 3 ? '...' : ''}`,
+                });
+            }
 
             clearFile();
 
