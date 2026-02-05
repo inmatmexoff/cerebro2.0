@@ -10,6 +10,7 @@ import * as XLSX from 'xlsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabasePROD } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 
 // Define which columns to extract
@@ -421,7 +422,13 @@ export default function ExcelVentasPage() {
                                             {data.map((row, rowIndex) => (
                                                 <TableRow key={rowIndex}>
                                                     {row.map((cell, cellIndex) => (
-                                                        <TableCell key={cellIndex}>
+                                                        <TableCell
+                                                          key={cellIndex}
+                                                          className={cn({
+                                                            'bg-red-100 text-red-800 font-medium': headers[cellIndex] === 'Gran Total' && typeof cell === 'number' && cell < 0,
+                                                            'bg-green-100 text-green-800 font-medium': headers[cellIndex] === 'Gran Total' && typeof cell === 'number' && cell >= 0,
+                                                          })}
+                                                        >
                                                            {cell instanceof Date ? cell.toLocaleDateString() : String(cell)}
                                                         </TableCell>
                                                     ))}
