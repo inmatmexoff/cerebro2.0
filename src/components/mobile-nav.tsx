@@ -97,6 +97,7 @@ function MobileNavMenu() {
             <SheetClose asChild><Link href="/corte-de-caja/nuevo-corte" className={cn("block rounded-md p-2", pathname === '/corte-de-caja/nuevo-corte' && "bg-muted text-primary")}>Nuevo Corte</Link></SheetClose>
             <SheetClose asChild><Link href="/corte-de-caja/historial" className={cn("block rounded-md p-2", pathname === '/corte-de-caja/historial' && "bg-muted text-primary")}>Historial</Link></SheetClose>
             <SheetClose asChild><Link href="/corte-de-caja/publicaciones" className={cn("block rounded-md p-2", pathname === '/corte-de-caja/publicaciones' && "bg-muted text-primary")}>Publicaciones</Link></SheetClose>
+            <SheetClose asChild><Link href="/corte-de-caja/excel-ventas" className={cn("block rounded-md p-2", pathname === '/corte-de-caja/excel-ventas' && "bg-muted text-primary")}>Excel de Ventas</Link></SheetClose>
 
             <Collapsible open={configuracionOpen} onOpenChange={setConfiguracionOpen} className="w-full pt-1">
               <CollapsibleTrigger className='w-full'>

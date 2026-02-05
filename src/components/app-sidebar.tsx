@@ -141,6 +141,7 @@ export function AppSidebar() {
                  <Link href="/corte-de-caja/nuevo-corte" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/corte-de-caja/nuevo-corte' && "text-primary")}>Nuevo Corte</Link>
                  <Link href="/corte-de-caja/historial" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/corte-de-caja/historial' && "text-primary")}>Historial</Link>
                  <Link href="/corte-de-caja/publicaciones" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/corte-de-caja/publicaciones' && "text-primary")}>Publicaciones</Link>
+                 <Link href="/corte-de-caja/excel-ventas" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/corte-de-caja/excel-ventas' && "text-primary")}>Excel de Ventas</Link>
 
                  <Collapsible open={configuracionOpen} onOpenChange={setConfiguracionOpen} className="w-full pt-1">
                     <CollapsibleTrigger className='w-full' disabled={isCollapsed}>
