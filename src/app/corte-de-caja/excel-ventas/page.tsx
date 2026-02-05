@@ -66,6 +66,7 @@ export default function ExcelVentasPage() {
     const [fileName, setFileName] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
     const { toast } = useToast();
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -79,10 +80,11 @@ export default function ExcelVentasPage() {
         setError(null);
         setHeaders([]);
         setData([]);
+        setIsProcessing(true);
 
         const reader = new FileReader();
 
-        reader.onload = (event: ProgressEvent<FileReader>) => {
+        reader.onload = async (event: ProgressEvent<FileReader>) => {
             try {
                 const binaryStr = event.target?.result;
                 if (!binaryStr) {
@@ -112,21 +114,61 @@ export default function ExcelVentasPage() {
                      return;
                 }
                 
-                setHeaders(extractedHeaders);
-                setData(extractedData);
+                // --- Data enrichment ---
+                const skusFromExcel = [...new Set(extractedData.map(row => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')).filter(sku => sku))];
+                
+                const { data: skuMData, error: skuMError } = await supabasePROD
+                    .from('sku_m')
+                    .select('sku, sku_mdr')
+                    .in('sku', skusFromExcel);
+
+                if (skuMError) throw skuMError;
+
+                const skuToMdrMap = new Map(skuMData.map(item => [item.sku, item.sku_mdr]));
+                const mdrs = [...new Set(skuMData.map(item => item.sku_mdr).filter(mdr => mdr))];
+                
+                let mdrToPriceMap = new Map();
+                if (mdrs.length > 0) {
+                    const { data: skuCostosData, error: skuCostosError } = await supabasePROD
+                        .from('sku_costos')
+                        .select('sku_mdr, landed_price')
+                        .in('sku_mdr', mdrs);
+                    if (skuCostosError) throw skuCostosError;
+                    mdrToPriceMap = new Map(skuCostosData.map(item => [item.sku_mdr, item.landed_price]));
+                }
+                
+                const enrichedHeaders = [...extractedHeaders, 'Landed Price', 'Gran Total'];
+            
+                const enrichedData = extractedData.map(row => {
+                    const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
+                    const skuMdr = skuToMdrMap.get(sku);
+                    const landedPrice = skuMdr ? (mdrToPriceMap.get(skuMdr) || 0) : 0;
+                    
+                    const totalFromExcel = parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
+                    const granTotal = totalFromExcel - landedPrice;
+
+                    return [...row, landedPrice, parseFloat(granTotal.toFixed(2))];
+                });
+
+                setHeaders(enrichedHeaders);
+                setData(enrichedData);
+                // --- End of enrichment ---
 
             } catch (e) {
                 console.error(e);
-                setError("Hubo un error al procesar el archivo. Asegúrate de que sea un formato de Excel o CSV válido.");
+                setError("Hubo un error al procesar el archivo. Asegúrate de que sea un formato de Excel o CSV válido y de que las tablas 'sku_m' y 'sku_costos' son accesibles.");
+            } finally {
+                setIsProcessing(false);
             }
         };
 
         reader.onerror = () => {
             setError("Error al leer el archivo.");
+            setIsProcessing(false);
         }
 
         reader.readAsBinaryString(file);
-    }, []);
+    }, [toast]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -136,6 +178,7 @@ export default function ExcelVentasPage() {
             'text/csv': ['.csv'],
         },
         maxFiles: 1,
+        disabled: isProcessing
     });
 
     const clearFile = () => {
@@ -159,14 +202,12 @@ export default function ExcelVentasPage() {
         setError(null);
 
         try {
-            // Get unique SKUs from the uploaded data
             const allSkusFromExcel = [...new Set(data.map(row => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')).filter(sku => sku))];
             
             if (allSkusFromExcel.length === 0) {
                 throw new Error("No se encontraron SKUs en los datos cargados.");
             }
 
-            // Fetch existing SKUs from the sku_m table
             const { data: existingSkusData, error: skusError } = await supabasePROD
                 .from('sku_m')
                 .select('sku')
@@ -178,7 +219,6 @@ export default function ExcelVentasPage() {
 
             const existingSkusSet = new Set(existingSkusData.map(item => item.sku));
             
-            // Filter data to only include records with existing SKUs
             const validData = data.filter(row => {
                 const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
                 return existingSkusSet.has(sku);
@@ -188,7 +228,7 @@ export default function ExcelVentasPage() {
             const skippedSkus = data
                 .filter(row => !existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')))
                 .map(row => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))
-                .filter((sku, index, self) => sku && self.indexOf(sku) === index); // Unique skipped SKUs
+                .filter((sku, index, self) => sku && self.indexOf(sku) === index); 
 
             if (validData.length === 0) {
                 let errorMessage = "Ninguno de los SKUs en el archivo existe en la base de datos. No se guardaron registros.";
@@ -207,9 +247,10 @@ export default function ExcelVentasPage() {
                     const parsed = new Date(saleDateValue);
                     if (!isNaN(parsed.getTime())) saleDate = parsed;
                 } else if (typeof saleDateValue === 'number') {
-                    // Excel date (serial number) to JS Date
                     saleDate = new Date(Math.round((saleDateValue - 25569) * 86400 * 1000));
                 }
+                
+                const granTotalValue = row[COLUMN_INDEXES.length + 1];
 
                 return {
                     num_venta: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ''),
@@ -227,6 +268,7 @@ export default function ExcelVentasPage() {
                     num_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_publi] || ''),
                     tienda: String(row[DB_COLUMN_TO_EXCEL_INDEX.tienda] || ''),
                     tip_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi] || ''),
+                    total_final: parseCurrency(granTotalValue),
                 };
             }).filter(record => record.num_venta);
 
@@ -237,6 +279,9 @@ export default function ExcelVentasPage() {
             const { error: insertError } = await supabasePROD.from('ml_sales').insert(recordsToInsert);
 
             if (insertError) {
+                if (insertError.message.includes("column \"total_final\" of relation \"ml_sales\" does not exist")) {
+                     throw new Error("La columna 'total_final' no existe en la tabla 'ml_sales'. Por favor, añádela antes de guardar.");
+                }
                 throw insertError;
             }
             
@@ -296,12 +341,14 @@ export default function ExcelVentasPage() {
                     {!fileName ? (
                          <Card
                             {...getRootProps()}
-                            className="border-2 border-dashed border-gray-300 hover:border-primary transition-colors cursor-pointer"
+                            className={`border-2 border-dashed border-gray-300  transition-colors ${isProcessing ? 'cursor-not-allowed bg-muted/50' : 'hover:border-primary cursor-pointer'}`}
                         >
                             <CardContent className="flex flex-col items-center justify-center p-12 text-center">
                                 <input {...getInputProps()} />
                                 <Upload className="w-12 h-12 text-muted-foreground" />
-                                {isDragActive ? (
+                                {isProcessing ? (
+                                    <p className="mt-4 text-lg font-semibold text-primary">Procesando archivo...</p>
+                                ) : isDragActive ? (
                                     <p className="mt-4 text-lg font-semibold text-primary">Suelta el archivo aquí...</p>
                                 ) : (
                                     <>
@@ -320,7 +367,7 @@ export default function ExcelVentasPage() {
                                         <CardTitle>Archivo Cargado</CardTitle>
                                         <CardDescription>{fileName}</CardDescription>
                                     </div>
-                                    <Button variant="ghost" size="icon" onClick={clearFile}>
+                                    <Button variant="ghost" size="icon" onClick={clearFile} disabled={isSaving || isProcessing}>
                                         <X className="w-5 h-5" />
                                     </Button>
                                 </div>
@@ -334,10 +381,16 @@ export default function ExcelVentasPage() {
                         </div>
                     )}
                    
-                    {data.length > 0 && (
+                    {isProcessing ? (
+                        <div className="flex items-center justify-center h-64">
+                            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                            <p className="ml-4 text-lg text-muted-foreground">Analizando datos y calculando totales...</p>
+                        </div>
+                    ) : data.length > 0 && (
                         <Card className="mt-6">
                             <CardHeader>
                                 <CardTitle>Vista Previa de Datos</CardTitle>
+                                <CardDescription>Se han añadido las columnas "Landed Price" y "Gran Total".</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="h-[60vh] w-full overflow-auto">
@@ -367,7 +420,7 @@ export default function ExcelVentasPage() {
                     )}
 
                     <div className="flex justify-center items-center py-8">
-                      <Button onClick={handleSaveData} disabled={data.length === 0 || isSaving}>
+                      <Button onClick={handleSaveData} disabled={data.length === 0 || isSaving || isProcessing}>
                         {isSaving ? (
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         ) : (
