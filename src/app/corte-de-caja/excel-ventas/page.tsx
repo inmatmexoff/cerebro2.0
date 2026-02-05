@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 // Define which columns to extract
@@ -171,7 +170,7 @@ export default function ExcelVentasPage() {
                                 <CardTitle>Vista Previa de Datos</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ScrollArea className="h-[60vh] w-full">
+                                <div className="h-[60vh] w-full overflow-auto">
                                     <Table>
                                         <TableHeader className="sticky top-0 bg-background">
                                             <TableRow>
@@ -190,7 +189,7 @@ export default function ExcelVentasPage() {
                                             ))}
                                         </TableBody>
                                     </Table>
-                                </ScrollArea>
+                                </div>
                             </CardContent>
                         </Card>
                     )}
