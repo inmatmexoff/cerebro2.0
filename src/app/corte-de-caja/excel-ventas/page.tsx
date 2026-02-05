@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 // Define which columns to extract
 const COLUMN_MAPPING: { [key: string]: number } = {
-    'A': 0, 'B': 1, 'G': 6, 'H': 7, 'I': 8, 'J': 9, 'K': 10, 'L': 11,
+    'A': 0, 'B': 1, 'G': 6, 'H': 7, 'I': 8, 'J': 9, 'K': 10,
     'M': 12, 'N': 13, 'O': 14, 'P': 15, 'Q': 16, 'R': 17, 'S': 18, 'W': 22
 };
 const COLUMN_INDEXES = Object.values(COLUMN_MAPPING);
