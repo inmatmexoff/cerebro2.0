@@ -214,7 +214,7 @@ export default function ExcelVentasPage() {
                 .in('sku', allSkusFromExcel);
 
             if (skusError) {
-                throw skusError;
+                throw new Error(skusError.message);
             }
 
             const existingSkusSet = new Set(existingSkusData.map(item => item.sku));
@@ -282,7 +282,7 @@ export default function ExcelVentasPage() {
                 if (insertError.message.includes("column \"total_final\" of relation \"ml_sales\" does not exist")) {
                      throw new Error("La columna 'total_final' no existe en la tabla 'ml_sales'. Por favor, añádela antes de guardar.");
                 }
-                throw insertError;
+                throw new Error(insertError.message);
             }
             
             let successDescription = `Se guardaron ${recordsToInsert.length} registros exitosamente.`;
