@@ -12,7 +12,7 @@ import { supabasePROD } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 // Define column headers for the preview table
-const TABLE_HEADERS = ['sku', 'cat_mdr', 'sku_mdr'];
+const TABLE_HEADERS = ['sku', 'cat_mdr', 'sku_mdr', 'landed_cost'];
 
 export default function CargaSkuPage() {
     const [data, setData] = useState<any[][]>([]);
@@ -58,8 +58,8 @@ export default function CargaSkuPage() {
 
                 // Data starts from the second row (index 1), skipping headers
                 const dataRows = json.slice(1);
-                // We map columns A, B, C to our data structure
-                const extractedData = dataRows.map(row => [row[0], row[1], row[2]]);
+                // We map columns A, B, C, D to our data structure
+                const extractedData = dataRows.map(row => [row[0], row[1], row[2], row[3]]);
                 
                 // Filter out rows where any of the first 3 columns are empty
                 const validatedData = extractedData.filter(row => row[0] && row[1] && row[2]);
@@ -128,25 +128,47 @@ export default function CargaSkuPage() {
         setError(null);
 
         try {
-            const recordsToInsert = data.map(row => ({
+            const skuMRecords = data.map(row => ({
                 sku: String(row[0]),
                 cat_mdr: String(row[1]),
                 sku_mdr: String(row[2]),
             }));
 
-            // Using upsert to avoid duplicates on 'sku' primary key
-            // and update existing ones if necessary.
-            const { error: upsertError } = await supabasePROD
+            const skuCostosRecords = data
+                .map(row => {
+                    const skuMdr = String(row[2]);
+                    const landedCostRaw = row[3];
+                    const landedCost = landedCostRaw !== "" && landedCostRaw !== null ? parseFloat(String(landedCostRaw)) : NaN;
+                    
+                    return { sku_mdr: skuMdr, landed_cost: landedCost };
+                })
+                .filter(record => 
+                    record.sku_mdr &&         // Ensure sku_mdr exists
+                    !isNaN(record.landed_cost) && // Ensure landed_cost is a valid number
+                    record.landed_cost !== 1      // The main condition
+                );
+            
+            // Step 1: Upsert into sku_m
+            const { error: skuMError } = await supabasePROD
                 .from('sku_m')
-                .upsert(recordsToInsert, { onConflict: 'sku' });
+                .upsert(skuMRecords, { onConflict: 'sku' });
 
-            if (upsertError) {
-                throw upsertError;
+            if (skuMError) throw skuMError;
+            
+            let costosMessage = "";
+            // Step 2: Conditionally upsert into sku_costos
+            if (skuCostosRecords.length > 0) {
+                const { error: skuCostosError } = await supabasePROD
+                    .from('sku_costos')
+                    .upsert(skuCostosRecords, { onConflict: 'sku_mdr' });
+
+                if (skuCostosError) throw skuCostosError;
+                costosMessage = ` y ${skuCostosRecords.length} en costos`;
             }
 
             toast({
                 title: "Datos guardados",
-                description: `Se guardaron/actualizaron ${recordsToInsert.length} registros de SKU exitosamente.`,
+                description: `Se guardaron/actualizaron ${skuMRecords.length} registros de SKU${costosMessage}.`,
             });
 
             clearFile();
@@ -179,7 +201,7 @@ export default function CargaSkuPage() {
                     <div>
                         <h1 className="text-3xl font-bold">Carga de SKUs</h1>
                         <p className="text-muted-foreground">
-                            Sube y gestiona tus SKUs de forma masiva desde un archivo CSV o Excel.
+                            Sube y gestiona tus SKUs y costos de forma masiva desde un archivo.
                         </p>
                     </div>
                 </header>
