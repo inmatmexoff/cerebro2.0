@@ -128,14 +128,33 @@ export default function CargaSkuPage() {
         setError(null);
 
         try {
-            // Data order is now [sku, sku_mdr, cat_mdr, landed_cost]
-            const skuMRecords = data.map(row => ({
+            // --- DEDUPLICATION STAGE 1 (for sku_m) ---
+            const uniqueSkuMap = new Map<string, any[]>();
+            data.forEach(row => {
+                const sku = String(row[0]);
+                if (sku) { // Ensure SKU is not empty
+                    uniqueSkuMap.set(sku, row);
+                }
+            });
+            const dataDedupedBySku = Array.from(uniqueSkuMap.values());
+            const duplicatesInFileCount = data.length - dataDedupedBySku.length;
+
+            if (duplicatesInFileCount > 0) {
+                toast({
+                    title: "SKUs duplicados en archivo",
+                    description: `Se encontraron y omitieron ${duplicatesInFileCount} filas con SKUs duplicados. Se procesará el último para cada SKU.`,
+                });
+            }
+            
+            // --- Records for sku_m ---
+            const skuMRecords = dataDedupedBySku.map(row => ({
                 sku: String(row[0]),
                 cat_mdr: String(row[2]),
                 sku_mdr: String(row[1]),
             }));
 
-            const skuCostosRecords = data
+            // --- Records for sku_costos (initial) ---
+            const initialSkuCostosRecords = dataDedupedBySku
                 .map(row => {
                     const skuMdr = String(row[1]);
                     const landedCostRaw = row[3];
@@ -144,11 +163,20 @@ export default function CargaSkuPage() {
                     return { sku_mdr: skuMdr, landed_cost: landedCost };
                 })
                 .filter(record => 
-                    record.sku_mdr &&         // Ensure sku_mdr exists
-                    !isNaN(record.landed_cost) && // Ensure landed_cost is a valid number
-                    record.landed_cost !== 1      // The main condition
+                    record.sku_mdr &&
+                    !isNaN(record.landed_cost) &&
+                    record.landed_cost !== 1
                 );
-            
+
+            // --- DEDUPLICATION STAGE 2 (for sku_costos) ---
+            const uniqueSkuMdrMap = new Map<string, { sku_mdr: string, landed_cost: number }>();
+            initialSkuCostosRecords.forEach(record => {
+                uniqueSkuMdrMap.set(record.sku_mdr, record);
+            });
+            const skuCostosRecords = Array.from(uniqueSkuMdrMap.values());
+
+            // --- DATABASE OPERATIONS ---
+
             // Step 1: Upsert into sku_m
             const { error: skuMError } = await supabasePROD
                 .from('sku_m')
