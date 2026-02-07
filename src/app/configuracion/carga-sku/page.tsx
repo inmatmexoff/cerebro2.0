@@ -251,7 +251,7 @@ export default function CargaSkuPage() {
             clearFile();
 
         } catch (e: any) {
-            console.error("Error saving data to Supabase:", e);
+            console.error("Error saving data to Supabase:", e.message);
             const errorMessage = e.message || "Ocurrió un problema al conectar con la base de datos.";
             setError(`Error al guardar: ${errorMessage}`);
             toast({
