@@ -156,6 +156,7 @@ export function AppSidebar() {
                     <CollapsibleContent className="pl-6 mt-1 space-y-1">
                         <Link href="/configuracion/categorias" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/categorias' && "text-primary")}>Categorías</Link>
                         <Link href="/configuracion/proveedores" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/proveedores' && "text-primary")}>Proveedores</Link>
+                        <Link href="/configuracion/carga-sku" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/carga-sku' && "text-primary")}>Carga de SKUs</Link>
                     </CollapsibleContent>
                  </Collapsible>
             </CollapsibleContent>

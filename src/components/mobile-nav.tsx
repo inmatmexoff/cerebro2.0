@@ -112,6 +112,7 @@ function MobileNavMenu() {
               <CollapsibleContent className="pl-8 mt-1 space-y-1">
                 <SheetClose asChild><Link href="/configuracion/categorias" className={cn("block rounded-md p-2", pathname === '/configuracion/categorias' && "bg-muted text-primary")}>Categorías</Link></SheetClose>
                 <SheetClose asChild><Link href="/configuracion/proveedores" className={cn("block rounded-md p-2", pathname === '/configuracion/proveedores' && "bg-muted text-primary")}>Proveedores</Link></SheetClose>
+                <SheetClose asChild><Link href="/configuracion/carga-sku" className={cn("block rounded-md p-2", pathname === '/configuracion/carga-sku' && "bg-muted text-primary")}>Carga de SKUs</Link></SheetClose>
               </CollapsibleContent>
             </Collapsible>
           </CollapsibleContent>
