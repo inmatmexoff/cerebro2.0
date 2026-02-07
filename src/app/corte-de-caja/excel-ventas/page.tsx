@@ -132,23 +132,23 @@ export default function ExcelVentasPage() {
                 if (mdrs.length > 0) {
                     const { data: skuCostosData, error: skuCostosError } = await supabasePROD
                         .from('sku_costos')
-                        .select('sku_mdr, landed_price')
+                        .select('sku_mdr, landed_cost')
                         .in('sku_mdr', mdrs);
                     if (skuCostosError) throw skuCostosError;
-                    mdrToPriceMap = new Map(skuCostosData.map(item => [item.sku_mdr, item.landed_price]));
+                    mdrToPriceMap = new Map(skuCostosData.map(item => [item.sku_mdr, item.landed_cost]));
                 }
                 
-                const enrichedHeaders = [...extractedHeaders, 'Landed Price', 'Gran Total'];
+                const enrichedHeaders = [...extractedHeaders, 'Landed Cost', 'Gran Total'];
             
                 const enrichedData = extractedData.map(row => {
                     const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
                     const skuMdr = skuToMdrMap.get(sku);
-                    const landedPrice = skuMdr ? (mdrToPriceMap.get(skuMdr) || 0) : 0;
+                    const landedCost = skuMdr ? (mdrToPriceMap.get(skuMdr) || 0) : 0;
                     
                     const totalFromExcel = parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
-                    const granTotal = totalFromExcel - landedPrice;
+                    const granTotal = totalFromExcel - landedCost;
 
-                    return [...row, landedPrice, parseFloat(granTotal.toFixed(2))];
+                    return [...row, landedCost, parseFloat(granTotal.toFixed(2))];
                 });
 
                 setHeaders(enrichedHeaders);
@@ -406,7 +406,7 @@ export default function ExcelVentasPage() {
                         <Card className="mt-6">
                             <CardHeader>
                                 <CardTitle>Vista Previa de Datos</CardTitle>
-                                <CardDescription>Se han añadido las columnas "Landed Price" y "Gran Total".</CardDescription>
+                                <CardDescription>Se han añadido las columnas "Landed Cost" y "Gran Total".</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="h-[60vh] w-full overflow-auto">
