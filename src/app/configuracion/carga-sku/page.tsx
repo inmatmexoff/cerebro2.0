@@ -12,7 +12,7 @@ import { supabasePROD } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 // Define column headers for the preview table
-const TABLE_HEADERS = ['sku', 'cat_mdr', 'sku_mdr', 'landed_cost'];
+const TABLE_HEADERS = ['sku', 'sku_mdr', 'cat_mdr', 'landed_cost'];
 
 export default function CargaSkuPage() {
     const [data, setData] = useState<any[][]>([]);
@@ -58,8 +58,8 @@ export default function CargaSkuPage() {
 
                 // Data starts from the second row (index 1), skipping headers
                 const dataRows = json.slice(1);
-                // We map columns A, B, C, D to our data structure
-                const extractedData = dataRows.map(row => [row[0], row[1], row[2], row[3]]);
+                // We map columns A, C, B, D to our data structure for display order: sku, sku_mdr, cat_mdr, landed_cost
+                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3]]);
                 
                 // Filter out rows where any of the first 3 columns are empty
                 const validatedData = extractedData.filter(row => row[0] && row[1] && row[2]);
@@ -128,15 +128,16 @@ export default function CargaSkuPage() {
         setError(null);
 
         try {
+            // Data order is now [sku, sku_mdr, cat_mdr, landed_cost]
             const skuMRecords = data.map(row => ({
                 sku: String(row[0]),
-                cat_mdr: String(row[1]),
-                sku_mdr: String(row[2]),
+                cat_mdr: String(row[2]),
+                sku_mdr: String(row[1]),
             }));
 
             const skuCostosRecords = data
                 .map(row => {
-                    const skuMdr = String(row[2]);
+                    const skuMdr = String(row[1]);
                     const landedCostRaw = row[3];
                     const landedCost = landedCostRaw !== "" && landedCostRaw !== null ? parseFloat(String(landedCostRaw)) : NaN;
                     
