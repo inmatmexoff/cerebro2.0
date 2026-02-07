@@ -128,7 +128,7 @@ export default function CargaSkuPage() {
         setError(null);
 
         try {
-            // --- DEDUPLICATION (in-file) ---
+            // --- DEDUPLICATION (in-file by sku) ---
             const uniqueSkuMap = new Map<string, any[]>();
             data.forEach(row => {
                 const sku = String(row[0]).trim();
@@ -151,7 +151,7 @@ export default function CargaSkuPage() {
                 return;
             }
             
-            // --- VALIDATION (against DB) ---
+            // --- VALIDATION (against DB for existing skus) ---
             const skusFromFile = dataDedupedInFile.map(row => String(row[0]).trim());
             const { data: existingSkusData, error: fetchError } = await supabasePROD
                 .from('sku_m')
@@ -169,16 +169,6 @@ export default function CargaSkuPage() {
             });
             
             const skippedForDbDuplicationCount = dataDedupedInFile.length - newSkuData.length;
-
-            if (newSkuData.length === 0 && skippedForDbDuplicationCount === dataDedupedInFile.length) {
-                 // All SKUs already exist, which is fine. We might still need to update costs.
-            } else if (newSkuData.length === 0) {
-                 toast({
-                    variant: "default",
-                    title: "No hay registros nuevos",
-                    description: "No se encontraron SKUs nuevos en el archivo.",
-                });
-            }
             
             // --- PREPARE RECORDS FOR INSERTION ---
             const skuMRecordsToInsert = newSkuData.map(row => ({
@@ -193,11 +183,11 @@ export default function CargaSkuPage() {
                     const skuMdr = String(row[1]).trim();
                     const landedCostRaw = row[3];
 
-                    let landedCost = NaN;
-                    if (landedCostRaw !== null && String(landedCostRaw).trim() !== '') {
-                        // Remove currency symbols and other non-numeric characters before parsing.
-                        const cleanedValue = String(landedCostRaw).replace(/[^0-9.-]+/g, '');
-                        if (cleanedValue) {
+                    let landedCost: number | null = null;
+                    const valueStr = String(landedCostRaw || '').trim();
+                    if (valueStr) {
+                        const cleanedValue = valueStr.replace(/[^0-9.-]+/g, '');
+                        if (cleanedValue && cleanedValue !== '.' && cleanedValue !== '-' && !isNaN(parseFloat(cleanedValue))) {
                             landedCost = parseFloat(cleanedValue);
                         }
                     }
@@ -206,13 +196,15 @@ export default function CargaSkuPage() {
                 })
                 .filter(record => 
                     record.sku_mdr &&
-                    !isNaN(record.landed_cost) &&
+                    record.landed_cost !== null &&
                     record.landed_cost !== 1
                 );
                 
             const uniqueSkuMdrMap = new Map<string, { sku_mdr: string, landed_cost: number }>();
             initialSkuCostosRecords.forEach(record => {
-                uniqueSkuMdrMap.set(record.sku_mdr, record);
+                if(record.landed_cost !== null) {
+                    uniqueSkuMdrMap.set(record.sku_mdr, { sku_mdr: record.sku_mdr, landed_cost: record.landed_cost });
+                }
             });
             const skuCostosRecordsToUpsert = Array.from(uniqueSkuMdrMap.values());
 
@@ -254,7 +246,7 @@ export default function CargaSkuPage() {
             clearFile();
 
         } catch (e: any) {
-            console.error("Error saving data to Supabase:", e.message);
+            console.error("Error saving data to Supabase:", e);
             const errorMessage = e.message || "Ocurrió un problema al conectar con la base de datos.";
             setError(`Error al guardar: ${errorMessage}`);
             toast({
