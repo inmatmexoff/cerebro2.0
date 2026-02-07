@@ -50,15 +50,16 @@ export default function CargaSkuPage() {
                 
                 const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
-                if (json.length === 0) {
-                    setError("El archivo está vacío.");
+                if (json.length <= 1) {
+                    setError("El archivo está vacío o solo contiene la fila de encabezado.");
                     setIsProcessing(false);
                     return;
                 }
 
-                // Data starts from the first row (index 0)
+                // Data starts from the second row (index 1), skipping headers
+                const dataRows = json.slice(1);
                 // We map columns A, B, C to our data structure
-                const extractedData = json.map(row => [row[0], row[1], row[2]]);
+                const extractedData = dataRows.map(row => [row[0], row[1], row[2]]);
                 
                 // Filter out rows where any of the first 3 columns are empty
                 const validatedData = extractedData.filter(row => row[0] && row[1] && row[2]);
@@ -66,7 +67,7 @@ export default function CargaSkuPage() {
                 const skippedCount = extractedData.length - validatedData.length;
 
                 if (validatedData.length === 0) {
-                     setError("No se encontraron registros válidos. Asegúrate de que las columnas A, B y C no estén vacías.");
+                     setError("No se encontraron registros válidos a partir de la segunda fila. Asegúrate de que las columnas A, B y C no estén vacías.");
                      setIsProcessing(false);
                      return;
                 }
