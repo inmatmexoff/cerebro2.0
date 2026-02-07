@@ -224,11 +224,43 @@ export default function CargaSkuPage() {
 
             let costosMessage = "";
             if (skuCostosRecordsToUpsert.length > 0) {
-                const { error: skuCostosError } = await supabasePROD
-                    .from('sku_costos')
-                    .upsert(skuCostosRecordsToUpsert, { onConflict: 'sku_mdr' });
+                 // Manual upsert for sku_costos to avoid ON CONFLICT errors if constraint is missing
+                const skuMdrsToProcess = skuCostosRecordsToUpsert.map(r => r.sku_mdr);
 
-                if (skuCostosError) throw skuCostosError;
+                const { data: existingCostosData, error: fetchCostosError } = await supabasePROD
+                    .from('sku_costos')
+                    .select('sku_mdr')
+                    .in('sku_mdr', skuMdrsToProcess);
+
+                if (fetchCostosError) throw fetchCostosError;
+
+                const existingCostosSet = new Set(existingCostosData.map(c => c.sku_mdr));
+
+                const costosToInsert = skuCostosRecordsToUpsert.filter(r => !existingCostosSet.has(r.sku_mdr));
+                const costosToUpdate = skuCostosRecordsToUpsert.filter(r => existingCostosSet.has(r.sku_mdr));
+
+                if (costosToInsert.length > 0) {
+                    const { error: insertError } = await supabasePROD
+                        .from('sku_costos')
+                        .insert(costosToInsert);
+                    if (insertError) throw insertError;
+                }
+
+                if (costosToUpdate.length > 0) {
+                    const updatePromises = costosToUpdate.map(record =>
+                        supabasePROD
+                            .from('sku_costos')
+                            .update({ landed_cost: record.landed_cost })
+                            .eq('sku_mdr', record.sku_mdr)
+                    );
+                    const results = await Promise.all(updatePromises);
+                    const updateErrors = results.filter(res => res.error);
+                    if (updateErrors.length > 0) {
+                        const errorMessage = updateErrors.map(e => e.error?.message).join('; ');
+                        throw new Error(`Error actualizando costos: ${errorMessage}`);
+                    }
+                }
+                
                 costosMessage = ` y se actualizaron/insertaron ${skuCostosRecordsToUpsert.length} costos`;
             }
 
