@@ -128,38 +128,71 @@ export default function CargaSkuPage() {
         setError(null);
 
         try {
-            // --- DEDUPLICATION STAGE 1 (for sku_m) ---
+            // --- DEDUPLICATION (in-file) ---
             const uniqueSkuMap = new Map<string, any[]>();
             data.forEach(row => {
-                const sku = String(row[0]);
-                if (sku) { // Ensure SKU is not empty
+                const sku = String(row[0]).trim();
+                if (sku) {
                     uniqueSkuMap.set(sku, row);
                 }
             });
-            const dataDedupedBySku = Array.from(uniqueSkuMap.values());
-            const duplicatesInFileCount = data.length - dataDedupedBySku.length;
+            const dataDedupedInFile = Array.from(uniqueSkuMap.values());
+            const duplicatesInFileCount = data.length - dataDedupedInFile.length;
 
             if (duplicatesInFileCount > 0) {
                 toast({
                     title: "SKUs duplicados en archivo",
-                    description: `Se encontraron y omitieron ${duplicatesInFileCount} filas con SKUs duplicados. Se procesará el último para cada SKU.`,
+                    description: `Se omitieron ${duplicatesInFileCount} filas con SKUs duplicados. Se procesará la última aparición de cada uno.`,
                 });
             }
+
+            if (dataDedupedInFile.length === 0) {
+                setIsSaving(false);
+                return;
+            }
             
-            // --- Records for sku_m ---
-            const skuMRecords = dataDedupedBySku.map(row => ({
-                sku: String(row[0]),
-                cat_mdr: String(row[2]),
-                sku_mdr: String(row[1]),
+            // --- VALIDATION (against DB) ---
+            const skusFromFile = dataDedupedInFile.map(row => String(row[0]).trim());
+            const { data: existingSkusData, error: fetchError } = await supabasePROD
+                .from('sku_m')
+                .select('sku')
+                .in('sku', skusFromFile);
+
+            if (fetchError) throw fetchError;
+
+            const existingSkusSet = new Set(existingSkusData.map(item => item.sku));
+
+            // Filter out records that already exist in the database, keeping only new ones.
+            const newSkuData = dataDedupedInFile.filter(row => {
+                const sku = String(row[0]).trim();
+                return !existingSkusSet.has(sku);
+            });
+            
+            const skippedForDbDuplicationCount = dataDedupedInFile.length - newSkuData.length;
+
+            if (newSkuData.length === 0) {
+                toast({
+                    variant: "default",
+                    title: "No hay registros nuevos",
+                    description: `Todos los SKUs válidos del archivo ya existen en la base de datos.`,
+                });
+                setIsSaving(false);
+                clearFile();
+                return;
+            }
+            
+            // --- PREPARE RECORDS FOR INSERTION ---
+            const skuMRecordsToInsert = newSkuData.map(row => ({
+                sku: String(row[0]).trim(),
+                cat_mdr: String(row[2]).trim(),
+                sku_mdr: String(row[1]).trim(),
             }));
 
-            // --- Records for sku_costos (initial) ---
-            const initialSkuCostosRecords = dataDedupedBySku
+            const initialSkuCostosRecords = newSkuData
                 .map(row => {
-                    const skuMdr = String(row[1]);
+                    const skuMdr = String(row[1]).trim();
                     const landedCostRaw = row[3];
                     const landedCost = landedCostRaw !== "" && landedCostRaw !== null ? parseFloat(String(landedCostRaw)) : NaN;
-                    
                     return { sku_mdr: skuMdr, landed_cost: landedCost };
                 })
                 .filter(record => 
@@ -167,37 +200,38 @@ export default function CargaSkuPage() {
                     !isNaN(record.landed_cost) &&
                     record.landed_cost !== 1
                 );
-
-            // --- DEDUPLICATION STAGE 2 (for sku_costos) ---
+                
             const uniqueSkuMdrMap = new Map<string, { sku_mdr: string, landed_cost: number }>();
             initialSkuCostosRecords.forEach(record => {
                 uniqueSkuMdrMap.set(record.sku_mdr, record);
             });
-            const skuCostosRecords = Array.from(uniqueSkuMdrMap.values());
+            const skuCostosRecordsToUpsert = Array.from(uniqueSkuMdrMap.values());
 
             // --- DATABASE OPERATIONS ---
-
-            // Step 1: Upsert into sku_m
             const { error: skuMError } = await supabasePROD
                 .from('sku_m')
-                .upsert(skuMRecords, { onConflict: 'sku' });
+                .insert(skuMRecordsToInsert);
 
             if (skuMError) throw skuMError;
-            
+
             let costosMessage = "";
-            // Step 2: Conditionally upsert into sku_costos
-            if (skuCostosRecords.length > 0) {
+            if (skuCostosRecordsToUpsert.length > 0) {
                 const { error: skuCostosError } = await supabasePROD
                     .from('sku_costos')
-                    .upsert(skuCostosRecords, { onConflict: 'sku_mdr' });
+                    .upsert(skuCostosRecordsToUpsert, { onConflict: 'sku_mdr' });
 
                 if (skuCostosError) throw skuCostosError;
-                costosMessage = ` y ${skuCostosRecords.length} en costos`;
+                costosMessage = ` y se actualizaron/insertaron ${skuCostosRecordsToUpsert.length} costos`;
+            }
+
+            let description = `Se guardaron ${skuMRecordsToInsert.length} registros nuevos en SKU${costosMessage}.`;
+            if (skippedForDbDuplicationCount > 0) {
+                description += ` Se omitieron ${skippedForDbDuplicationCount} registros que ya existían.`;
             }
 
             toast({
                 title: "Datos guardados",
-                description: `Se guardaron/actualizaron ${skuMRecords.length} registros de SKU${costosMessage}.`,
+                description: description,
             });
 
             clearFile();
