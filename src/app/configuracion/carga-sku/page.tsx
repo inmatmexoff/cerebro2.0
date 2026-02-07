@@ -162,7 +162,7 @@ export default function CargaSkuPage() {
 
             const existingSkusSet = new Set(existingSkusData.map(item => item.sku));
 
-            // Filter out records that already exist in the database, keeping only new ones.
+            // Filter out records that already exist in the database, keeping only new ones for sku_m insertion.
             const newSkuData = dataDedupedInFile.filter(row => {
                 const sku = String(row[0]).trim();
                 return !existingSkusSet.has(sku);
@@ -170,15 +170,14 @@ export default function CargaSkuPage() {
             
             const skippedForDbDuplicationCount = dataDedupedInFile.length - newSkuData.length;
 
-            if (newSkuData.length === 0) {
-                toast({
+            if (newSkuData.length === 0 && skippedForDbDuplicationCount === dataDedupedInFile.length) {
+                 // All SKUs already exist, which is fine. We might still need to update costs.
+            } else if (newSkuData.length === 0) {
+                 toast({
                     variant: "default",
                     title: "No hay registros nuevos",
-                    description: `Todos los SKUs válidos del archivo ya existen en la base de datos.`,
+                    description: "No se encontraron SKUs nuevos en el archivo.",
                 });
-                setIsSaving(false);
-                clearFile();
-                return;
             }
             
             // --- PREPARE RECORDS FOR INSERTION ---
@@ -188,11 +187,21 @@ export default function CargaSkuPage() {
                 sku_mdr: String(row[1]).trim(),
             }));
 
-            const initialSkuCostosRecords = newSkuData
+            // Use all de-duplicated data from the file for cost updates.
+            const initialSkuCostosRecords = dataDedupedInFile
                 .map(row => {
                     const skuMdr = String(row[1]).trim();
                     const landedCostRaw = row[3];
-                    const landedCost = landedCostRaw !== "" && landedCostRaw !== null ? parseFloat(String(landedCostRaw)) : NaN;
+
+                    let landedCost = NaN;
+                    if (landedCostRaw !== null && String(landedCostRaw).trim() !== '') {
+                        // Remove currency symbols and other non-numeric characters before parsing.
+                        const cleanedValue = String(landedCostRaw).replace(/[^0-9.-]+/g, '');
+                        if (cleanedValue) {
+                            landedCost = parseFloat(cleanedValue);
+                        }
+                    }
+
                     return { sku_mdr: skuMdr, landed_cost: landedCost };
                 })
                 .filter(record => 
@@ -208,11 +217,13 @@ export default function CargaSkuPage() {
             const skuCostosRecordsToUpsert = Array.from(uniqueSkuMdrMap.values());
 
             // --- DATABASE OPERATIONS ---
-            const { error: skuMError } = await supabasePROD
-                .from('sku_m')
-                .insert(skuMRecordsToInsert);
+            if (skuMRecordsToInsert.length > 0) {
+                const { error: skuMError } = await supabasePROD
+                    .from('sku_m')
+                    .insert(skuMRecordsToInsert);
 
-            if (skuMError) throw skuMError;
+                if (skuMError) throw skuMError;
+            }
 
             let costosMessage = "";
             if (skuCostosRecordsToUpsert.length > 0) {
@@ -224,10 +235,16 @@ export default function CargaSkuPage() {
                 costosMessage = ` y se actualizaron/insertaron ${skuCostosRecordsToUpsert.length} costos`;
             }
 
-            let description = `Se guardaron ${skuMRecordsToInsert.length} registros nuevos en SKU${costosMessage}.`;
+            let description = `Se guardaron ${skuMRecordsToInsert.length} SKUs nuevos${costosMessage}.`;
             if (skippedForDbDuplicationCount > 0) {
-                description += ` Se omitieron ${skippedForDbDuplicationCount} registros que ya existían.`;
+                description += ` Se omitieron ${skippedForDbDuplicationCount} SKUs que ya existían.`;
             }
+             if (skuMRecordsToInsert.length === 0 && skuCostosRecordsToUpsert.length === 0) {
+                description = `No había datos nuevos para guardar. Todos los SKUs ya existen y no había costos válidos para actualizar.`
+            } else if (skuMRecordsToInsert.length === 0 && skuCostosRecordsToUpsert.length > 0) {
+                description = `No se agregaron SKUs nuevos. Se actualizaron/insertaron ${skuCostosRecordsToUpsert.length} costos.`
+            }
+
 
             toast({
                 title: "Datos guardados",
@@ -237,7 +254,7 @@ export default function CargaSkuPage() {
             clearFile();
 
         } catch (e: any) {
-            console.error("Error saving data to Supabase:", e);
+            console.error("Error saving data to Supabase:", e.message);
             const errorMessage = e.message || "Ocurrió un problema al conectar con la base de datos.";
             setError(`Error al guardar: ${errorMessage}`);
             toast({
