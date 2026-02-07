@@ -178,27 +178,32 @@ export default function CargaSkuPage() {
             }));
 
             // Use all de-duplicated data from the file for cost updates.
-            const initialSkuCostosRecords = dataDedupedInFile
-                .map(row => {
-                    const skuMdr = String(row[1]).trim();
-                    const landedCostRaw = row[3];
-
-                    let landedCost: number | null = null;
-                    const valueStr = String(landedCostRaw || '').trim();
+            const initialSkuCostosRecords = dataDedupedInFile.map(row => {
+                const skuMdr = String(row[1]).trim();
+                const landedCostRaw = row[3];
+                let landedCost: number | null = null;
+    
+                if (landedCostRaw !== null && landedCostRaw !== undefined) {
+                    const valueStr = String(landedCostRaw).trim();
+    
                     if (valueStr) {
-                        const cleanedValue = valueStr.replace(/[^0-9.-]+/g, '');
-                        if (cleanedValue && cleanedValue !== '.' && cleanedValue !== '-' && !isNaN(parseFloat(cleanedValue))) {
+                        // Aggressively remove anything that isn't a number, a decimal point, or a minus sign.
+                        const cleanedValue = valueStr.replace(/[^0-9.-]+/g, "");
+    
+                        // Check if the cleaned value is a valid number and not just a stray "." or "-"
+                        if (cleanedValue && cleanedValue !== "." && cleanedValue !== "-" && !isNaN(parseFloat(cleanedValue))) {
                             landedCost = parseFloat(cleanedValue);
                         }
                     }
-
-                    return { sku_mdr: skuMdr, landed_cost: landedCost };
-                })
-                .filter(record => 
-                    record.sku_mdr &&
-                    record.landed_cost !== null &&
-                    record.landed_cost !== 1
-                );
+                }
+    
+                return { sku_mdr: skuMdr, landed_cost: landedCost };
+            })
+            .filter(record => 
+                record.sku_mdr &&
+                record.landed_cost !== null &&
+                record.landed_cost !== 1
+            );
                 
             const uniqueSkuMdrMap = new Map<string, { sku_mdr: string, landed_cost: number }>();
             initialSkuCostosRecords.forEach(record => {
