@@ -9,6 +9,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from '@/components/ui/card';
 import { DatePicker } from '@/components/date-picker';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 
 // Mock data
 const skus = [
@@ -43,6 +45,13 @@ const skus = [
 export default function AnalisisSkuPage() {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredSkusForSearch = React.useMemo(() => {
+    return skus.filter((sku) =>
+      sku.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm]);
 
   return (
     <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
@@ -64,7 +73,7 @@ export default function AnalisisSkuPage() {
           </div>
         </header>
 
-        <main>
+        <main className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Configuración del Análisis</CardTitle>
@@ -72,14 +81,16 @@ export default function AnalisisSkuPage() {
             <CardContent>
               <div className="flex flex-wrap items-end gap-4">
                 <div className="grid gap-1.5 flex-grow-[2] min-w-[240px]">
-                  <Label>Buscar SKU</Label>
+                  <Label>Seleccionar SKU</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className="w-full justify-between font-normal text-left"
                       >
-                        <span className="text-muted-foreground">RAC</span>
+                        <span className="text-muted-foreground">
+                          Seleccionar SKUs...
+                        </span>
                         <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </PopoverTrigger>
@@ -137,6 +148,42 @@ export default function AnalisisSkuPage() {
                   <Search className="w-4 h-4 mr-2" />
                   Analizar SKUs Seleccionados
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Consultar SKU's</CardTitle>
+              <CardDescription>
+                Busca en la lista de SKUs en tiempo real.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search-sku"
+                  placeholder="Escribe para buscar..."
+                  className="pl-8 w-full"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="mt-4 border rounded-md max-h-72 overflow-y-auto">
+                <ul className="divide-y divide-border">
+                  {filteredSkusForSearch.length > 0 ? (
+                    filteredSkusForSearch.map((sku) => (
+                      <li key={sku.id} className="p-3 text-sm">
+                        {sku.label}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="p-4 text-sm text-center text-muted-foreground">
+                      No se encontraron resultados.
+                    </li>
+                  )}
+                </ul>
               </div>
             </CardContent>
           </Card>
