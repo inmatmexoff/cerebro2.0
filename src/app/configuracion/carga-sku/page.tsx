@@ -24,7 +24,7 @@ import {
 import { Input } from '@/components/ui/input';
 
 // Define column headers for the preview table
-const TABLE_HEADERS = ['sku', 'sku_mdr', 'cat_mdr', 'landed_cost'];
+const TABLE_HEADERS = ['sku', 'sku_mdr', 'cat_mdr', 'landed_cost', 'piezas_xcontenedor'];
 
 const manualSkuSchema = z.object({
     sku: z.string().min(1, { message: "SKU es requerido." }),
@@ -59,68 +59,42 @@ export default function CargaSkuPage() {
     async function onManualSubmit(values: z.infer<typeof manualSkuSchema>) {
         setIsSavingManual(true);
         try {
-            const { data: existingSku } = await supabasePROD
-                .from('sku_m')
-                .select('sku')
-                .eq('sku', values.sku)
-                .maybeSingle();
+            const { sku, sku_mdr, cat_mdr, landed_cost, proveedor, piezas_xcontenedor } = values;
 
-            if (existingSku) {
-                toast({ variant: "destructive", title: "Error", description: "El SKU ya existe." });
-                setIsSavingManual(false);
-                return;
+            // 1. Process sku_m
+            const { data: existingM } = await supabasePROD.from('sku_m').select('sku_mdr').eq('sku_mdr', sku_mdr).maybeSingle();
+            if (existingM) {
+                const { error } = await supabasePROD.from('sku_m').update({ cat_mdr }).eq('sku_mdr', sku_mdr);
+                if (error) throw new Error(`Error actualizando sku_m: ${error.message}`);
+            } else {
+                const { error } = await supabasePROD.from('sku_m').insert({ sku_mdr, cat_mdr });
+                if (error) throw new Error(`Error insertando en sku_m: ${error.message}`);
             }
 
-            const { data: existingSkuMdr } = await supabasePROD
-                .from('sku_m')
-                .select('sku_mdr')
-                .eq('sku_mdr', values.sku_mdr)
-                .maybeSingle();
-            
-            if (existingSkuMdr) {
-                 toast({ variant: "destructive", title: "Error", description: "El SKU MDR ya existe en otro registro." });
-                setIsSavingManual(false);
-                return;
+            // 2. Process sku_alterno
+            const { data: existingAlterno } = await supabasePROD.from('sku_alterno').select('sku').eq('sku', sku).maybeSingle();
+            if (existingAlterno) {
+                const { error } = await supabasePROD.from('sku_alterno').update({ sku_mdr }).eq('sku', sku);
+                if (error) throw new Error(`Error actualizando sku_alterno: ${error.message}`);
+            } else {
+                const { error } = await supabasePROD.from('sku_alterno').insert({ sku, sku_mdr });
+                if (error) throw new Error(`Error insertando en sku_alterno: ${error.message}`);
             }
-
-            const skuMRecord: any = {
-                sku: values.sku,
-                sku_mdr: values.sku_mdr,
-                cat_mdr: values.cat_mdr,
-            };
-            if (values.proveedor) skuMRecord.proveedor = values.proveedor;
-            if (values.piezas_xcontenedor) skuMRecord.piezas_xcontenedor = values.piezas_xcontenedor;
-
-            const { error: insertSkuMError } = await supabasePROD
-                .from('sku_m')
-                .insert(skuMRecord);
-
-            if (insertSkuMError) throw insertSkuMError;
-
-            let costoMessage = "";
-            if (values.landed_cost !== null && values.landed_cost !== undefined && values.landed_cost !== 1) {
-                const { data: existingCosto } = await supabasePROD
-                    .from('sku_costos')
-                    .select('sku_mdr')
-                    .eq('sku_mdr', values.sku_mdr)
-                    .maybeSingle();
-                
-                if(existingCosto) {
-                    const { error: updateCostoError } = await supabasePROD
-                        .from('sku_costos')
-                        .update({ landed_cost: values.landed_cost })
-                        .eq('sku_mdr', values.sku_mdr);
-                    if (updateCostoError) throw updateCostoError;
+    
+            // 3. Process sku_costos
+            const costData = { landed_cost, proveedor, piezas_xcontenedor };
+            if (Object.values(costData).some(v => v !== null && v !== undefined && v !== '')) {
+                const { data: existingCostos } = await supabasePROD.from('sku_costos').select('sku_mdr').eq('sku_mdr', sku_mdr).maybeSingle();
+                if (existingCostos) {
+                     const { error } = await supabasePROD.from('sku_costos').update(costData).eq('sku_mdr', sku_mdr);
+                     if (error) throw new Error(`Error actualizando sku_costos: ${error.message}`);
                 } else {
-                    const { error: insertCostoError } = await supabasePROD
-                        .from('sku_costos')
-                        .insert({ sku_mdr: values.sku_mdr, landed_cost: values.landed_cost });
-                    if (insertCostoError) throw insertCostoError;
+                     const { error } = await supabasePROD.from('sku_costos').insert({ sku_mdr, ...costData });
+                     if (error) throw new Error(`Error insertando en sku_costos: ${error.message}`);
                 }
-                costoMessage = " y su costo fue guardado";
             }
             
-            toast({ title: "Éxito", description: `SKU guardado correctamente${costoMessage}.` });
+            toast({ title: "Éxito", description: `SKU ${sku} ha sido guardado/actualizado.` });
             manualForm.reset();
 
         } catch (e: any) {
@@ -166,18 +140,17 @@ export default function CargaSkuPage() {
                     return;
                 }
 
-                // Data starts from the second row (index 1), skipping headers
                 const dataRows = json.slice(1);
-                // We map columns A, C, B, D to our data structure for display order: sku, sku_mdr, cat_mdr, landed_cost
-                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3]]);
+                // Mapeo de columnas: sku, sku_mdr, cat_mdr, landed_cost, piezas_xcontenedor
+                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[8]]);
                 
-                // Filter out rows where any of the first 3 columns are empty
+                // Filter out rows where essential columns are empty
                 const validatedData = extractedData.filter(row => row[0] && row[1] && row[2]);
                 
                 const skippedCount = extractedData.length - validatedData.length;
 
                 if (validatedData.length === 0) {
-                     setError("No se encontraron registros válidos a partir de la segunda fila. Asegúrate de que las columnas A, B y C no estén vacías.");
+                     setError("No se encontraron registros válidos. Asegúrate de que las columnas A (sku), B (cat_mdr) y C (sku_mdr) no estén vacías a partir de la segunda fila.");
                      setIsProcessing(false);
                      return;
                 }
@@ -238,155 +211,136 @@ export default function CargaSkuPage() {
         setError(null);
 
         try {
-            // --- DEDUPLICATION (in-file by sku) ---
-            const uniqueSkuMap = new Map<string, any[]>();
+            // 1. Process data from file and handle in-file duplicates using Maps (last one wins)
+            const skuMRecordsMap = new Map<string, { sku_mdr: string; cat_mdr: string }>();
+            const skuAlternoRecordsMap = new Map<string, { sku: string; sku_mdr: string }>();
+            const skuCostosRecordsMap = new Map<string, {
+                sku_mdr: string;
+                landed_cost: number | null;
+                proveedor: string | null;
+                piezas_xcontenedor: number | null;
+            }>();
+
             data.forEach(row => {
                 const sku = String(row[0]).trim();
-                if (sku) {
-                    uniqueSkuMap.set(sku, row);
-                }
-            });
-            const dataDedupedInFile = Array.from(uniqueSkuMap.values());
-            const duplicatesInFileCount = data.length - dataDedupedInFile.length;
-
-            if (duplicatesInFileCount > 0) {
-                toast({
-                    title: "SKUs duplicados en archivo",
-                    description: `Se omitieron ${duplicatesInFileCount} filas con SKUs duplicados. Se procesará la última aparición de cada uno.`,
-                });
-            }
-
-            if (dataDedupedInFile.length === 0) {
-                setIsSaving(false);
-                return;
-            }
-            
-            // --- VALIDATION (against DB for existing skus) ---
-            const skusFromFile = dataDedupedInFile.map(row => String(row[0]).trim());
-            const { data: existingSkusData, error: fetchError } = await supabasePROD
-                .from('sku_m')
-                .select('sku')
-                .in('sku', skusFromFile);
-
-            if (fetchError) throw fetchError;
-
-            const existingSkusSet = new Set(existingSkusData.map(item => item.sku));
-
-            // Filter out records that already exist in the database, keeping only new ones for sku_m insertion.
-            const newSkuData = dataDedupedInFile.filter(row => {
-                const sku = String(row[0]).trim();
-                return !existingSkusSet.has(sku);
-            });
-            
-            const skippedForDbDuplicationCount = dataDedupedInFile.length - newSkuData.length;
-            
-            // --- PREPARE RECORDS FOR INSERTION ---
-            const skuMRecordsToInsert = newSkuData.map(row => ({
-                sku: String(row[0]).trim(),
-                cat_mdr: String(row[2]).trim(),
-                sku_mdr: String(row[1]).trim(),
-            }));
-
-            // Use all de-duplicated data from the file for cost updates.
-            const initialSkuCostosRecords = dataDedupedInFile.map(row => {
-                const skuMdr = String(row[1]).trim();
+                const sku_mdr = String(row[1]).trim();
+                const cat_mdr = String(row[2]).trim();
                 const landedCostRaw = row[3];
-                let landedCost: number | null = null;
-    
-                if (landedCostRaw !== null && landedCostRaw !== undefined) {
-                    const valueStr = String(landedCostRaw).trim();
-    
-                    if (valueStr) {
-                        // Aggressively remove anything that isn't a number, a decimal point, or a minus sign.
-                        const cleanedValue = valueStr.replace(/[^0-9.-]+/g, "");
-    
-                        // Check if the cleaned value is a valid number and not just a stray "." or "-"
-                        if (cleanedValue && cleanedValue !== "." && cleanedValue !== "-" && !isNaN(parseFloat(cleanedValue))) {
-                            landedCost = parseFloat(cleanedValue);
+                const piezasRaw = row[4];
+
+                if (sku && sku_mdr && cat_mdr) {
+                    skuMRecordsMap.set(sku_mdr, { sku_mdr, cat_mdr });
+                    skuAlternoRecordsMap.set(sku, { sku, sku_mdr });
+                    
+                    let landed_cost: number | null = null;
+                    if (landedCostRaw !== null && landedCostRaw !== undefined) {
+                        const valueStr = String(landedCostRaw).trim();
+                        if (valueStr) {
+                            const cleanedValue = valueStr.replace(/[^0-9.-]+/g, "");
+                            if (cleanedValue && !isNaN(parseFloat(cleanedValue))) {
+                                landed_cost = parseFloat(cleanedValue);
+                            }
                         }
                     }
-                }
-    
-                return { sku_mdr: skuMdr, landed_cost: landedCost };
-            })
-            .filter(record => 
-                record.sku_mdr &&
-                record.landed_cost !== null &&
-                record.landed_cost !== 1
-            );
-                
-            const uniqueSkuMdrMap = new Map<string, { sku_mdr: string, landed_cost: number }>();
-            initialSkuCostosRecords.forEach(record => {
-                if(record.landed_cost !== null) {
-                    uniqueSkuMdrMap.set(record.sku_mdr, { sku_mdr: record.sku_mdr, landed_cost: record.landed_cost });
+
+                    let piezas_xcontenedor: number | null = null;
+                    if (piezasRaw !== null && piezasRaw !== undefined && String(piezasRaw).trim() !== '') {
+                        const num = parseInt(String(piezasRaw), 10);
+                        if (!isNaN(num)) piezas_xcontenedor = num;
+                    }
+
+                    skuCostosRecordsMap.set(sku_mdr, {
+                        sku_mdr,
+                        landed_cost,
+                        proveedor: null, // As per request
+                        piezas_xcontenedor,
+                    });
                 }
             });
-            const skuCostosRecordsToUpsert = Array.from(uniqueSkuMdrMap.values());
 
-            // --- DATABASE OPERATIONS ---
-            if (skuMRecordsToInsert.length > 0) {
-                const { error: skuMError } = await supabasePROD
-                    .from('sku_m')
-                    .insert(skuMRecordsToInsert);
+            const skuMRecords = Array.from(skuMRecordsMap.values());
+            const skuAlternoRecords = Array.from(skuAlternoRecordsMap.values());
+            const skuCostosRecords = Array.from(skuCostosRecordsMap.values());
 
-                if (skuMError) throw skuMError;
-            }
+            let insertedSkuM = 0, updatedSkuM = 0;
+            let insertedSkuAlterno = 0, updatedSkuAlterno = 0;
+            let insertedSkuCostos = 0, updatedSkuCostos = 0;
 
-            let costosMessage = "";
-            if (skuCostosRecordsToUpsert.length > 0) {
-                 // Manual upsert for sku_costos to avoid ON CONFLICT errors if constraint is missing
-                const skuMdrsToProcess = skuCostosRecordsToUpsert.map(r => r.sku_mdr);
+            // 2. Manual upsert for sku_m
+            if (skuMRecords.length > 0) {
+                const skuMdrs = skuMRecords.map(r => r.sku_mdr);
+                const { data: existing, error } = await supabasePROD.from('sku_m').select('sku_mdr').in('sku_mdr', skuMdrs);
+                if (error) throw error;
+                const existingSet = new Set(existing.map(r => r.sku_mdr));
+                const toInsert = skuMRecords.filter(r => !existingSet.has(r.sku_mdr));
+                const toUpdate = skuMRecords.filter(r => existingSet.has(r.sku_mdr));
 
-                const { data: existingCostosData, error: fetchCostosError } = await supabasePROD
-                    .from('sku_costos')
-                    .select('sku_mdr')
-                    .in('sku_mdr', skuMdrsToProcess);
-
-                if (fetchCostosError) throw fetchCostosError;
-
-                const existingCostosSet = new Set(existingCostosData.map(c => c.sku_mdr));
-
-                const costosToInsert = skuCostosRecordsToUpsert.filter(r => !existingCostosSet.has(r.sku_mdr));
-                const costosToUpdate = skuCostosRecordsToUpsert.filter(r => existingCostosSet.has(r.sku_mdr));
-
-                if (costosToInsert.length > 0) {
-                    const { error: insertError } = await supabasePROD
-                        .from('sku_costos')
-                        .insert(costosToInsert);
-                    if (insertError) throw insertError;
+                if (toInsert.length > 0) {
+                    const { error: insertError } = await supabasePROD.from('sku_m').insert(toInsert);
+                    if (insertError) throw new Error(`Error insertando en sku_m: ${insertError.message}`);
+                    insertedSkuM = toInsert.length;
                 }
-
-                if (costosToUpdate.length > 0) {
-                    const updatePromises = costosToUpdate.map(record =>
-                        supabasePROD
-                            .from('sku_costos')
-                            .update({ landed_cost: record.landed_cost })
-                            .eq('sku_mdr', record.sku_mdr)
-                    );
-                    const results = await Promise.all(updatePromises);
+                if (toUpdate.length > 0) {
+                    const promises = toUpdate.map(r => supabasePROD.from('sku_m').update({ cat_mdr: r.cat_mdr }).eq('sku_mdr', r.sku_mdr));
+                    const results = await Promise.all(promises);
                     const updateErrors = results.filter(res => res.error);
-                    if (updateErrors.length > 0) {
-                        const errorMessage = updateErrors.map(e => e.error?.message).join('; ');
-                        throw new Error(`Error actualizando costos: ${errorMessage}`);
-                    }
+                    if (updateErrors.length > 0) throw new Error(`Error actualizando sku_m: ${updateErrors.map(e => e.error?.message).join(', ')}`);
+                    updatedSkuM = toUpdate.length;
                 }
-                
-                costosMessage = ` y se actualizaron/insertaron ${skuCostosRecordsToUpsert.length} costos`;
             }
 
-            let description = `Se guardaron ${skuMRecordsToInsert.length} SKUs nuevos${costosMessage}.`;
-            if (skippedForDbDuplicationCount > 0) {
-                description += ` Se omitieron ${skippedForDbDuplicationCount} SKUs que ya existían.`;
+            // 3. Manual upsert for sku_alterno
+            if (skuAlternoRecords.length > 0) {
+               const skus = skuAlternoRecords.map(r => r.sku);
+               const { data: existing, error } = await supabasePROD.from('sku_alterno').select('sku').in('sku', skus);
+               if (error) throw error;
+               const existingSet = new Set(existing.map(r => r.sku));
+               const toInsert = skuAlternoRecords.filter(r => !existingSet.has(r.sku));
+               const toUpdate = skuAlternoRecords.filter(r => existingSet.has(r.sku));
+
+                if (toInsert.length > 0) {
+                    const { error: insertError } = await supabasePROD.from('sku_alterno').insert(toInsert);
+                    if (insertError) throw new Error(`Error insertando en sku_alterno: ${insertError.message}`);
+                    insertedSkuAlterno = toInsert.length;
+                }
+                if (toUpdate.length > 0) {
+                     const promises = toUpdate.map(r => supabasePROD.from('sku_alterno').update({ sku_mdr: r.sku_mdr }).eq('sku', r.sku));
+                    const results = await Promise.all(promises);
+                    const updateErrors = results.filter(res => res.error);
+                    if (updateErrors.length > 0) throw new Error(`Error actualizando sku_alterno: ${updateErrors.map(e => e.error?.message).join(', ')}`);
+                    updatedSkuAlterno = toUpdate.length;
+                }
             }
-             if (skuMRecordsToInsert.length === 0 && skuCostosRecordsToUpsert.length === 0) {
-                description = `No había datos nuevos para guardar. Todos los SKUs ya existen y no había costos válidos para actualizar.`
-            } else if (skuMRecordsToInsert.length === 0 && skuCostosRecordsToUpsert.length > 0) {
-                description = `No se agregaron SKUs nuevos. Se actualizaron/insertaron ${skuCostosRecordsToUpsert.length} costos.`
+            
+            // 4. Manual upsert for sku_costos
+            const validSkuCostosRecords = skuCostosRecords.filter(r => r.landed_cost !== null || r.piezas_xcontenedor !== null);
+            if (validSkuCostosRecords.length > 0) {
+                const skuMdrs = validSkuCostosRecords.map(r => r.sku_mdr);
+                const { data: existing, error } = await supabasePROD.from('sku_costos').select('sku_mdr').in('sku_mdr', skuMdrs);
+                if (error) throw error;
+                const existingSet = new Set(existing.map(r => r.sku_mdr));
+                const toInsert = validSkuCostosRecords.filter(r => !existingSet.has(r.sku_mdr));
+                const toUpdate = validSkuCostosRecords.filter(r => existingSet.has(r.sku_mdr));
+
+                if (toInsert.length > 0) {
+                    const { error: insertError } = await supabasePROD.from('sku_costos').insert(toInsert);
+                    if (insertError) throw new Error(`Error insertando en sku_costos: ${insertError.message}`);
+                    insertedSkuCostos = toInsert.length;
+                }
+                if (toUpdate.length > 0) {
+                    const promises = toUpdate.map(r => supabasePROD.from('sku_costos').update({ landed_cost: r.landed_cost, proveedor: r.proveedor, piezas_xcontenedor: r.piezas_xcontenedor }).eq('sku_mdr', r.sku_mdr));
+                    const results = await Promise.all(promises);
+                    const updateErrors = results.filter(res => res.error);
+                    if (updateErrors.length > 0) throw new Error(`Error actualizando sku_costos: ${updateErrors.map(e => e.error?.message).join(', ')}`);
+                    updatedSkuCostos = toUpdate.length;
+                }
             }
+
+            const summary = `Procesamiento completado. sku_m: ${insertedSkuM + updatedSkuM}, sku_alterno: ${insertedSkuAlterno + updatedSkuAlterno}, sku_costos: ${insertedSkuCostos + updatedSkuCostos}.`;
 
             toast({
                 title: "Datos guardados",
-                description: description,
+                description: summary,
             });
 
             clearFile();
