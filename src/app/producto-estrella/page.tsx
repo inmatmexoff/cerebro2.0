@@ -169,35 +169,37 @@ const SimpleAnalysisView = ({
             </p>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-1/2">Producto</TableHead>
-                  <TableHead className="text-right">
-                    Etiquetas Impresas
-                  </TableHead>
-                  <TableHead className="text-right">% del Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {starProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>
-                      <div className="font-medium">{product.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {product.id}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {product.etiquetas.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {product.totalPercent}
-                    </TableCell>
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-1/2">Producto</TableHead>
+                    <TableHead className="text-right">
+                      Etiquetas Impresas
+                    </TableHead>
+                    <TableHead className="text-right">% del Total</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {starProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <div className="font-medium">{product.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {product.id}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {product.etiquetas.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {product.totalPercent}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </main>
