@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Search, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Search, ChevronDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -20,38 +20,57 @@ import {
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-
-// Mock data
-const skus = [
-  { id: 'MSREF JALADERACONOJILLO', label: 'MSREF JALADERACONOJILLO' },
-  {
-    id: 'RACK_OFICINA_ECO_KD_GRIS_1PZA_MDF',
-    label: 'RACK_OFICINA_ECO_KD_GRIS_1PZA_MDF',
-  },
-  {
-    id: 'RAC_OFI_ECO_KD_GRL1PZ_MET_MDF_1.8',
-    label: 'RAC_OFI_ECO_KD_GRL1PZ_MET_MDF_1.8',
-  },
-  {
-    id: 'RAC_OFI_ECO_KD_GRI_2PZ_MET_MDF_1.8',
-    label: 'RAC_OFI_ECO_KD_GRI_2PZ_MET_MDF_1.8',
-  },
-  {
-    id: 'RAC_OFI_ECO_KD_GRL3PZ_MET_MDF_1.8',
-    label: 'RAC_OFI_ECO_KD_GRL3PZ_MET_MDF_1.8',
-  },
-];
+import { supabasePROD } from '@/lib/supabase';
 
 export default function AnalisisSkuPage() {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [skus, setSkus] = useState<{ id: string; label: string }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSkus = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const { data, error } = await supabasePROD
+          .from('sku_alterno')
+          .select('sku')
+          .order('sku', { ascending: true });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          const formattedSkus = data.map((item) => ({
+            id: item.sku,
+            label: item.sku,
+          }));
+          setSkus(formattedSkus);
+        }
+      } catch (err: any) {
+        setError('No se pudieron cargar los SKUs. Inténtalo de nuevo.');
+        console.error('Error fetching SKUs:', err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSkus();
+  }, []);
 
   const filteredSkusForSearch = React.useMemo(() => {
+    if (!searchTerm) {
+      return [];
+    }
     return skus.filter((sku) =>
       sku.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm]);
+  }, [searchTerm, skus]);
 
   return (
     <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
@@ -87,9 +106,12 @@ export default function AnalisisSkuPage() {
                       <Button
                         variant="outline"
                         className="w-full justify-between font-normal text-left"
+                        disabled={isLoading || !!error}
                       >
                         <span className="text-muted-foreground">
-                          Seleccionar SKUs...
+                          {isLoading
+                            ? 'Cargando SKUs...'
+                            : 'Seleccionar SKUs...'}
                         </span>
                         <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       </Button>
@@ -99,27 +121,43 @@ export default function AnalisisSkuPage() {
                       align="start"
                     >
                       <div className="p-4 space-y-2">
-                        <p className="text-sm font-medium">
-                          Seleccionar SKUs
-                        </p>
+                        <p className="text-sm font-medium">Seleccionar SKUs</p>
                         <p className="text-xs text-muted-foreground">
                           Desmarca los SKUs que no quieras incluir.
                         </p>
                         <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-                          {skus.map((sku) => (
-                            <div
-                              key={sku.id}
-                              className="flex items-center space-x-2"
-                            >
-                              <Checkbox id={sku.id} defaultChecked />
-                              <Label
-                                htmlFor={sku.id}
-                                className="text-sm font-normal cursor-pointer flex-1"
-                              >
-                                {sku.label}
-                              </Label>
+                          {isLoading ? (
+                            <div className="p-4 text-sm text-center text-muted-foreground flex items-center justify-center">
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Cargando...
                             </div>
-                          ))}
+                          ) : error ? (
+                            <div className="p-4 text-sm text-center text-red-600">
+                              {error}
+                            </div>
+                          ) : skus.length > 0 ? (
+                            skus.map((sku) => (
+                              <div
+                                key={sku.id}
+                                className="flex items-center space-x-2"
+                              >
+                                <Checkbox
+                                  id={`check-${sku.id}`}
+                                  defaultChecked
+                                />
+                                <Label
+                                  htmlFor={`check-${sku.id}`}
+                                  className="text-sm font-normal cursor-pointer flex-1"
+                                >
+                                  {sku.label}
+                                </Label>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-4 text-sm text-center text-muted-foreground">
+                              No hay SKUs disponibles.
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="p-2 border-t">
@@ -168,11 +206,21 @@ export default function AnalisisSkuPage() {
                   className="pl-8 w-full"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  disabled={isLoading || !!error}
                 />
               </div>
               <div className="mt-4 border rounded-md max-h-72 overflow-y-auto">
                 <ul className="divide-y divide-border">
-                  {filteredSkusForSearch.length > 0 ? (
+                  {isLoading ? (
+                    <li className="p-4 text-sm text-center text-muted-foreground flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Cargando SKUs...
+                    </li>
+                  ) : error ? (
+                    <li className="p-4 text-sm text-center text-red-600">
+                      {error}
+                    </li>
+                  ) : filteredSkusForSearch.length > 0 ? (
                     filteredSkusForSearch.map((sku) => (
                       <li key={sku.id} className="p-3 text-sm">
                         {sku.label}
@@ -180,7 +228,11 @@ export default function AnalisisSkuPage() {
                     ))
                   ) : (
                     <li className="p-4 text-sm text-center text-muted-foreground">
-                      No se encontraron resultados.
+                      {skus.length === 0
+                        ? 'No hay SKUs disponibles.'
+                        : searchTerm
+                        ? 'No se encontraron resultados.'
+                        : 'Escribe para empezar a buscar.'}
                     </li>
                   )}
                 </ul>
