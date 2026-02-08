@@ -104,6 +104,58 @@ const parseBoolean = (value: any): boolean => {
   return false; // default to false
 };
 
+const parseSaleDate = (value: any): Date | null => {
+    if (!value) return null;
+
+    // Case 1: Already a Date object
+    if (value instanceof Date && !isNaN(value.getTime())) {
+        return value;
+    }
+
+    // Case 2: Excel date serial number
+    if (typeof value === 'number') {
+        // 25569 is the serial number for 1970-01-01
+        return new Date(Math.round((value - 25569) * 86400 * 1000));
+    }
+
+    // Case 3: String value
+    if (typeof value === 'string') {
+        // Try parsing Spanish format: "1 de febrero de 2026 23:50 hs."
+        const monthMap: { [key: string]: number } = {
+            'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
+            'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
+        };
+        
+        const cleanedString = value.replace(/\sde\s/g, ' ').replace(/\s?hs\.?/, '').toLowerCase().trim();
+        const parts = cleanedString.split(' '); // e.g., ["1", "febrero", "2026", "23:50"]
+        
+        if (parts.length >= 3) {
+            const day = parseInt(parts[0], 10);
+            const monthName = parts[1];
+            const year = parseInt(parts[2], 10);
+            const timeString = parts[3] || '00:00';
+            const timeParts = timeString.split(':');
+            const hours = parseInt(timeParts[0], 10);
+            const minutes = parseInt(timeParts[1], 10);
+            const month = monthMap[monthName];
+
+            if (!isNaN(day) && month !== undefined && !isNaN(year) && !isNaN(hours) && !isNaN(minutes)) {
+                const date = new Date(year, month, day, hours, minutes);
+                if (!isNaN(date.getTime())) return date;
+            }
+        }
+
+        // Fallback for other standard date string formats
+        const parsed = new Date(value);
+        if (!isNaN(parsed.getTime())) {
+            return parsed;
+        }
+    }
+
+    return null;
+};
+
+
 const formSchema = z.object({
   sku_mdr: z.string().min(1, 'SKU MDR es requerido.'),
   cat_mdr: z.string().min(1, 'Categoría MDR es requerida.'),
@@ -407,19 +459,7 @@ export default function ExcelVentasPage() {
       // --- INSERTION STAGE ---
       const recordsToInsert = validData
         .map((row) => {
-          const saleDateValue = row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta];
-          let saleDate: Date | null = null;
-          if (saleDateValue instanceof Date) {
-            saleDate = saleDateValue;
-          } else if (typeof saleDateValue === 'string') {
-            const parsed = new Date(saleDateValue);
-            if (!isNaN(parsed.getTime())) saleDate = parsed;
-          } else if (typeof saleDateValue === 'number') {
-            saleDate = new Date(
-              Math.round((saleDateValue - 25569) * 86400 * 1000)
-            );
-          }
-
+          const saleDate = parseSaleDate(row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta]);
           const granTotalValue = row[COLUMN_INDEXES.length + 1];
 
           return {
