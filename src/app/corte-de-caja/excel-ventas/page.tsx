@@ -204,11 +204,8 @@ export default function ExcelVentasPage() {
           const skusFromExcel = [
             ...new Set(
               extractedData
-                .map((row) =>
-                  String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '').filter(
-                    (sku) => sku
-                  )
-                )
+                .map((row) => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))
+                .filter((sku) => sku)
             ),
           ];
 
