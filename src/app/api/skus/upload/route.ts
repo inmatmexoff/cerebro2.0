@@ -1,17 +1,12 @@
+'use client';
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// IMPORTANT: These should be in your .env.local file
+// Using public credentials. This might be blocked by Row-Level Security.
+// The secure way is to use a service role key from environment variables.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_PROD_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  // In a real app, you'd want to log this error and handle it gracefully.
-  // For this context, we'll throw an error to make it clear during development.
-  console.error("Supabase URL or Service Role Key is not set in environment variables.");
-  // We can't proceed without these, but we don't want to crash the server startup.
-  // The endpoint will just fail if called.
-}
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PROD_ANON_KEY;
 
 const parseNumeric = (value: any, isInt: boolean = false): number | null => {
     if (value === null || value === undefined || value === '') return null;
@@ -27,10 +22,10 @@ const parseNumeric = (value: any, isInt: boolean = false): number | null => {
 
 
 export async function POST(request: Request) {
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
-        return NextResponse.json({ message: 'Server is not configured for database access.' }, { status: 500 });
+    if (!supabaseUrl || !supabaseKey) {
+        return NextResponse.json({ message: 'Server is not configured for database access. Supabase URL or Anon Key is missing.' }, { status: 500 });
     }
-    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     try {
         const body = await request.json();
@@ -45,7 +40,9 @@ export async function POST(request: Request) {
         data.forEach(row => {
             const sku_mdr = String(row.sku_mdr || '').trim();
             if (sku_mdr) {
-                skuMdrMap.set(sku_mdr, row);
+                 if (String(row.sku || '').trim()) {
+                    skuMdrMap.set(sku_mdr, row);
+                }
             }
         });
         const finalRecordsForM = Array.from(skuMdrMap.values());
@@ -76,7 +73,7 @@ export async function POST(request: Request) {
             const sku_mdr = String(row.sku_mdr || '').trim();
             const landed_cost = parseNumeric(row.landed_cost);
             
-            if (sku_mdr && landed_cost && landed_cost !== 1) {
+            if (sku_mdr && landed_cost !== null && landed_cost !== 1) {
                 return {
                     sku_mdr,
                     landed_cost,
@@ -87,19 +84,25 @@ export async function POST(request: Request) {
             return null;
         }).filter((r): r is NonNullable<typeof r> => r !== null);
 
+        const errors = [];
+
         if (skuMRecords.length > 0) {
             const { error } = await supabase.from('sku_m').upsert(skuMRecords, { onConflict: 'sku_mdr' });
-            if (error) throw new Error(`Error en sku_m: ${error.message}`);
+            if (error) errors.push(`Error en sku_m: ${error.message}`);
         }
 
         if (skuAlternoRecords.length > 0) {
             const { error } = await supabase.from('sku_alterno').upsert(skuAlternoRecords, { onConflict: 'sku' });
-            if (error) throw new Error(`Error en sku_alterno: ${error.message}`);
+            if (error) errors.push(`Error en sku_alterno: ${error.message}`);
         }
 
         if (skuCostosRecords.length > 0) {
             const { error } = await supabase.from('sku_costos').insert(skuCostosRecords);
-            if (error) throw new Error(`Error en sku_costos: ${error.message}`);
+            if (error) errors.push(`Error en sku_costos: ${error.message}`);
+        }
+
+        if (errors.length > 0) {
+            throw new Error(errors.join('; '));
         }
 
         return NextResponse.json({
