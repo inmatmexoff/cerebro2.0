@@ -2,7 +2,17 @@
 
 import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Upload, Save, X, Loader2, Pencil, Search } from 'lucide-react';
+import {
+  ArrowLeft,
+  Upload,
+  Save,
+  X,
+  Loader2,
+  Pencil,
+  Search,
+  Download,
+  Columns3,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -44,6 +54,16 @@ import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Define which columns to extract
 const COLUMN_MAPPING: { [key: string]: number } = {
@@ -180,6 +200,9 @@ export default function ExcelVentasPage() {
     originalLandedCost: number;
   } | null>(null);
   const [isUpdatingCost, setIsUpdatingCost] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
+    new Set()
+  );
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -305,6 +328,7 @@ export default function ExcelVentasPage() {
           });
 
           setHeaders(enrichedHeaders);
+          setSelectedColumns(new Set(enrichedHeaders));
           setData(enrichedData);
           // --- End of enrichment ---
         } catch (e) {
@@ -355,6 +379,102 @@ export default function ExcelVentasPage() {
     setHeaders([]);
     setData([]);
     setError(null);
+    setSelectedColumns(new Set());
+  };
+
+  const handleDownloadCSV = () => {
+    if (filteredData.length === 0) {
+      toast({ variant: 'destructive', title: 'No hay datos para descargar' });
+      return;
+    }
+    const colsToDownload = headers.filter((h) => selectedColumns.has(h));
+    const colIndices = colsToDownload.map((h) => headers.indexOf(h));
+
+    if (colsToDownload.length === 0) {
+      toast({ variant: 'destructive', title: 'Selecciona al menos una columna' });
+      return;
+    }
+
+    const csvHeader =
+      colsToDownload.map((col) => `"${col}"`).join(',') + '\n';
+
+    const csvBody = filteredData
+      .map((row) =>
+        colIndices
+          .map((index) => {
+            let cell = row[index];
+            if (cell instanceof Date) {
+              return cell.toLocaleDateString('es-MX');
+            }
+            let cellString = String(cell ?? '');
+            if (/[",\n]/.test(cellString)) {
+              return `"${cellString.replace(/"/g, '""')}"`;
+            }
+            return cellString;
+          })
+          .join(',')
+      )
+      .join('\n');
+
+    const csvContent = csvHeader + csvBody;
+    const blob = new Blob([`\uFEFF${csvContent}`], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'ventas_preview.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadPDF = () => {
+    if (filteredData.length === 0) {
+      toast({ variant: 'destructive', title: 'No hay datos para descargar' });
+      return;
+    }
+
+    const doc = new jsPDF({
+      orientation: 'landscape',
+    });
+
+    const colsToDownload = headers.filter((h) => selectedColumns.has(h));
+    const colIndices = colsToDownload.map((h) => headers.indexOf(h));
+
+    if (colsToDownload.length === 0) {
+      toast({ variant: 'destructive', title: 'Selecciona al menos una columna' });
+      return;
+    }
+
+    const tableData = filteredData.map((row) =>
+      colIndices.map((index) => {
+        const cell = row[index];
+        if (cell instanceof Date) {
+          return cell.toLocaleDateString('es-MX');
+        }
+        return String(cell ?? '');
+      })
+    );
+
+    autoTable(doc, {
+      head: [colsToDownload],
+      body: tableData,
+      styles: { fontSize: 5 },
+      headStyles: { fillColor: [27, 94, 32] },
+      didDrawPage: function (data) {
+        const str = 'Página ' + doc.internal.getNumberOfPages();
+        doc.setFontSize(10);
+        const pageSize = doc.internal.pageSize;
+        const pageHeight = pageSize.height
+          ? pageSize.height
+          : pageSize.getHeight();
+        doc.text(str, data.settings.margin.left, pageHeight - 10);
+      },
+    });
+
+    doc.save('ventas_preview.pdf');
   };
 
   const handleSaveData = async () => {
@@ -726,22 +846,84 @@ export default function ExcelVentasPage() {
               <Card className="mt-6">
                 <CardHeader>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div>
-                          <CardTitle>Vista Previa de Datos</CardTitle>
-                          <CardDescription>
-                            Mostrando {filteredData.length} de {data.length} registros. Se han añadido las columnas "Landed Cost" y "Gran Total".
-                          </CardDescription>
-                      </div>
+                    <div>
+                      <CardTitle>Vista Previa de Datos</CardTitle>
+                      <CardDescription>
+                        Mostrando {filteredData.length} de {data.length}{' '}
+                        registros.
+                      </CardDescription>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
                       <div className="relative w-full sm:max-w-xs">
-                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                              placeholder="Buscar por SKU..."
-                              value={skuSearchTerm}
-                              onChange={(e) => setSkuSearchTerm(e.target.value)}
-                              className="pl-8"
-                          />
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar por SKU..."
+                          value={skuSearchTerm}
+                          onChange={(e) => setSkuSearchTerm(e.target.value)}
+                          className="pl-8"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full sm:w-auto"
+                            >
+                              <Columns3 className="mr-2 h-4 w-4" />
+                              Columnas
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="max-h-96 overflow-y-auto"
+                          >
+                            <DropdownMenuLabel>
+                              Seleccionar Columnas
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {headers.map((header) => (
+                              <DropdownMenuCheckboxItem
+                                key={header}
+                                checked={selectedColumns.has(header)}
+                                onCheckedChange={(checked) => {
+                                  setSelectedColumns((prev) => {
+                                    const next = new Set(prev);
+                                    if (checked) {
+                                      next.add(header);
+                                    } else {
+                                      next.delete(header);
+                                    }
+                                    return next;
+                                  });
+                                }}
+                              >
+                                {header}
+                              </DropdownMenuCheckboxItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button
+                          onClick={handleDownloadCSV}
+                          variant="outline"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          CSV
+                        </Button>
+                        <Button
+                          onClick={handleDownloadPDF}
+                          variant="outline"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          PDF
+                        </Button>
                       </div>
                     </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[60vh] w-full overflow-auto">
