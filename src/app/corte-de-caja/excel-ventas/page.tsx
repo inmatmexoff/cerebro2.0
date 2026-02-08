@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Upload, Save, X, Loader2, Pencil } from 'lucide-react';
+import { ArrowLeft, Upload, Save, X, Loader2, Pencil, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -121,6 +121,7 @@ export default function ExcelVentasPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
+  const [skuSearchTerm, setSkuSearchTerm] = React.useState('');
   const [editingInfo, setEditingInfo] = useState<{
     rowIndex: number;
     sku: string;
@@ -273,6 +274,16 @@ export default function ExcelVentasPage() {
     },
     [toast]
   );
+  
+  const filteredData = React.useMemo(() => {
+    if (!skuSearchTerm) {
+      return data;
+    }
+    return data.filter((row) => {
+      const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
+      return sku.toLowerCase().includes(skuSearchTerm.toLowerCase());
+    });
+  }, [data, skuSearchTerm]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -503,8 +514,11 @@ export default function ExcelVentasPage() {
     }
   };
 
-  const handleEditClick = (rowIndex: number) => {
-    const rowData = data[rowIndex];
+  const handleEditClick = (rowToEdit: any[]) => {
+    const rowIndex = data.findIndex(r => r === rowToEdit);
+    if (rowIndex === -1) return;
+
+    const rowData = rowToEdit;
     const sku = String(rowData[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
     const originalLandedCost =
       parseCurrency(rowData[COLUMN_INDEXES.length]) || 0;
@@ -671,10 +685,23 @@ export default function ExcelVentasPage() {
             data.length > 0 && (
               <Card className="mt-6">
                 <CardHeader>
-                  <CardTitle>Vista Previa de Datos</CardTitle>
-                  <CardDescription>
-                    Se han añadido las columnas "Landed Cost" y "Gran Total".
-                  </CardDescription>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div>
+                          <CardTitle>Vista Previa de Datos</CardTitle>
+                          <CardDescription>
+                            Mostrando {filteredData.length} de {data.length} registros. Se han añadido las columnas "Landed Cost" y "Gran Total".
+                          </CardDescription>
+                      </div>
+                      <div className="relative w-full sm:max-w-xs">
+                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                              placeholder="Buscar por SKU..."
+                              value={skuSearchTerm}
+                              onChange={(e) => setSkuSearchTerm(e.target.value)}
+                              className="pl-8"
+                          />
+                      </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[60vh] w-full overflow-auto">
@@ -687,7 +714,7 @@ export default function ExcelVentasPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {data.map((row, rowIndex) => (
+                        {filteredData.map((row, rowIndex) => (
                           <TableRow key={rowIndex}>
                             {row.map((cell, cellIndex) => (
                               <TableCell
@@ -720,7 +747,7 @@ export default function ExcelVentasPage() {
                                             size="icon"
                                             className="h-8 w-8"
                                             onClick={() =>
-                                              handleEditClick(rowIndex)
+                                              handleEditClick(row)
                                             }
                                           >
                                             <Pencil className="h-4 w-4 text-primary" />
