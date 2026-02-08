@@ -11,7 +11,6 @@ import {
   Pencil,
   Search,
   Download,
-  Columns3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,16 +53,9 @@ import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Define which columns to extract
 const COLUMN_MAPPING: { [key: string]: number } = {
@@ -864,45 +856,6 @@ export default function ExcelVentasPage() {
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full sm:w-auto"
-                            >
-                              <Columns3 className="mr-2 h-4 w-4" />
-                              Columnas
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="max-h-96 overflow-y-auto"
-                          >
-                            <DropdownMenuLabel>
-                              Seleccionar Columnas
-                            </DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {headers.map((header) => (
-                              <DropdownMenuCheckboxItem
-                                key={header}
-                                checked={selectedColumns.has(header)}
-                                onCheckedChange={(checked) => {
-                                  setSelectedColumns((prev) => {
-                                    const next = new Set(prev);
-                                    if (checked) {
-                                      next.add(header);
-                                    } else {
-                                      next.delete(header);
-                                    }
-                                    return next;
-                                  });
-                                }}
-                              >
-                                {header}
-                              </DropdownMenuCheckboxItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                         <Button
                           onClick={handleDownloadCSV}
                           variant="outline"
@@ -930,9 +883,36 @@ export default function ExcelVentasPage() {
                     <Table>
                       <TableHeader className="sticky top-0 bg-background">
                         <TableRow>
-                          {headers.map((header, index) => (
-                            <TableHead key={index}>{header}</TableHead>
-                          ))}
+                          {headers.map((header, index) => {
+                            const id = `select-col-${header.replace(/[^a-zA-Z0-9]/g, '-')}-${index}`;
+                            return (
+                              <TableHead key={index}>
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={id}
+                                    checked={selectedColumns.has(header)}
+                                    onCheckedChange={(checked) => {
+                                      setSelectedColumns((prev) => {
+                                        const next = new Set(prev);
+                                        if (checked === true) {
+                                          next.add(header);
+                                        } else {
+                                          next.delete(header);
+                                        }
+                                        return next;
+                                      });
+                                    }}
+                                  />
+                                  <label
+                                    htmlFor={id}
+                                    className="cursor-pointer"
+                                  >
+                                    {header}
+                                  </label>
+                                </div>
+                              </TableHead>
+                            );
+                          })}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
