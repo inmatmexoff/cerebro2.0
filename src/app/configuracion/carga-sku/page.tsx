@@ -141,11 +141,11 @@ export default function CargaSkuPage() {
                 }
 
                 const dataRows = json.slice(1);
-                // Mapeo de columnas: sku, sku_mdr, cat_mdr, landed_cost, piezas_xcontenedor
+                // Mapeo de columnas: sku (A->0), sku_mdr (C->2), cat_mdr (B->1), landed_cost (D->3), piezas_xcontenedor (I->8)
                 const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[8]]);
                 
                 // Filter out rows where essential columns are empty
-                const validatedData = extractedData.filter(row => row[0] && row[1] && row[2]);
+                const validatedData = extractedData.filter(row => String(row[0] || '').trim() && String(row[1] || '').trim() && String(row[2] || '').trim());
                 
                 const skippedCount = extractedData.length - validatedData.length;
 
@@ -158,7 +158,7 @@ export default function CargaSkuPage() {
                 if (skippedCount > 0) {
                     toast({
                         title: "Registros omitidos",
-                        description: `Se omitieron ${skippedCount} registros porque una de las columnas (sku, cat_mdr, sku_mdr) estaba vacía.`
+                        description: `Se omitieron ${skippedCount} registros porque una de las columnas esenciales (sku, cat_mdr, sku_mdr) estaba vacía.`
                     });
                 }
                 
@@ -244,9 +244,13 @@ export default function CargaSkuPage() {
                     }
 
                     let piezas_xcontenedor: number | null = null;
-                    if (piezasRaw !== null && piezasRaw !== undefined && String(piezasRaw).trim() !== '') {
-                        const num = parseInt(String(piezasRaw), 10);
-                        if (!isNaN(num)) piezas_xcontenedor = num;
+                    if (piezasRaw !== null && piezasRaw !== undefined) {
+                        const valueStr = String(piezasRaw).trim();
+                        if (valueStr) {
+                            const cleanedValue = valueStr.replace(/[^0-9]+/g, "");
+                            const num = parseInt(cleanedValue, 10);
+                            if (!isNaN(num)) piezas_xcontenedor = num;
+                        }
                     }
 
                     skuCostosRecordsMap.set(sku_mdr, {
@@ -270,21 +274,21 @@ export default function CargaSkuPage() {
             if (skuMRecords.length > 0) {
                 const skuMdrs = skuMRecords.map(r => r.sku_mdr);
                 const { data: existing, error } = await supabasePROD.from('sku_m').select('sku_mdr').in('sku_mdr', skuMdrs);
-                if (error) throw error;
+                if (error) throw new Error(`sku_m select: ${error.message}`);
                 const existingSet = new Set(existing.map(r => r.sku_mdr));
                 const toInsert = skuMRecords.filter(r => !existingSet.has(r.sku_mdr));
                 const toUpdate = skuMRecords.filter(r => existingSet.has(r.sku_mdr));
 
                 if (toInsert.length > 0) {
                     const { error: insertError } = await supabasePROD.from('sku_m').insert(toInsert);
-                    if (insertError) throw new Error(`Error insertando en sku_m: ${insertError.message}`);
+                    if (insertError) throw new Error(`sku_m insert: ${insertError.message}`);
                     insertedSkuM = toInsert.length;
                 }
                 if (toUpdate.length > 0) {
                     const promises = toUpdate.map(r => supabasePROD.from('sku_m').update({ cat_mdr: r.cat_mdr }).eq('sku_mdr', r.sku_mdr));
                     const results = await Promise.all(promises);
                     const updateErrors = results.filter(res => res.error);
-                    if (updateErrors.length > 0) throw new Error(`Error actualizando sku_m: ${updateErrors.map(e => e.error?.message).join(', ')}`);
+                    if (updateErrors.length > 0) throw new Error(`sku_m update: ${updateErrors.map(e => e.error?.message).join(', ')}`);
                     updatedSkuM = toUpdate.length;
                 }
             }
@@ -293,21 +297,21 @@ export default function CargaSkuPage() {
             if (skuAlternoRecords.length > 0) {
                const skus = skuAlternoRecords.map(r => r.sku);
                const { data: existing, error } = await supabasePROD.from('sku_alterno').select('sku').in('sku', skus);
-               if (error) throw error;
+               if (error) throw new Error(`sku_alterno select: ${error.message}`);
                const existingSet = new Set(existing.map(r => r.sku));
                const toInsert = skuAlternoRecords.filter(r => !existingSet.has(r.sku));
                const toUpdate = skuAlternoRecords.filter(r => existingSet.has(r.sku));
 
                 if (toInsert.length > 0) {
                     const { error: insertError } = await supabasePROD.from('sku_alterno').insert(toInsert);
-                    if (insertError) throw new Error(`Error insertando en sku_alterno: ${insertError.message}`);
+                    if (insertError) throw new Error(`sku_alterno insert: ${insertError.message}`);
                     insertedSkuAlterno = toInsert.length;
                 }
                 if (toUpdate.length > 0) {
                      const promises = toUpdate.map(r => supabasePROD.from('sku_alterno').update({ sku_mdr: r.sku_mdr }).eq('sku', r.sku));
                     const results = await Promise.all(promises);
                     const updateErrors = results.filter(res => res.error);
-                    if (updateErrors.length > 0) throw new Error(`Error actualizando sku_alterno: ${updateErrors.map(e => e.error?.message).join(', ')}`);
+                    if (updateErrors.length > 0) throw new Error(`sku_alterno update: ${updateErrors.map(e => e.error?.message).join(', ')}`);
                     updatedSkuAlterno = toUpdate.length;
                 }
             }
@@ -317,21 +321,21 @@ export default function CargaSkuPage() {
             if (validSkuCostosRecords.length > 0) {
                 const skuMdrs = validSkuCostosRecords.map(r => r.sku_mdr);
                 const { data: existing, error } = await supabasePROD.from('sku_costos').select('sku_mdr').in('sku_mdr', skuMdrs);
-                if (error) throw error;
+                if (error) throw new Error(`sku_costos select: ${error.message}`);
                 const existingSet = new Set(existing.map(r => r.sku_mdr));
                 const toInsert = validSkuCostosRecords.filter(r => !existingSet.has(r.sku_mdr));
                 const toUpdate = validSkuCostosRecords.filter(r => existingSet.has(r.sku_mdr));
 
                 if (toInsert.length > 0) {
                     const { error: insertError } = await supabasePROD.from('sku_costos').insert(toInsert);
-                    if (insertError) throw new Error(`Error insertando en sku_costos: ${insertError.message}`);
+                    if (insertError) throw new Error(`sku_costos insert: ${insertError.message}`);
                     insertedSkuCostos = toInsert.length;
                 }
                 if (toUpdate.length > 0) {
                     const promises = toUpdate.map(r => supabasePROD.from('sku_costos').update({ landed_cost: r.landed_cost, proveedor: r.proveedor, piezas_xcontenedor: r.piezas_xcontenedor }).eq('sku_mdr', r.sku_mdr));
                     const results = await Promise.all(promises);
                     const updateErrors = results.filter(res => res.error);
-                    if (updateErrors.length > 0) throw new Error(`Error actualizando sku_costos: ${updateErrors.map(e => e.error?.message).join(', ')}`);
+                    if (updateErrors.length > 0) throw new Error(`sku_costos update: ${updateErrors.map(e => e.error?.message).join(', ')}`);
                     updatedSkuCostos = toUpdate.length;
                 }
             }
