@@ -118,15 +118,15 @@ export default function ExcelVentasPage() {
                 // --- Data enrichment ---
                 const skusFromExcel = [...new Set(extractedData.map(row => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')).filter(sku => sku))];
                 
-                const { data: skuMData, error: skuMError } = await supabasePROD
-                    .from('sku_m')
+                const { data: skuAlternoData, error: skuAlternoError } = await supabasePROD
+                    .from('sku_alterno')
                     .select('sku, sku_mdr')
                     .in('sku', skusFromExcel);
 
-                if (skuMError) throw skuMError;
+                if (skuAlternoError) throw skuAlternoError;
 
-                const skuToMdrMap = new Map(skuMData.map(item => [item.sku, item.sku_mdr]));
-                const mdrs = [...new Set(skuMData.map(item => item.sku_mdr).filter(mdr => mdr))];
+                const skuToMdrMap = new Map(skuAlternoData.map(item => [item.sku, item.sku_mdr]));
+                const mdrs = [...new Set(skuAlternoData.map(item => item.sku_mdr).filter(mdr => mdr))];
                 
                 let mdrToPriceMap = new Map();
                 if (mdrs.length > 0) {
@@ -157,7 +157,7 @@ export default function ExcelVentasPage() {
 
             } catch (e) {
                 console.error(e);
-                setError("Hubo un error al procesar el archivo. Asegúrate de que sea un formato de Excel o CSV válido y de que las tablas 'sku_m' y 'sku_costos' son accesibles.");
+                setError("Hubo un error al procesar el archivo. Asegúrate de que sea un formato de Excel o CSV válido y de que las tablas 'sku_alterno' y 'sku_costos' son accesibles.");
             } finally {
                 setIsProcessing(false);
             }
@@ -216,7 +216,7 @@ export default function ExcelVentasPage() {
                 { data: existingSkusData, error: skusError }
             ] = await Promise.all([
                 supabasePROD.from('ml_sales').select('num_venta').in('num_venta', allNumVentasFromExcel),
-                supabasePROD.from('sku_m').select('sku').in('sku', allSkusFromExcel)
+                supabasePROD.from('sku_alterno').select('sku').in('sku', allSkusFromExcel)
             ]);
 
             if (salesError) throw salesError;
