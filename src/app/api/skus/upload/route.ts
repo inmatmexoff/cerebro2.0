@@ -34,45 +34,41 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: 'No data provided.' }, { status: 400 });
         }
         
-        // De-duplicate records from the file based on unique sku_mdr for sku_m
-        const skuMdrMap = new Map<string, any>();
+        // 1. De-duplicate for sku_m: take one cat_mdr per sku_mdr
+        const skuMdrMap = new Map<string, string>();
         data.forEach(row => {
             const sku_mdr = String(row.sku_mdr || '').trim();
-            if (sku_mdr) {
-                 if (String(row.sku || '').trim()) {
-                    skuMdrMap.set(sku_mdr, row);
-                }
+            const cat_mdr = String(row.cat_mdr || '').trim();
+            if (sku_mdr && !skuMdrMap.has(sku_mdr)) {
+                skuMdrMap.set(sku_mdr, cat_mdr);
             }
         });
-        const finalRecordsForM = Array.from(skuMdrMap.values());
-        
-        // De-duplicate records based on unique sku for sku_alterno
-        const skuMap = new Map<string, any>();
+        const skuMRecords = Array.from(skuMdrMap.entries()).map(([sku_mdr, cat_mdr]) => ({
+            sku_mdr,
+            cat_mdr: cat_mdr || null,
+        }));
+
+
+        // 2. De-duplicate for sku_alterno: take one sku_mdr per sku
+        const skuMap = new Map<string, string>();
         data.forEach(row => {
             const sku = String(row.sku || '').trim();
-            if (sku) {
-                skuMap.set(sku, row);
+            const sku_mdr = String(row.sku_mdr || '').trim();
+            if (sku && sku_mdr) { // ensure both exist
+                skuMap.set(sku, sku_mdr);
             }
         });
-        const finalRecordsForAlterno = Array.from(skuMap.values());
+        const skuAlternoRecords = Array.from(skuMap.entries()).map(([sku, sku_mdr]) => ({
+            sku,
+            sku_mdr,
+        }));
 
-
-        const skuMRecords = finalRecordsForM.map(row => ({
-            sku: String(row.sku || '').trim(),
-            sku_mdr: String(row.sku_mdr || '').trim(),
-            cat_mdr: String(row.cat_mdr || '').trim(),
-        })).filter(rec => rec.sku && rec.sku_mdr);
-
-        const skuAlternoRecords = finalRecordsForAlterno.map(row => ({
-            sku: String(row.sku || '').trim(),
-            sku_mdr: String(row.sku_mdr || '').trim(),
-        })).filter(rec => rec.sku && rec.sku_mdr);
-        
+        // 3. Prepare for sku_costos (no de-duplication needed, it's a log)
         const skuCostosRecords = data.map(row => {
             const sku_mdr = String(row.sku_mdr || '').trim();
             const landed_cost = parseNumeric(row.landed_cost);
             
-            if (sku_mdr && landed_cost !== null && landed_cost !== 1) {
+            if (sku_mdr && landed_cost !== null) {
                 return {
                     sku_mdr,
                     landed_cost,
@@ -83,21 +79,30 @@ export async function POST(request: Request) {
             return null;
         }).filter((r): r is NonNullable<typeof r> => r !== null);
 
+
+        // --- DB Operations ---
         const errors = [];
 
+        // Step 1: Insert into sku_m first to satisfy foreign keys
         if (skuMRecords.length > 0) {
-            const { error } = await supabase.from('sku_m').upsert(skuMRecords, { onConflict: 'sku_mdr' });
-            if (error) errors.push(`Error en sku_m: ${error.message}`);
+            // As per request, do not include 'sku' column
+            const { error: skuMError } = await supabase.from('sku_m').upsert(skuMRecords, { onConflict: 'sku_mdr' });
+            if (skuMError) {
+                errors.push(`Error en sku_m: ${skuMError.message}`);
+                // If sku_m fails, we cannot proceed with child tables
+                throw new Error(errors.join('; '));
+            }
         }
 
+        // Step 2: Insert into child tables
         if (skuAlternoRecords.length > 0) {
-            const { error } = await supabase.from('sku_alterno').upsert(skuAlternoRecords, { onConflict: 'sku' });
-            if (error) errors.push(`Error en sku_alterno: ${error.message}`);
+            const { error: skuAlternoError } = await supabase.from('sku_alterno').upsert(skuAlternoRecords, { onConflict: 'sku' });
+            if (skuAlternoError) errors.push(`Error en sku_alterno: ${skuAlternoError.message}`);
         }
 
         if (skuCostosRecords.length > 0) {
-            const { error } = await supabase.from('sku_costos').insert(skuCostosRecords);
-            if (error) errors.push(`Error en sku_costos: ${error.message}`);
+            const { error: skuCostosError } = await supabase.from('sku_costos').insert(skuCostosRecords);
+            if (skuCostosError) errors.push(`Error en sku_costos: ${skuCostosError.message}`);
         }
 
         if (errors.length > 0) {
@@ -109,7 +114,7 @@ export async function POST(request: Request) {
         }, { status: 200 });
 
     } catch (e: any) {
-        console.error('API Error:', e);
+        console.error('API Error:', e.message);
         return NextResponse.json({ message: e.message || 'An unexpected error occurred.' }, { status: 500 });
     }
 }
