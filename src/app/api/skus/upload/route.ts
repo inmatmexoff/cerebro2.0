@@ -132,12 +132,13 @@ export async function POST(request: Request) {
             }
         }
 
-        // Step 2: Insert into child tables
-        if (skuAlternoRecords.length > 0) {
+        // Step 2: Insert into sku_alterno only for 'alterno' uploads
+        if (uploadType === 'alterno' && skuAlternoRecords.length > 0) {
             const { error: skuAlternoError } = await supabase.from('sku_alterno').upsert(skuAlternoRecords, { onConflict: 'sku' });
             if (skuAlternoError) errors.push(`Error en sku_alterno: ${skuAlternoError.message}`);
         }
 
+        // Step 3: Insert into sku_costos
         if (skuCostosRecords.length > 0) {
             const { error: skuCostosError } = await supabase.from('sku_costos').insert(skuCostosRecords);
             if (skuCostosError) errors.push(`Error en sku_costos: ${skuCostosError.message}`);
@@ -146,9 +147,11 @@ export async function POST(request: Request) {
         if (errors.length > 0) {
             throw new Error(errors.join('; '));
         }
+        
+        const alternoCount = uploadType === 'alterno' ? skuAlternoRecords.length : 0;
 
         return NextResponse.json({
-            message: `Procesamiento completado. Se intentaron guardar ${skuMRecords.length} registros en sku_m, ${skuAlternoRecords.length} en sku_alterno, y ${skuCostosRecords.length} en sku_costos.`
+            message: `Procesamiento completado. Se intentaron guardar ${skuMRecords.length} registros en sku_m, ${alternoCount} en sku_alterno, y ${skuCostosRecords.length} en sku_costos.`
         }, { status: 200 });
 
     } catch (e: any) {
