@@ -23,7 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 
 // Define column headers for the preview table
-const TABLE_HEADERS = ['sku', 'sku_mdr', 'cat_mdr', 'landed_cost', 'piezas_xcontenedor'];
+const TABLE_HEADERS = ['sku', 'sku_mdr', 'cat_mdr', 'landed_cost', 'piezas_xcontenedor', 'esti_time', 'piezas_por_sku'];
 
 const manualSkuSchema = z.object({
     sku: z.string().min(1, { message: "SKU es requerido." }),
@@ -117,8 +117,8 @@ export default function CargaSkuPage() {
                 }
 
                 const dataRows = json.slice(1);
-                // Mapeo de columnas: sku (A->0), sku_mdr (C->2), cat_mdr (B->1), landed_cost (D->3), piezas_xcontenedor (I->8)
-                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[8]]);
+                // Mapeo de columnas: sku (A->0), sku_mdr (C->2), cat_mdr (B->1), landed_cost (D->3), piezas_xcontenedor (I->8), esti_time (F->5), piezas_por_sku (E->4)
+                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[8], row[5], row[4]]);
                 
                 // Filter out rows where essential columns are empty
                 const validatedData = extractedData.filter(row => 
@@ -198,6 +198,8 @@ export default function CargaSkuPage() {
                 landed_cost: row[3], // Send raw value, server will parse
                 piezas_xcontenedor: row[4], // Send raw value, server will parse
                 proveedor: null, // As requested
+                esti_time: row[5],
+                piezas_por_sku: row[6],
             }));
 
             const response = await fetch('/api/skus/upload', {

@@ -34,18 +34,23 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: 'No data provided.' }, { status: 400 });
         }
         
-        // 1. De-duplicate for sku_m: take one cat_mdr per sku_mdr
-        const skuMdrMap = new Map<string, string>();
+        // 1. De-duplicate for sku_m
+        const skuMdrMap = new Map<string, { cat_mdr: string, esti_time: any, piezas_por_sku: any }>();
         data.forEach(row => {
             const sku_mdr = String(row.sku_mdr || '').trim();
-            const cat_mdr = String(row.cat_mdr || '').trim();
             if (sku_mdr && !skuMdrMap.has(sku_mdr)) {
-                skuMdrMap.set(sku_mdr, cat_mdr);
+                skuMdrMap.set(sku_mdr, {
+                    cat_mdr: String(row.cat_mdr || '').trim(),
+                    esti_time: row.esti_time,
+                    piezas_por_sku: row.piezas_por_sku,
+                });
             }
         });
-        const skuMRecords = Array.from(skuMdrMap.entries()).map(([sku_mdr, cat_mdr]) => ({
+        const skuMRecords = Array.from(skuMdrMap.entries()).map(([sku_mdr, values]) => ({
             sku_mdr,
-            cat_mdr: cat_mdr || null,
+            cat_mdr: values.cat_mdr || null,
+            esti_time: parseNumeric(values.esti_time, true),
+            piezas_por_sku: parseNumeric(values.piezas_por_sku, true),
         }));
 
 
