@@ -352,7 +352,7 @@ export default function CargaSkuPage() {
                                             name="esti_time"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>Tiempo Estimado (días)</FormLabel>
+                                                    <FormLabel>Tiempo Estimado (min)</FormLabel>
                                                     <FormControl>
                                                         <Input type="number" placeholder="Ej. 30" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''} />
                                                     </FormControl>
