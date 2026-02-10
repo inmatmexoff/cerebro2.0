@@ -121,8 +121,8 @@ export default function CargaSkuPage() {
                 }
 
                 const dataRows = json.slice(1);
-                // Mapeo de columnas: sku (A->0), sku_mdr (C->2), cat_mdr (B->1), landed_cost (D->3), piezas_xcontenedor (I->8), esti_time (F->5), piezas_por_sku (E->4)
-                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[8], row[5], row[4]]);
+                // Mapeo de columnas: sku (A->0), sku_mdr (C->2), cat_mdr (B->1), landed_cost (D->3), piezas_xcontenedor (G->6), esti_time (F->5), piezas_por_sku (E->4)
+                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[6], row[5], row[4]]);
                 
                 // Filter out rows where essential columns are empty
                 const validatedData = extractedData.filter(row => 
