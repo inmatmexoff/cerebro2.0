@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 // Define column headers for the preview table
 const TABLE_HEADERS = ['sku', 'sku_mdr', 'cat_mdr', 'landed_cost', 'piezas_xcontenedor', 'esti_time', 'piezas_por_sku'];
