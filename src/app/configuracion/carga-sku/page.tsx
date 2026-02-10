@@ -21,6 +21,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 // Define column headers for the preview table
 const TABLE_HEADERS = ['sku', 'sku_mdr', 'cat_mdr', 'landed_cost', 'piezas_xcontenedor', 'esti_time', 'piezas_por_sku'];
@@ -43,6 +44,7 @@ export default function CargaSkuPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const { toast } = useToast();
+    const [uploadType, setUploadType] = useState<'oficial' | 'alterno'>('oficial');
 
     const [isSavingManual, setIsSavingManual] = useState(false);
     const manualForm = useForm<z.infer<typeof manualSkuSchema>>({
@@ -65,7 +67,7 @@ export default function CargaSkuPage() {
             const response = await fetch('/api/skus/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: [values] })
+                body: JSON.stringify({ data: [values], type: uploadType })
             });
     
             const result = await response.json();
@@ -209,7 +211,7 @@ export default function CargaSkuPage() {
             const response = await fetch('/api/skus/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: recordsToSave })
+                body: JSON.stringify({ data: recordsToSave, type: uploadType })
             });
     
             const result = await response.json();
@@ -259,6 +261,27 @@ export default function CargaSkuPage() {
                 </header>
                 <main>
                     <Card>
+                        <CardHeader>
+                            <CardTitle>Tipo de Carga</CardTitle>
+                            <CardDescription>
+                                Define si estás cargando SKUs oficiales (1 por SKU MDR) o una lista de SKUs alternos.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <RadioGroup value={uploadType} onValueChange={(value) => setUploadType(value as 'oficial' | 'alterno')} className="flex space-x-4">
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="oficial" id="r-oficial" />
+                                    <Label htmlFor="r-oficial">SKUs Oficiales</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="alterno" id="r-alterno" />
+                                    <Label htmlFor="r-alterno">SKUs Alternos</Label>
+                                </div>
+                            </RadioGroup>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="mt-6">
                         <CardHeader>
                             <CardTitle>Carga Manual de SKU</CardTitle>
                             <CardDescription>

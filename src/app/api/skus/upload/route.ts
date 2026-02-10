@@ -29,29 +29,39 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const data: any[] = body.data;
+        const uploadType = body.type || 'alterno'; // 'oficial' or 'alterno'
 
         if (!data || !Array.isArray(data) || data.length === 0) {
         return NextResponse.json({ message: 'No data provided.' }, { status: 400 });
         }
         
         // 1. De-duplicate for sku_m
-        const skuMdrMap = new Map<string, { cat_mdr: string, esti_time: any, piezas_por_sku: any }>();
+        const skuMdrMap = new Map<string, { sku: string, cat_mdr: string, esti_time: any, piezas_por_sku: any }>();
         data.forEach(row => {
             const sku_mdr = String(row.sku_mdr || '').trim();
             if (sku_mdr && !skuMdrMap.has(sku_mdr)) {
                 skuMdrMap.set(sku_mdr, {
+                    sku: String(row.sku || '').trim(), // Always get first SKU as potential official SKU
                     cat_mdr: String(row.cat_mdr || '').trim(),
                     esti_time: row.esti_time,
                     piezas_por_sku: row.piezas_por_sku,
                 });
             }
         });
-        const skuMRecords = Array.from(skuMdrMap.entries()).map(([sku_mdr, values]) => ({
-            sku_mdr,
-            cat_mdr: values.cat_mdr || null,
-            esti_time: parseNumeric(values.esti_time, true),
-            piezas_por_sku: parseNumeric(values.piezas_por_sku, true),
-        }));
+        const skuMRecords = Array.from(skuMdrMap.entries()).map(([sku_mdr, values]) => {
+            const record: any = {
+                sku_mdr,
+                cat_mdr: values.cat_mdr || null,
+                esti_time: parseNumeric(values.esti_time, true),
+                piezas_por_sku: parseNumeric(values.piezas_por_sku, true),
+            };
+
+            if (uploadType === 'oficial') {
+                record.sku = values.sku;
+            }
+
+            return record;
+        });
 
 
         // 2. De-duplicate for sku_alterno: take one sku_mdr per sku
@@ -90,7 +100,6 @@ export async function POST(request: Request) {
 
         // Step 1: Insert into sku_m first to satisfy foreign keys
         if (skuMRecords.length > 0) {
-            // As per request, do not include 'sku' column
             const { error: skuMError } = await supabase.from('sku_m').upsert(skuMRecords, { onConflict: 'sku_mdr' });
             if (skuMError) {
                 errors.push(`Error en sku_m: ${skuMError.message}`);
