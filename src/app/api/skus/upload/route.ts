@@ -32,9 +32,33 @@ export async function POST(request: Request) {
         const uploadType = body.type || 'alterno'; // 'oficial' or 'alterno'
 
         if (!data || !Array.isArray(data) || data.length === 0) {
-        return NextResponse.json({ message: 'No data provided.' }, { status: 400 });
+            return NextResponse.json({ message: 'No data provided.' }, { status: 400 });
         }
         
+        if (uploadType === 'oficial') {
+            const skuMdrCounts = new Map<string, number>();
+            data.forEach(row => {
+                const sku_mdr = String(row.sku_mdr || '').trim();
+                if (sku_mdr) {
+                    skuMdrCounts.set(sku_mdr, (skuMdrCounts.get(sku_mdr) || 0) + 1);
+                }
+            });
+
+            const duplicates = Array.from(skuMdrCounts.entries())
+                .filter(([_, count]) => count > 1)
+                .map(([sku_mdr, _]) => sku_mdr);
+
+            if (duplicates.length > 0) {
+                return NextResponse.json(
+                    { 
+                        message: 'Error: Se encontraron SKU MDRs duplicados en el archivo. Un archivo de SKUs "Oficiales" solo puede tener una fila por cada SKU MDR.',
+                        duplicates 
+                    }, 
+                    { status: 400 }
+                );
+            }
+        }
+
         // 1. De-duplicate for sku_m
         const skuMdrMap = new Map<string, { sku: string, cat_mdr: string, esti_time: any, piezas_por_sku: any }>();
         data.forEach(row => {
@@ -124,7 +148,7 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({
-            message: `Procesamiento completado. ${skuMRecords.length} para sku_m, ${skuAlternoRecords.length} para sku_alterno, y ${skuCostosRecords.length} para sku_costos.`
+            message: `Procesamiento completado. Se intentaron guardar ${skuMRecords.length} registros en sku_m, ${skuAlternoRecords.length} en sku_alterno, y ${skuCostosRecords.length} en sku_costos.`
         }, { status: 200 });
 
     } catch (e: any) {

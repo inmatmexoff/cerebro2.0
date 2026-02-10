@@ -218,6 +218,10 @@ export default function CargaSkuPage() {
             const result = await response.json();
     
             if (!response.ok) {
+                if (result.duplicates && Array.isArray(result.duplicates)) {
+                    const duplicatesList = result.duplicates.join(', ');
+                    throw new Error(`${result.message} SKUs duplicados: ${duplicatesList}`);
+                }
                 throw new Error(result.message || 'Error en el servidor');
             }
 
