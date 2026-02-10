@@ -32,6 +32,8 @@ const manualSkuSchema = z.object({
     landed_cost: z.coerce.number().optional().nullable(),
     proveedor: z.string().optional().nullable(),
     piezas_xcontenedor: z.coerce.number().int({ message: "Debe ser un número entero." }).positive({ message: "Debe ser un número positivo."}).optional().nullable(),
+    esti_time: z.coerce.number().int({ message: "Debe ser un número entero." }).positive({ message: "Debe ser un número positivo."}).optional().nullable(),
+    piezas_por_sku: z.coerce.number().int({ message: "Debe ser un número entero." }).positive({ message: "Debe ser un número positivo."}).optional().nullable(),
 });
 
 export default function CargaSkuPage() {
@@ -51,7 +53,9 @@ export default function CargaSkuPage() {
             cat_mdr: '',
             landed_cost: null,
             proveedor: '',
-            piezas_xcontenedor: null
+            piezas_xcontenedor: null,
+            esti_time: null,
+            piezas_por_sku: null
         },
     });
 
@@ -338,6 +342,32 @@ export default function CargaSkuPage() {
                                                     <FormLabel>Piezas por Contenedor</FormLabel>
                                                     <FormControl>
                                                         <Input type="number" placeholder="Ej. 100" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={manualForm.control}
+                                            name="esti_time"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Tiempo Estimado (días)</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="number" placeholder="Ej. 30" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={manualForm.control}
+                                            name="piezas_por_sku"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Piezas por SKU</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="number" placeholder="Ej. 50" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
