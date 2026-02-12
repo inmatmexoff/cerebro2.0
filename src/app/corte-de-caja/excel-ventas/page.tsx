@@ -315,24 +315,53 @@ export default function ExcelVentasPage() {
             }
           }
           
-          const finalHeaders = [...extractedHeaders];
-          finalHeaders.splice(14, 1); // remove original total
-          finalHeaders.splice(13, 0, "Total"); // re-insert total
-          finalHeaders.push('Landed Cost', 'Gran Total');
+          const finalHeaders = [
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.unidades],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.sku],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tienda],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
+            'Total',
+            'Landed Cost',
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.costo_envio],
+            'Gran Total',
+          ];
 
 
           const enrichedData = extractedData.map((row) => {
             const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
             const skuMdr = skuToMdrMap.get(sku);
             const landedCost = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
-            const totalFromExcel =
-              parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
+            const totalFromExcel = parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
             const granTotal = totalFromExcel - landedCost;
             
-            const finalRow = [...row];
-            finalRow.splice(14, 1); // Remove original total
-            finalRow.splice(13, 0, totalFromExcel); // Re-insert it
-            finalRow.push(landedCost, parseFloat(granTotal.toFixed(2)))
+            const finalRow = [
+                row[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
+                row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
+                row[DB_COLUMN_TO_EXCEL_INDEX.unidades],
+                row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio],
+                row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso],
+                row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos],
+                row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad],
+                row[DB_COLUMN_TO_EXCEL_INDEX.sku],
+                row[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
+                row[DB_COLUMN_TO_EXCEL_INDEX.tienda],
+                row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
+                totalFromExcel,
+                landedCost,
+                row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad],
+                row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta],
+                row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio],
+                parseFloat(granTotal.toFixed(2))
+            ];
             
             return finalRow;
           });
@@ -507,24 +536,24 @@ export default function ExcelVentasPage() {
     setIsSaving(true);
     setError(null);
 
-    // Get original indexes before starting loop
-    const numVentaIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.A);
-    const fechaVentaIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.B);
-    const unidadesIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.G);
-    const ingXUnidadIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.H);
-    const cargoVentaIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.I);
-    const ingXEnvioIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.J);
-    const costoEnvioIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.K);
-    const cargoDifPesoIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.M);
-    const anuReembolsosIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.N);
-    const ventaXPublicidadIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.P);
-    const skuIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.Q);
-    const numPubliIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.R);
-    const tiendaIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.S);
-    const tipPubliIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.W);
-    const totalIndex = headers.indexOf('Total');
-    const granTotalIndex = headers.indexOf('Gran Total');
-
+    const newIndices = {
+        num_venta: 0,
+        fecha_venta: 1,
+        unidades: 2,
+        ing_xenvio: 3,
+        cargo_difpeso: 4,
+        anu_reembolsos: 5,
+        venta_xpublicidad: 6,
+        sku: 7,
+        num_publi: 8,
+        tienda: 9,
+        tip_publi: 10,
+        total: 11,
+        ing_xunidad: 13,
+        cargo_venta: 14,
+        costo_envio: 15,
+        total_final: 16,
+    };
 
     const CHUNK_SIZE = 500;
     let totalInsertedCount = 0;
@@ -538,7 +567,7 @@ export default function ExcelVentasPage() {
           ...new Set(
             chunk
               .map((row) =>
-                String(row[numVentaIndex] || '')
+                String(row[newIndices.num_venta] || '')
               )
               .filter(Boolean)
           ),
@@ -562,7 +591,7 @@ export default function ExcelVentasPage() {
 
         const validDataInChunk = chunk.filter((row) => {
           const numVenta = String(
-            row[numVentaIndex] || ''
+            row[newIndices.num_venta] || ''
           );
           return !existingNumVentasSet.has(numVenta);
         });
@@ -576,45 +605,45 @@ export default function ExcelVentasPage() {
         const recordsToInsert = validDataInChunk
           .map((row) => {
             const saleDate = parseSaleDate(
-              row[fechaVentaIndex]
+              row[newIndices.fecha_venta]
             );
             return {
               num_venta: String(
-                row[numVentaIndex] || ''
+                row[newIndices.num_venta] || ''
               ),
               fecha_venta: saleDate ? saleDate.toISOString() : null,
               unidades:
                 parseInt(
-                  String(row[unidadesIndex]),
+                  String(row[newIndices.unidades]),
                   10
                 ) || null,
               ing_xunidad: parseCurrency(
-                row[ingXUnidadIndex]
+                row[newIndices.ing_xunidad]
               ),
               cargo_venta: parseCurrency(
-                row[cargoVentaIndex]
+                row[newIndices.cargo_venta]
               ),
               ing_xenvio: parseCurrency(
-                row[ingXEnvioIndex]
+                row[newIndices.ing_xenvio]
               ),
               costo_envio: parseCurrency(
-                row[costoEnvioIndex]
+                row[newIndices.costo_envio]
               ),
               cargo_difpeso: parseCurrency(
-                row[cargoDifPesoIndex]
+                row[newIndices.cargo_difpeso]
               ),
               anu_reembolsos: parseCurrency(
-                row[anuReembolsosIndex]
+                row[newIndices.anu_reembolsos]
               ),
-              total: parseCurrency(row[totalIndex]),
+              total: parseCurrency(row[newIndices.total]),
               venta_xpublicidad: parseBoolean(
-                row[ventaXPublicidadIndex]
+                row[newIndices.venta_xpublicidad]
               ),
-              sku: String(row[skuIndex] || ''),
-              num_publi: String(row[numPubliIndex] || ''),
-              tienda: String(row[tiendaIndex] || ''),
-              tip_publi: String(row[tipPubliIndex] || ''),
-              total_final: parseCurrency(row[granTotalIndex]),
+              sku: String(row[newIndices.sku] || ''),
+              num_publi: String(row[newIndices.num_publi] || ''),
+              tienda: String(row[newIndices.tienda] || ''),
+              tip_publi: String(row[newIndices.tip_publi] || ''),
+              total_final: parseCurrency(row[newIndices.total_final]),
             };
           })
           .filter((record) => record.num_venta);
