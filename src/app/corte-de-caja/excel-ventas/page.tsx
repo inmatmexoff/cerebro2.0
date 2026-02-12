@@ -344,6 +344,7 @@ export default function ExcelVentasPage() {
             const totalFromExcel = parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
             const granTotal = totalFromExcel - landedCost;
             
+            // Build the row in the final desired order.
             const finalRow = [
                 row[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
                 row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
@@ -412,6 +413,16 @@ export default function ExcelVentasPage() {
         return skuMatch && granTotalMatch;
     });
   }, [data, skuSearchTerm, showOnlyNegative, showOnlyPositive, headers]);
+
+  const granTotalSum = React.useMemo(() => {
+    const granTotalIndex = headers.indexOf('Gran Total');
+    if (granTotalIndex === -1) return 0;
+
+    return filteredData.reduce((sum, row) => {
+        const value = row[granTotalIndex];
+        return sum + (typeof value === 'number' ? value : 0);
+    }, 0);
+  }, [filteredData, headers]);
 
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -899,7 +910,12 @@ export default function ExcelVentasPage() {
                       <CardTitle>Vista Previa de Datos</CardTitle>
                       <CardDescription>
                         Mostrando {filteredData.length} de {data.length}{' '}
-                        registros.
+                        registros. Suma Gran Total: <span className={cn(
+                            "font-bold",
+                            granTotalSum >= 0 ? "text-green-700" : "text-red-700"
+                        )}>
+                            {granTotalSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                        </span>
                       </CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
