@@ -87,13 +87,14 @@ const DB_COLUMN_TO_EXCEL_INDEX = {
   costo_envio: 6,
   cargo_difpeso: 7,
   anu_reembolsos: 8,
-  venta_xpublicidad: 9,
-  sku: 10,
-  num_publi: 11,
-  tienda: 12,
-  tip_publi: 13,
-  total: 14,
+  total: 9,
+  venta_xpublicidad: 10,
+  sku: 11,
+  num_publi: 12,
+  tienda: 13,
+  tip_publi: 14,
 };
+
 
 // Helper to parse currency strings like "$ 1,234.50" into numbers
 const parseCurrency = (value: any): number | null => {
@@ -269,11 +270,11 @@ export default function ExcelVentasPage() {
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tienda],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
-            'Total',
-            'Landed Cost',
             'Ingresos por productos (MXN)',
             'Cargo por venta e impuestos (MXN)',
             'Costos de envío (MXN)',
+            'Total',
+            'Landed Cost',
             'Gran Total',
           ];
           setHeaders(finalHeaders);
@@ -321,13 +322,22 @@ export default function ExcelVentasPage() {
                   .in('sku', skusInChunk);
 
               if (skuAlternoError) throw skuAlternoError;
+              
+              skuAlternoData.forEach(item => skuToMdrMap.set(item.sku, item.sku_mdr));
 
-              skuToMdrMap = new Map(
-                skuAlternoData.map((item) => [item.sku, item.sku_mdr])
-              );
-              const mdrs = [
-                ...new Set(skuAlternoData.map((item) => item.sku_mdr).filter((mdr) => mdr)),
-              ];
+              const foundSkus = new Set(skuAlternoData.map(item => item.sku));
+              const remainingSkus = skusInChunk.filter(sku => !foundSkus.has(sku));
+
+              if (remainingSkus.length > 0) {
+                const { data: skuMData, error: skuMError } = await supabasePROD
+                    .from('sku_m')
+                    .select('sku, sku_mdr')
+                    .in('sku', remainingSkus);
+                if (skuMError) throw skuMError;
+                skuMData.forEach(item => skuToMdrMap.set(item.sku, item.sku_mdr));
+              }
+
+              const mdrs = [...new Set(Array.from(skuToMdrMap.values()))].filter(mdr => mdr);
 
               if (mdrs.length > 0) {
                 const { data: skuCostosData, error: skuCostosError } =
@@ -370,11 +380,11 @@ export default function ExcelVentasPage() {
                     row[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
                     row[DB_COLUMN_TO_EXCEL_INDEX.tienda],
                     row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
-                    totalFromExcel,
-                    landedCost,
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]),
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]),
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
+                    totalFromExcel,
+                    landedCost,
                     parseFloat(granTotal.toFixed(2))
                 ];
             });
@@ -725,20 +735,20 @@ export default function ExcelVentasPage() {
 
       clearFile();
     } catch (e: any) {
-      const errorMessage = e.message || 'Ocurrió un problema al conectar con la base de datos.';
-      if (errorMessage.includes("No hay registros nuevos para guardar")) {
-        toast({
-            title: "Proceso completado sin cambios",
-            description: errorMessage
-        });
-      } else {
-        setError(`Error al guardar: ${errorMessage}`);
-        toast({
-          variant: 'destructive',
-          title: 'Error al guardar los datos',
-          description: errorMessage,
-        });
-      }
+        const errorMessage = e.message || "Ocurrió un problema al conectar con la base de datos.";
+        if (errorMessage.includes("No hay registros nuevos para guardar")) {
+            toast({
+                title: "Proceso completado sin cambios",
+                description: errorMessage
+            });
+        } else {
+            setError(`Error al guardar: ${errorMessage}`);
+            toast({
+                variant: "destructive",
+                title: "Error al guardar los datos",
+                description: errorMessage,
+            });
+        }
     } finally {
       setIsSaving(false);
     }
