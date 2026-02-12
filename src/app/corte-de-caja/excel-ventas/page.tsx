@@ -481,9 +481,9 @@ export default function ExcelVentasPage() {
   const handleSaveData = async () => {
     if (data.length === 0) {
       toast({
-        variant: 'destructive',
-        title: 'No hay datos para guardar',
-        description: 'Carga un archivo y procesa los datos primero.',
+        variant: "destructive",
+        title: "No hay datos para guardar",
+        description: "Carga un archivo y procesa los datos primero.",
       });
       return;
     }
@@ -491,183 +491,161 @@ export default function ExcelVentasPage() {
     setIsSaving(true);
     setError(null);
 
-    try {
-      // --- VALIDATION STAGE ---
-      const allNumVentasFromExcel = [
-        ...new Set(
-          data
-            .map((row) =>
-              String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || '')
-            )
-            .filter(Boolean)
-        ),
-      ];
-      const allSkusFromExcel = [
-        ...new Set(
-          data
-            .map((row) => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))
-            .filter(Boolean)
-        ),
-      ];
+    const CHUNK_SIZE = 500;
+    let totalInsertedCount = 0;
+    let totalSkippedForDuplication = 0;
+    let totalSkippedForSku = 0;
+    const allSkippedSkus = new Set<string>();
 
-      if (allSkusFromExcel.length === 0)
-        throw new Error('No se encontraron SKUs en los datos cargados.');
-      if (allNumVentasFromExcel.length === 0)
-        throw new Error(
-          'No se encontraron números de venta válidos en los datos cargados.'
+    try {
+      for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+        const chunk = data.slice(i, i + CHUNK_SIZE);
+        
+        const allNumVentasFromChunk = [
+          ...new Set(
+            chunk
+              .map((row) => String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ""))
+              .filter(Boolean)
+          ),
+        ];
+        const allSkusFromChunk = [
+          ...new Set(
+            chunk
+              .map((row) => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ""))
+              .filter(Boolean)
+          ),
+        ];
+
+        if (allSkusFromChunk.length === 0) continue;
+
+        const [
+          { data: existingSalesData, error: salesError },
+          { data: existingSkusData, error: skusError },
+        ] = await Promise.all([
+          supabasePROD
+            .from("ml_sales")
+            .select("num_venta")
+            .in("num_venta", allNumVentasFromChunk),
+          supabasePROD
+            .from("sku_alterno")
+            .select("sku")
+            .in("sku", allSkusFromChunk),
+        ]);
+
+        if (salesError) throw salesError;
+        if (skusError) throw skusError;
+
+        const existingNumVentasSet = new Set(
+          existingSalesData.map((item) => item.num_venta)
+        );
+        const existingSkusSet = new Set(
+          existingSkusData.map((item) => item.sku)
         );
 
-      // Fetch existing sales and SKUs in parallel
-      const [
-        { data: existingSalesData, error: salesError },
-        { data: existingSkusData, error: skusError },
-      ] = await Promise.all([
-        supabasePROD
-          .from('ml_sales')
-          .select('num_venta')
-          .in('num_venta', allNumVentasFromExcel),
-        supabasePROD
-          .from('sku_alterno')
-          .select('sku')
-          .in('sku', allSkusFromExcel),
-      ]);
+        const validDataInChunk = chunk.filter((row) => {
+          const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || "");
+          const numVenta = String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || "");
+          return existingSkusSet.has(sku) && !existingNumVentasSet.has(numVenta);
+        });
 
-      if (salesError) throw salesError;
-      if (skusError) throw skusError;
+        const chunkSkippedForSku = chunk.filter(
+          (row) => !existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ""))
+        );
+        chunkSkippedForSku.forEach((row) =>
+          allSkippedSkus.add(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ""))
+        );
+        totalSkippedForSku += chunkSkippedForSku.length;
 
-      const existingNumVentasSet = new Set(
-        existingSalesData.map((item) => item.num_venta)
-      );
-      const existingSkusSet = new Set(existingSkusData.map((item) => item.sku));
+        totalSkippedForDuplication += chunk.filter(
+          (row) =>
+            existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || "")) &&
+            existingNumVentasSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ""))
+        ).length;
 
-      // --- FILTERING STAGE ---
-      const validData = data.filter((row) => {
-        const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
-        const numVenta = String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || '');
-        return existingSkusSet.has(sku) && !existingNumVentasSet.has(numVenta);
-      });
+        if (validDataInChunk.length === 0) {
+          continue; // Nothing to insert in this chunk
+        }
 
-      const skippedForSkuCount = data.filter(
-        (row) => !existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))
-      ).length;
-      const skippedForDuplicationCount = data.filter(
-        (row) =>
-          existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '')) &&
-          existingNumVentasSet.has(
-            String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || '')
-          )
-      ).length;
+        const recordsToInsert = validDataInChunk
+          .map((row) => {
+            const saleDate = parseSaleDate(row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta]);
+            const granTotalValue = row[COLUMN_INDEXES.length + 1];
+            return {
+              num_venta: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ""),
+              fecha_venta: saleDate ? saleDate.toISOString() : null,
+              unidades: parseInt(String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades]), 10) || null,
+              ing_xunidad: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]),
+              cargo_venta: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]),
+              ing_xenvio: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]),
+              costo_envio: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
+              cargo_difpeso: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]),
+              anu_reembolsos: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]),
+              total: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]),
+              venta_xpublicidad: parseBoolean(row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad]),
+              sku: String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ""),
+              num_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_publi] || ""),
+              tienda: String(row[DB_COLUMN_TO_EXCEL_INDEX.tienda] || ""),
+              tip_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi] || ""),
+              total_final: parseCurrency(granTotalValue),
+            };
+          })
+          .filter((record) => record.num_venta);
 
-      const skippedSkus = [
-        ...new Set(
-          data
-            .filter(
-              (row) => !existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))
-            )
-            .map((row) => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))
-        ),
-      ];
+        if (recordsToInsert.length > 0) {
+          const { error: insertError } = await supabasePROD
+            .from("ml_sales")
+            .insert(recordsToInsert);
+            
+          if (insertError) {
+             if (insertError.message.includes('column "total_final" of relation "ml_sales" does not exist')) {
+                throw new Error("La columna 'total_final' no existe en la tabla 'ml_sales'. Por favor, añádela antes de guardar.");
+            }
+            throw insertError;
+          }
+          totalInsertedCount += recordsToInsert.length;
+        }
+      }
 
-      if (validData.length === 0) {
-        let errorMessage = 'No hay registros nuevos para guardar. ';
-        if (skippedForDuplicationCount > 0)
-          errorMessage += `Se encontraron ${skippedForDuplicationCount} registros duplicados. `;
-        if (skippedForSkuCount > 0)
-          errorMessage += `Se encontraron ${skippedForSkuCount} registros con SKUs no existentes.`;
+      if (totalInsertedCount === 0) {
+        let errorMessage = "No hay registros nuevos para guardar. ";
+        if (totalSkippedForDuplication > 0)
+          errorMessage += `Se encontraron ${totalSkippedForDuplication} registros duplicados. `;
+        if (totalSkippedForSku > 0)
+          errorMessage += `Se encontraron ${totalSkippedForSku} registros con SKUs no existentes.`;
         throw new Error(errorMessage.trim());
       }
-
-      // --- INSERTION STAGE ---
-      const recordsToInsert = validData
-        .map((row) => {
-          const saleDate = parseSaleDate(row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta]);
-          const granTotalValue = row[COLUMN_INDEXES.length + 1];
-
-          return {
-            num_venta: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ''),
-            fecha_venta: saleDate ? saleDate.toISOString() : null,
-            unidades:
-              parseInt(String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades]), 10) ||
-              null,
-            ing_xunidad: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]),
-            cargo_venta: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]),
-            ing_xenvio: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]),
-            costo_envio: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
-            cargo_difpeso: parseCurrency(
-              row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]
-            ),
-            anu_reembolsos: parseCurrency(
-              row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]
-            ),
-            total: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]),
-            venta_xpublicidad: parseBoolean(
-              row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad]
-            ),
-            sku: String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''),
-            num_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_publi] || ''),
-            tienda: String(row[DB_COLUMN_TO_EXCEL_INDEX.tienda] || ''),
-            tip_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi] || ''),
-            total_final: parseCurrency(granTotalValue),
-          };
-        })
-        .filter((record) => record.num_venta);
-
-      if (recordsToInsert.length === 0) {
-        throw new Error(
-          'No se encontraron registros válidos para guardar después de la validación.'
-        );
+      
+      let successDescription = `Se guardaron ${totalInsertedCount} registros nuevos exitosamente.`;
+      if (totalSkippedForDuplication > 0) {
+        successDescription += ` Se omitieron ${totalSkippedForDuplication} registros duplicados.`;
       }
-
-      const { error: insertError } = await supabasePROD
-        .from('ml_sales')
-        .insert(recordsToInsert);
-
-      if (insertError) {
-        if (
-          insertError.message.includes(
-            'column "total_final" of relation "ml_sales" does not exist'
-          )
-        ) {
-          throw new Error(
-            "La columna 'total_final' no existe en la tabla 'ml_sales'. Por favor, añádela antes de guardar."
-          );
-        }
-        throw new Error(insertError.message);
-      }
-
-      // --- NOTIFICATION STAGE ---
-      let successDescription = `Se guardaron ${recordsToInsert.length} registros nuevos exitosamente.`;
-      if (skippedForDuplicationCount > 0) {
-        successDescription += ` Se omitieron ${skippedForDuplicationCount} registros duplicados.`;
-      }
-      if (skippedForSkuCount > 0) {
-        successDescription += ` Se omitieron ${skippedForSkuCount} registros por SKUs no existentes.`;
+      if (totalSkippedForSku > 0) {
+        successDescription += ` Se omitieron ${totalSkippedForSku} registros por SKUs no existentes.`;
       }
 
       toast({
-        title: 'Datos guardados',
+        title: "Datos guardados",
         description: successDescription,
       });
 
-      if (skippedSkus.length > 0) {
+      if (allSkippedSkus.size > 0) {
+        const skippedSkusArray = Array.from(allSkippedSkus);
         toast({
-          variant: 'default',
-          title: 'SKUs Omitidos',
-          description: `Los siguientes SKUs no se encontraron: ${skippedSkus
-            .slice(0, 3)
-            .join(', ')}${skippedSkus.length > 3 ? '...' : ''}`,
+          variant: "default",
+          title: "SKUs Omitidos",
+          description: `Los siguientes SKUs no se encontraron: ${skippedSkusArray.slice(0, 3).join(", ")}${skippedSkusArray.length > 3 ? "..." : ""}`,
         });
       }
 
       clearFile();
+
     } catch (e: any) {
-      console.error('Error saving data to Supabase:', e.message);
-      const errorMessage =
-        e.message || 'Ocurrió un problema al conectar con la base de datos.';
+      console.error("Error saving data to Supabase:", e.message);
+      const errorMessage = e.message || "Ocurrió un problema al conectar con la base de datos.";
       setError(`Error al guardar: ${errorMessage}`);
       toast({
-        variant: 'destructive',
-        title: 'Error al guardar los datos',
+        variant: "destructive",
+        title: "Error al guardar los datos",
         description: errorMessage,
       });
     } finally {
