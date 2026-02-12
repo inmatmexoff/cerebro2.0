@@ -327,11 +327,11 @@ export default function ExcelVentasPage() {
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tienda],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
-            'Total',
-            'Landed Cost',
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.costo_envio],
+            'Total',
+            'Landed Cost',
             'Gran Total',
           ];
 
@@ -355,11 +355,11 @@ export default function ExcelVentasPage() {
                 row[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
                 row[DB_COLUMN_TO_EXCEL_INDEX.tienda],
                 row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
-                totalFromExcel,
-                landedCost,
                 row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad],
                 row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta],
                 row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio],
+                totalFromExcel,
+                landedCost,
                 parseFloat(granTotal.toFixed(2))
             ];
             
@@ -548,10 +548,10 @@ export default function ExcelVentasPage() {
         num_publi: 8,
         tienda: 9,
         tip_publi: 10,
-        total: 11,
-        ing_xunidad: 13,
-        cargo_venta: 14,
-        costo_envio: 15,
+        ing_xunidad: 11,
+        cargo_venta: 12,
+        costo_envio: 13,
+        total: 14,
         total_final: 16,
     };
 
