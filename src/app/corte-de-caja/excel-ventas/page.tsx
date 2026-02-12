@@ -228,6 +228,7 @@ export default function ExcelVentasPage() {
           const binaryStr = event.target?.result;
           if (!binaryStr) {
             setError('No se pudo leer el archivo.');
+            setIsProcessing(false);
             return;
           }
           const workbook = XLSX.read(binaryStr, {
@@ -246,6 +247,7 @@ export default function ExcelVentasPage() {
             setError(
               'El archivo no tiene suficientes filas para extraer datos (se requieren al menos 7).'
             );
+            setIsProcessing(false);
             return;
           }
 
@@ -267,6 +269,7 @@ export default function ExcelVentasPage() {
             setError(
               'No se encontraron datos en las columnas y filas especificadas.'
             );
+            setIsProcessing(false);
             return;
           }
 
@@ -328,45 +331,54 @@ export default function ExcelVentasPage() {
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tienda],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.total],
+            'Total',
             'Landed Cost',
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.costo_envio],
+            'Ingresos por productos (MXN)',
+            'Cargo por venta e impuestos (MXN)',
+            'Costos de envío (MXN)',
             'Gran Total',
           ];
 
+          const enrichedData: any[][] = [];
+          const CHUNK_SIZE = 1000;
 
-          const enrichedData = extractedData.map((row) => {
-            const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
-            const skuMdr = skuToMdrMap.get(sku);
-            const landedCost = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
-            const totalFromExcel = parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
-            const granTotal = totalFromExcel - landedCost;
-            
-            // Build the row in the final desired order.
-            const finalRow = [
-                row[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
-                row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
-                parseInt(String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades] || '0')),
-                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]),
-                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]),
-                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]),
-                row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad],
-                row[DB_COLUMN_TO_EXCEL_INDEX.sku],
-                row[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
-                row[DB_COLUMN_TO_EXCEL_INDEX.tienda],
-                row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
-                totalFromExcel,
-                landedCost,
-                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]),
-                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]),
-                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
-                parseFloat(granTotal.toFixed(2))
-            ];
-            
-            return finalRow;
-          });
+          for (let i = 0; i < extractedData.length; i += CHUNK_SIZE) {
+            const chunk = extractedData.slice(i, i + CHUNK_SIZE);
+            const enrichedChunk = chunk.map((row) => {
+                const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
+                const skuMdr = skuToMdrMap.get(sku);
+                const landedCost = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
+                const totalFromExcel = parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
+                const granTotal = totalFromExcel - landedCost;
+                
+                const finalRow = [
+                    row[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
+                    row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
+                    parseInt(String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades] || '0')),
+                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]),
+                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]),
+                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]),
+                    row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad],
+                    row[DB_COLUMN_TO_EXCEL_INDEX.sku],
+                    row[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
+                    row[DB_COLUMN_TO_EXCEL_INDEX.tienda],
+                    row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
+                    totalFromExcel,
+                    landedCost,
+                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]),
+                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]),
+                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
+                    parseFloat(granTotal.toFixed(2))
+                ];
+                
+                return finalRow;
+            });
+
+            enrichedData.push(...enrichedChunk);
+
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
+
 
           setHeaders(finalHeaders);
           setSelectedColumns(new Set(finalHeaders));
