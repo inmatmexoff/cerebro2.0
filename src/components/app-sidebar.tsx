@@ -158,6 +158,7 @@ export function AppSidebar() {
                         <Link href="/configuracion/proveedores" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/proveedores' && "text-primary")}>Proveedores</Link>
                         <Link href="/configuracion/carga-sku" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/carga-sku' && "text-primary")}>Carga de SKUs</Link>
                         <Link href="/configuracion/actualizar-sku" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/actualizar-sku' && "text-primary")}>Actualizar SKU</Link>
+                        <Link href="/configuracion/repositorio" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/repositorio' && "text-primary")}>Repositorio</Link>
                     </CollapsibleContent>
                  </Collapsible>
             </CollapsibleContent>
