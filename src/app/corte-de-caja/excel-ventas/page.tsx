@@ -95,7 +95,6 @@ const DB_COLUMN_TO_EXCEL_INDEX = {
   total: 14,
 };
 
-
 // Helper to parse currency strings like "$ 1,234.50" into numbers
 const parseCurrency = (value: any): number | null => {
   if (typeof value === 'number') {
@@ -187,6 +186,7 @@ export default function ExcelVentasPage() {
   const { toast } = useToast();
 
   const [skuSearchTerm, setSkuSearchTerm] = React.useState('');
+  const [showOnlyNegative, setShowOnlyNegative] = useState(false);
   const [editingInfo, setEditingInfo] = useState<{
     rowIndex: number;
     sku: string;
@@ -314,23 +314,31 @@ export default function ExcelVentasPage() {
               }
             }
           }
+          
+          const finalHeaders = [...extractedHeaders];
+          finalHeaders.splice(14, 1); // remove original total
+          finalHeaders.splice(13, 0, "Total"); // re-insert total
+          finalHeaders.push('Landed Cost', 'Gran Total');
 
-          const enrichedHeaders = [...extractedHeaders, 'Landed Cost', 'Gran Total'];
 
           const enrichedData = extractedData.map((row) => {
             const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
             const skuMdr = skuToMdrMap.get(sku);
             const landedCost = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
-
             const totalFromExcel =
               parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
             const granTotal = totalFromExcel - landedCost;
-
-            return [...row, landedCost, parseFloat(granTotal.toFixed(2))];
+            
+            const finalRow = [...row];
+            finalRow.splice(14, 1); // Remove original total
+            finalRow.splice(13, 0, totalFromExcel); // Re-insert it
+            finalRow.push(landedCost, parseFloat(granTotal.toFixed(2)))
+            
+            return finalRow;
           });
 
-          setHeaders(enrichedHeaders);
-          setSelectedColumns(new Set(enrichedHeaders));
+          setHeaders(finalHeaders);
+          setSelectedColumns(new Set(finalHeaders));
           setData(enrichedData);
           // --- End of enrichment ---
         } catch (e) {
@@ -354,14 +362,21 @@ export default function ExcelVentasPage() {
   );
   
   const filteredData = React.useMemo(() => {
-    if (!skuSearchTerm) {
-      return data;
-    }
+    const granTotalIndex = headers.indexOf('Gran Total');
+    const skuIndex = headers.indexOf('SKU');
+    
     return data.filter((row) => {
-      const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
-      return sku.toLowerCase().includes(skuSearchTerm.toLowerCase());
+        // SKU search filter
+        const skuMatch = !skuSearchTerm || (skuIndex !== -1 && String(row[skuIndex] || '').toLowerCase().includes(skuSearchTerm.toLowerCase()));
+
+        // Negative Gran Total filter
+        const granTotal = granTotalIndex !== -1 ? row[granTotalIndex] : null;
+        const negativeMatch = !showOnlyNegative || (typeof granTotal === 'number' && granTotal < 0);
+        
+        return skuMatch && negativeMatch;
     });
-  }, [data, skuSearchTerm]);
+  }, [data, skuSearchTerm, showOnlyNegative, headers]);
+
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -492,6 +507,25 @@ export default function ExcelVentasPage() {
     setIsSaving(true);
     setError(null);
 
+    // Get original indexes before starting loop
+    const numVentaIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.A);
+    const fechaVentaIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.B);
+    const unidadesIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.G);
+    const ingXUnidadIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.H);
+    const cargoVentaIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.I);
+    const ingXEnvioIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.J);
+    const costoEnvioIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.K);
+    const cargoDifPesoIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.M);
+    const anuReembolsosIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.N);
+    const ventaXPublicidadIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.P);
+    const skuIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.Q);
+    const numPubliIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.R);
+    const tiendaIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.S);
+    const tipPubliIndex = COLUMN_INDEXES.indexOf(COLUMN_MAPPING.W);
+    const totalIndex = headers.indexOf('Total');
+    const granTotalIndex = headers.indexOf('Gran Total');
+
+
     const CHUNK_SIZE = 500;
     let totalInsertedCount = 0;
     let totalSkippedForDuplication = 0;
@@ -504,7 +538,7 @@ export default function ExcelVentasPage() {
           ...new Set(
             chunk
               .map((row) =>
-                String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || '')
+                String(row[numVentaIndex] || '')
               )
               .filter(Boolean)
           ),
@@ -528,7 +562,7 @@ export default function ExcelVentasPage() {
 
         const validDataInChunk = chunk.filter((row) => {
           const numVenta = String(
-            row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ''
+            row[numVentaIndex] || ''
           );
           return !existingNumVentasSet.has(numVenta);
         });
@@ -542,46 +576,45 @@ export default function ExcelVentasPage() {
         const recordsToInsert = validDataInChunk
           .map((row) => {
             const saleDate = parseSaleDate(
-              row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta]
+              row[fechaVentaIndex]
             );
-            const granTotalValue = row[COLUMN_INDEXES.length + 1];
             return {
               num_venta: String(
-                row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ''
+                row[numVentaIndex] || ''
               ),
               fecha_venta: saleDate ? saleDate.toISOString() : null,
               unidades:
                 parseInt(
-                  String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades]),
+                  String(row[unidadesIndex]),
                   10
                 ) || null,
               ing_xunidad: parseCurrency(
-                row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]
+                row[ingXUnidadIndex]
               ),
               cargo_venta: parseCurrency(
-                row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]
+                row[cargoVentaIndex]
               ),
               ing_xenvio: parseCurrency(
-                row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]
+                row[ingXEnvioIndex]
               ),
               costo_envio: parseCurrency(
-                row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]
+                row[costoEnvioIndex]
               ),
               cargo_difpeso: parseCurrency(
-                row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]
+                row[cargoDifPesoIndex]
               ),
               anu_reembolsos: parseCurrency(
-                row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]
+                row[anuReembolsosIndex]
               ),
-              total: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]),
+              total: parseCurrency(row[totalIndex]),
               venta_xpublicidad: parseBoolean(
-                row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad]
+                row[ventaXPublicidadIndex]
               ),
-              sku: String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''),
-              num_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_publi] || ''),
-              tienda: String(row[DB_COLUMN_TO_EXCEL_INDEX.tienda] || ''),
-              tip_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi] || ''),
-              total_final: parseCurrency(granTotalValue),
+              sku: String(row[skuIndex] || ''),
+              num_publi: String(row[numPubliIndex] || ''),
+              tienda: String(row[tiendaIndex] || ''),
+              tip_publi: String(row[tipPubliIndex] || ''),
+              total_final: parseCurrency(row[granTotalIndex]),
             };
           })
           .filter((record) => record.num_venta);
@@ -650,11 +683,14 @@ export default function ExcelVentasPage() {
   const handleEditClick = (rowToEdit: any[]) => {
     const rowIndex = data.findIndex(r => r === rowToEdit);
     if (rowIndex === -1) return;
+    
+    const landedCostIndex = headers.indexOf('Landed Cost');
+    const skuIndex = headers.indexOf('SKU');
 
     const rowData = rowToEdit;
-    const sku = String(rowData[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
+    const sku = String(rowData[skuIndex] || '');
     const originalLandedCost =
-      parseCurrency(rowData[COLUMN_INDEXES.length]) || 0;
+      parseCurrency(rowData[landedCostIndex]) || 0;
     setEditingInfo({ rowIndex, sku, originalLandedCost });
     form.reset({
       sku_mdr: '',
@@ -696,13 +732,17 @@ export default function ExcelVentasPage() {
       setData((currentData) => {
         const newData = [...currentData];
         const rowIndex = editingInfo.rowIndex;
+        const totalIndex = headers.indexOf('Total');
+        const landedCostIndex = headers.indexOf('Landed Cost');
+        const granTotalIndex = headers.indexOf('Gran Total');
+
         const totalFromExcel =
-          parseCurrency(newData[rowIndex][DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
+          parseCurrency(newData[rowIndex][totalIndex]) || 0;
         const newLandedCost = values.landed_cost;
         const newGranTotal = totalFromExcel - newLandedCost;
 
-        newData[rowIndex][COLUMN_INDEXES.length] = newLandedCost;
-        newData[rowIndex][COLUMN_INDEXES.length + 1] = parseFloat(
+        newData[rowIndex][landedCostIndex] = newLandedCost;
+        newData[rowIndex][granTotalIndex] = parseFloat(
           newGranTotal.toFixed(2)
         );
         return newData;
@@ -826,7 +866,20 @@ export default function ExcelVentasPage() {
                         registros.
                       </CardDescription>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
+                      <div className="flex items-center space-x-2">
+                          <Checkbox
+                              id="show-negative"
+                              checked={showOnlyNegative}
+                              onCheckedChange={(checked) => setShowOnlyNegative(checked as boolean)}
+                          />
+                          <label
+                              htmlFor="show-negative"
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                              Mostrar solo negativos
+                          </label>
+                      </div>
                       <div className="relative w-full sm:max-w-xs">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
