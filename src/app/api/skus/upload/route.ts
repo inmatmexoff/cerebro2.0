@@ -150,8 +150,18 @@ export async function POST(request: Request) {
         
         const alternoCount = uploadType === 'alterno' ? skuAlternoRecords.length : 0;
 
+        let message = `Procesamiento completado: Se guardaron ${skuMRecords.length} registros maestros (sku_m) y ${skuCostosRecords.length} registros de costos.`;
+        if (uploadType === 'alterno') {
+            message = `Procesamiento completado: Se guardaron ${skuMRecords.length} registros maestros (sku_m), ${alternoCount} registros alternos y ${skuCostosRecords.length} registros de costos.`;
+        }
+
+        const costDifference = skuMRecords.length - skuCostosRecords.length;
+        if (costDifference > 0) {
+            message += ` Se omitieron ${costDifference} registros de costo porque el campo 'landed_cost' estaba vacío o no era válido.`;
+        }
+
         return NextResponse.json({
-            message: `Procesamiento completado. Se intentaron guardar ${skuMRecords.length} registros en sku_m, ${alternoCount} en sku_alterno, y ${skuCostosRecords.length} en sku_costos.`
+            message
         }, { status: 200 });
 
     } catch (e: any) {
