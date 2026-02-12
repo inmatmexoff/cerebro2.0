@@ -299,7 +299,7 @@ export default function ExcelVentasPage() {
                 .from('sku_costos')
                 .select('sku_mdr, landed_cost, id')
                 .in('sku_mdr', mdrs)
-                .order('id', { ascending: true });
+                .order('id', { ascending: false });
 
             if (skuCostosError) {
               throw skuCostosError;
@@ -307,9 +307,9 @@ export default function ExcelVentasPage() {
 
             if (skuCostosData) {
               for (const item of skuCostosData) {
-                // Since the data is ordered by id, the last item for each sku_mdr will overwrite previous ones.
-                // This ensures we get the latest landed_cost for each sku_mdr.
-                mdrToPriceMap.set(item.sku_mdr, item.landed_cost);
+                  if (!mdrToPriceMap.has(item.sku_mdr)) {
+                    mdrToPriceMap.set(item.sku_mdr, item.landed_cost);
+                  }
               }
             }
           }
@@ -494,8 +494,6 @@ export default function ExcelVentasPage() {
     const CHUNK_SIZE = 500;
     let totalInsertedCount = 0;
     let totalSkippedForDuplication = 0;
-    let totalSkippedForSku = 0;
-    const allSkippedSkus = new Set<string>();
 
     try {
       for (let i = 0; i < data.length; i += CHUNK_SIZE) {
@@ -508,59 +506,28 @@ export default function ExcelVentasPage() {
               .filter(Boolean)
           ),
         ];
-        const allSkusFromChunk = [
-          ...new Set(
-            chunk
-              .map((row) => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ""))
-              .filter(Boolean)
-          ),
-        ];
 
-        if (allSkusFromChunk.length === 0) continue;
+        if (allNumVentasFromChunk.length === 0) {
+            continue;
+        }
 
-        const [
-          { data: existingSalesData, error: salesError },
-          { data: existingSkusData, error: skusError },
-        ] = await Promise.all([
-          supabasePROD
+        const { data: existingSalesData, error: salesError } = await supabasePROD
             .from("ml_sales")
             .select("num_venta")
-            .in("num_venta", allNumVentasFromChunk),
-          supabasePROD
-            .from("sku_alterno")
-            .select("sku")
-            .in("sku", allSkusFromChunk),
-        ]);
+            .in("num_venta", allNumVentasFromChunk);
 
         if (salesError) throw salesError;
-        if (skusError) throw skusError;
 
         const existingNumVentasSet = new Set(
           existingSalesData.map((item) => item.num_venta)
         );
-        const existingSkusSet = new Set(
-          existingSkusData.map((item) => item.sku)
-        );
 
         const validDataInChunk = chunk.filter((row) => {
-          const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || "");
           const numVenta = String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || "");
-          return existingSkusSet.has(sku) && !existingNumVentasSet.has(numVenta);
+          return !existingNumVentasSet.has(numVenta);
         });
 
-        const chunkSkippedForSku = chunk.filter(
-          (row) => !existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ""))
-        );
-        chunkSkippedForSku.forEach((row) =>
-          allSkippedSkus.add(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ""))
-        );
-        totalSkippedForSku += chunkSkippedForSku.length;
-
-        totalSkippedForDuplication += chunk.filter(
-          (row) =>
-            existingSkusSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || "")) &&
-            existingNumVentasSet.has(String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ""))
-        ).length;
+        totalSkippedForDuplication += chunk.length - validDataInChunk.length;
 
         if (validDataInChunk.length === 0) {
           continue; // Nothing to insert in this chunk
@@ -610,8 +577,6 @@ export default function ExcelVentasPage() {
         let errorMessage = "No hay registros nuevos para guardar. ";
         if (totalSkippedForDuplication > 0)
           errorMessage += `Se encontraron ${totalSkippedForDuplication} registros duplicados. `;
-        if (totalSkippedForSku > 0)
-          errorMessage += `Se encontraron ${totalSkippedForSku} registros con SKUs no existentes.`;
         throw new Error(errorMessage.trim());
       }
       
@@ -619,23 +584,11 @@ export default function ExcelVentasPage() {
       if (totalSkippedForDuplication > 0) {
         successDescription += ` Se omitieron ${totalSkippedForDuplication} registros duplicados.`;
       }
-      if (totalSkippedForSku > 0) {
-        successDescription += ` Se omitieron ${totalSkippedForSku} registros por SKUs no existentes.`;
-      }
 
       toast({
         title: "Datos guardados",
         description: successDescription,
       });
-
-      if (allSkippedSkus.size > 0) {
-        const skippedSkusArray = Array.from(allSkippedSkus);
-        toast({
-          variant: "default",
-          title: "SKUs Omitidos",
-          description: `Los siguientes SKUs no se encontraron: ${skippedSkusArray.slice(0, 3).join(", ")}${skippedSkusArray.length > 3 ? "..." : ""}`,
-        });
-      }
 
       clearFile();
 
