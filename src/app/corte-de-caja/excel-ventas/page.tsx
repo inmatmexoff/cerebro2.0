@@ -481,9 +481,9 @@ export default function ExcelVentasPage() {
   const handleSaveData = async () => {
     if (data.length === 0) {
       toast({
-        variant: "destructive",
-        title: "No hay datos para guardar",
-        description: "Carga un archivo y procesa los datos primero.",
+        variant: 'destructive',
+        title: 'No hay datos para guardar',
+        description: 'Carga un archivo y procesa los datos primero.',
       });
       return;
     }
@@ -498,23 +498,26 @@ export default function ExcelVentasPage() {
     try {
       for (let i = 0; i < data.length; i += CHUNK_SIZE) {
         const chunk = data.slice(i, i + CHUNK_SIZE);
-        
+
         const allNumVentasFromChunk = [
           ...new Set(
             chunk
-              .map((row) => String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ""))
+              .map((row) =>
+                String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || '')
+              )
               .filter(Boolean)
           ),
         ];
 
         if (allNumVentasFromChunk.length === 0) {
-            continue;
+          continue;
         }
 
-        const { data: existingSalesData, error: salesError } = await supabasePROD
-            .from("ml_sales")
-            .select("num_venta")
-            .in("num_venta", allNumVentasFromChunk);
+        const { data: existingSalesData, error: salesError } =
+          await supabasePROD
+            .from('ml_sales')
+            .select('num_venta')
+            .in('num_venta', allNumVentasFromChunk);
 
         if (salesError) throw salesError;
 
@@ -523,7 +526,9 @@ export default function ExcelVentasPage() {
         );
 
         const validDataInChunk = chunk.filter((row) => {
-          const numVenta = String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || "");
+          const numVenta = String(
+            row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ''
+          );
           return !existingNumVentasSet.has(numVenta);
         });
 
@@ -535,24 +540,46 @@ export default function ExcelVentasPage() {
 
         const recordsToInsert = validDataInChunk
           .map((row) => {
-            const saleDate = parseSaleDate(row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta]);
+            const saleDate = parseSaleDate(
+              row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta]
+            );
             const granTotalValue = row[COLUMN_INDEXES.length + 1];
             return {
-              num_venta: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ""),
+              num_venta: String(
+                row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || ''
+              ),
               fecha_venta: saleDate ? saleDate.toISOString() : null,
-              unidades: parseInt(String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades]), 10) || null,
-              ing_xunidad: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]),
-              cargo_venta: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]),
-              ing_xenvio: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]),
-              costo_envio: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
-              cargo_difpeso: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]),
-              anu_reembolsos: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]),
+              unidades:
+                parseInt(
+                  String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades]),
+                  10
+                ) || null,
+              ing_xunidad: parseCurrency(
+                row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]
+              ),
+              cargo_venta: parseCurrency(
+                row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]
+              ),
+              ing_xenvio: parseCurrency(
+                row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]
+              ),
+              costo_envio: parseCurrency(
+                row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]
+              ),
+              cargo_difpeso: parseCurrency(
+                row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]
+              ),
+              anu_reembolsos: parseCurrency(
+                row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]
+              ),
               total: parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]),
-              venta_xpublicidad: parseBoolean(row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad]),
-              sku: String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ""),
-              num_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_publi] || ""),
-              tienda: String(row[DB_COLUMN_TO_EXCEL_INDEX.tienda] || ""),
-              tip_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi] || ""),
+              venta_xpublicidad: parseBoolean(
+                row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad]
+              ),
+              sku: String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''),
+              num_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.num_publi] || ''),
+              tienda: String(row[DB_COLUMN_TO_EXCEL_INDEX.tienda] || ''),
+              tip_publi: String(row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi] || ''),
               total_final: parseCurrency(granTotalValue),
             };
           })
@@ -560,12 +587,18 @@ export default function ExcelVentasPage() {
 
         if (recordsToInsert.length > 0) {
           const { error: insertError } = await supabasePROD
-            .from("ml_sales")
+            .from('ml_sales')
             .insert(recordsToInsert);
-            
+
           if (insertError) {
-             if (insertError.message.includes('column "total_final" of relation "ml_sales" does not exist')) {
-                throw new Error("La columna 'total_final' no existe en la tabla 'ml_sales'. Por favor, añádela antes de guardar.");
+            if (
+              insertError.message.includes(
+                'column "total_final" of relation "ml_sales" does not exist'
+              )
+            ) {
+              throw new Error(
+                "La columna 'total_final' no existe en la tabla 'ml_sales'. Por favor, añádela antes de guardar."
+              );
             }
             throw insertError;
           }
@@ -574,10 +607,16 @@ export default function ExcelVentasPage() {
       }
 
       if (totalInsertedCount === 0) {
-        let errorMessage = "No hay registros nuevos para guardar. ";
-        if (totalSkippedForDuplication > 0)
-          errorMessage += `Se encontraron ${totalSkippedForDuplication} registros duplicados. `;
-        throw new Error(errorMessage.trim());
+        let infoMessage = "No hay registros nuevos para guardar.";
+        if (totalSkippedForDuplication > 0) {
+          infoMessage = `No se guardaron registros nuevos porque los ${totalSkippedForDuplication} registros encontrados ya existían.`;
+        }
+        toast({
+          title: "Proceso completado sin cambios",
+          description: infoMessage,
+        });
+        clearFile();
+        return;
       }
       
       let successDescription = `Se guardaron ${totalInsertedCount} registros nuevos exitosamente.`;
@@ -591,14 +630,14 @@ export default function ExcelVentasPage() {
       });
 
       clearFile();
-
     } catch (e: any) {
-      console.error("Error saving data to Supabase:", e.message);
-      const errorMessage = e.message || "Ocurrió un problema al conectar con la base de datos.";
+      console.error('Error saving data to Supabase:', e.message);
+      const errorMessage =
+        e.message || 'Ocurrió un problema al conectar con la base de datos.';
       setError(`Error al guardar: ${errorMessage}`);
       toast({
-        variant: "destructive",
-        title: "Error al guardar los datos",
+        variant: 'destructive',
+        title: 'Error al guardar los datos',
         description: errorMessage,
       });
     } finally {
