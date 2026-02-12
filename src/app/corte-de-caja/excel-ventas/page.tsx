@@ -292,17 +292,26 @@ export default function ExcelVentasPage() {
             ...new Set(skuAlternoData.map((item) => item.sku_mdr).filter((mdr) => mdr)),
           ];
 
-          let mdrToPriceMap = new Map();
+          const mdrToPriceMap = new Map();
           if (mdrs.length > 0) {
             const { data: skuCostosData, error: skuCostosError } =
               await supabasePROD
                 .from('sku_costos')
-                .select('sku_mdr, landed_cost')
-                .in('sku_mdr', mdrs);
-            if (skuCostosError) throw skuCostosError;
-            mdrToPriceMap = new Map(
-              skuCostosData.map((item) => [item.sku_mdr, item.landed_cost])
-            );
+                .select('sku_mdr, landed_cost, id')
+                .in('sku_mdr', mdrs)
+                .order('id', { ascending: true });
+
+            if (skuCostosError) {
+              throw skuCostosError;
+            }
+
+            if (skuCostosData) {
+              for (const item of skuCostosData) {
+                // Since the data is ordered by id, the last item for each sku_mdr will overwrite previous ones.
+                // This ensures we get the latest landed_cost for each sku_mdr.
+                mdrToPriceMap.set(item.sku_mdr, item.landed_cost);
+              }
+            }
           }
 
           const enrichedHeaders = [...extractedHeaders, 'Landed Cost', 'Gran Total'];
