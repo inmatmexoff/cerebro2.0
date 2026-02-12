@@ -328,11 +328,11 @@ export default function ExcelVentasPage() {
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tienda],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
-            'Total',
-            'Landed Cost',
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.costo_envio],
+            'Total',
+            'Landed Cost',
             'Gran Total',
           ];
 
@@ -348,20 +348,20 @@ export default function ExcelVentasPage() {
             const finalRow = [
                 row[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
                 row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
-                row[DB_COLUMN_TO_EXCEL_INDEX.unidades],
-                row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio],
-                row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso],
-                row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos],
+                parseInt(String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades] || '0')),
+                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]),
+                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]),
+                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]),
                 row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad],
                 row[DB_COLUMN_TO_EXCEL_INDEX.sku],
                 row[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
                 row[DB_COLUMN_TO_EXCEL_INDEX.tienda],
                 row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
+                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]),
+                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]),
+                parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
                 totalFromExcel,
                 landedCost,
-                row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad],
-                row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta],
-                row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio],
                 parseFloat(granTotal.toFixed(2))
             ];
             
@@ -414,15 +414,23 @@ export default function ExcelVentasPage() {
     });
   }, [data, skuSearchTerm, showOnlyNegative, showOnlyPositive, headers]);
 
-  const granTotalSum = React.useMemo(() => {
-    const granTotalIndex = headers.indexOf('Gran Total');
-    if (granTotalIndex === -1) return 0;
+  const createSumCalculator = (columnName: string) => {
+    return React.useMemo(() => {
+        const index = headers.indexOf(columnName);
+        if (index === -1) return 0;
+        return filteredData.reduce((sum, row) => {
+            const value = row[index];
+            return sum + (typeof value === 'number' ? value : 0);
+        }, 0);
+    }, [filteredData, headers]);
+  };
 
-    return filteredData.reduce((sum, row) => {
-        const value = row[granTotalIndex];
-        return sum + (typeof value === 'number' ? value : 0);
-    }, 0);
-  }, [filteredData, headers]);
+  const granTotalSum = createSumCalculator('Gran Total');
+  const landedCostSum = createSumCalculator('Landed Cost');
+  const ingresosPorProductosSum = createSumCalculator('Ingresos por productos (MXN)');
+  const cargoVentaSum = createSumCalculator('Cargo por venta e impuestos (MXN)');
+  const costoEnvioSum = createSumCalculator('Costos de envío (MXN)');
+  const totalSum = createSumCalculator('Total');
 
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -706,9 +714,7 @@ export default function ExcelVentasPage() {
 
       clearFile();
     } catch (e: any) {
-      console.error("Error saving data to Supabase:", e.message);
       const errorMessage = e.message || 'Ocurrió un problema al conectar con la base de datos.';
-
       if (errorMessage.includes("No hay registros nuevos para guardar")) {
         toast({
             title: "Proceso completado sin cambios",
@@ -910,12 +916,7 @@ export default function ExcelVentasPage() {
                       <CardTitle>Vista Previa de Datos</CardTitle>
                       <CardDescription>
                         Mostrando {filteredData.length} de {data.length}{' '}
-                        registros. Suma Gran Total: <span className={cn(
-                            "font-bold",
-                            granTotalSum >= 0 ? "text-green-700" : "text-red-700"
-                        )}>
-                            {granTotalSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
-                        </span>
+                        registros.
                       </CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
@@ -984,6 +985,47 @@ export default function ExcelVentasPage() {
                       </div>
                     </div>
                   </div>
+                  <div className="pt-4 border-t mt-4">
+                    <h4 className="text-sm font-medium mb-2">Resumen de Totales (Filtrado)</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                        <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">Gran Total</div>
+                            <div className={cn( "font-bold text-lg", granTotalSum >= 0 ? "text-green-700" : "text-red-700" )}>
+                                {granTotalSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                            </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">Total</div>
+                            <div className="font-bold text-lg text-foreground">
+                                {totalSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                            </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">Landed Cost</div>
+                            <div className="font-bold text-lg text-foreground">
+                                {landedCostSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                            </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">Ingresos x Productos</div>
+                            <div className="font-bold text-lg text-foreground">
+                                {ingresosPorProductosSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                            </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">Cargos x Venta</div>
+                            <div className="font-bold text-lg text-foreground">
+                                {cargoVentaSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                            </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">Costos x Envío</div>
+                            <div className="font-bold text-lg text-foreground">
+                                {costoEnvioSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[60vh] w-full overflow-auto">
@@ -1065,10 +1107,19 @@ export default function ExcelVentasPage() {
                                       );
                                     }
                                   }
+                                  
+                                  if (cell instanceof Date) {
+                                      return cell.toLocaleDateString();
+                                  }
 
-                                  return cell instanceof Date
-                                    ? cell.toLocaleDateString()
-                                    : String(cell);
+                                  if (typeof cell === 'number') {
+                                      return cell.toLocaleString('es-MX', {
+                                          minimumFractionDigits: 2,
+                                          maximumFractionDigits: 2,
+                                      });
+                                  }
+
+                                  return String(cell);
                                 })()}
                               </TableCell>
                             ))}
