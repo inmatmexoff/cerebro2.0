@@ -57,43 +57,44 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Checkbox } from '@/components/ui/checkbox';
 
-// Define which columns to extract
+// Define which columns to extract and in what order
 const COLUMN_MAPPING: { [key: string]: number } = {
-  A: 0,
-  B: 1,
-  G: 6,
-  H: 7,
-  I: 8,
-  J: 9,
-  K: 10,
-  M: 12,
-  N: 13,
-  O: 14,
-  P: 15,
-  Q: 16,
-  R: 17,
-  S: 18,
-  W: 22,
+  A: 0, // num_venta
+  B: 1, // fecha_venta
+  G: 6, // unidades
+  H: 7, // ing_xunidad
+  I: 8, // cargo_venta
+  J: 9, // ing_xenvio
+  K: 10, // costo_envio
+  M: 12, // cargo_difpeso
+  N: 13, // anu_reembolsos
+  P: 15, // venta_xpublicidad
+  Q: 16, // sku
+  R: 17, // num_publi
+  S: 18, // tienda
+  W: 22, // tip_publi
+  O: 14, // total
 };
 const COLUMN_INDEXES = Object.values(COLUMN_MAPPING);
 
 const DB_COLUMN_TO_EXCEL_INDEX = {
-  num_venta: 0, // A
-  fecha_venta: 1, // B
-  unidades: 2, // G
-  ing_xunidad: 3, // H
-  cargo_venta: 4, // I
-  ing_xenvio: 5, // J
-  costo_envio: 6, // K
-  cargo_difpeso: 7, // M
-  anu_reembolsos: 8, // N
-  total: 9, // O
-  venta_xpublicidad: 10, // P
-  sku: 11, // Q
-  num_publi: 12, // R
-  tienda: 13, // S
-  tip_publi: 14, // W
+  num_venta: 0,
+  fecha_venta: 1,
+  unidades: 2,
+  ing_xunidad: 3,
+  cargo_venta: 4,
+  ing_xenvio: 5,
+  costo_envio: 6,
+  cargo_difpeso: 7,
+  anu_reembolsos: 8,
+  venta_xpublicidad: 9,
+  sku: 10,
+  num_publi: 11,
+  tienda: 12,
+  tip_publi: 13,
+  total: 14,
 };
+
 
 // Helper to parse currency strings like "$ 1,234.50" into numbers
 const parseCurrency = (value: any): number | null => {
@@ -606,17 +607,10 @@ export default function ExcelVentasPage() {
         }
       }
 
-      if (totalInsertedCount === 0) {
-        let infoMessage = "No hay registros nuevos para guardar.";
-        if (totalSkippedForDuplication > 0) {
-          infoMessage = `No se guardaron registros nuevos porque los ${totalSkippedForDuplication} registros encontrados ya existían.`;
-        }
-        toast({
-          title: "Proceso completado sin cambios",
-          description: infoMessage,
-        });
-        clearFile();
-        return;
+      if (totalInsertedCount === 0 && totalSkippedForDuplication > 0) {
+        throw new Error(
+          `No hay registros nuevos para guardar. Se encontraron ${totalSkippedForDuplication} registros duplicados.`
+        );
       }
       
       let successDescription = `Se guardaron ${totalInsertedCount} registros nuevos exitosamente.`;
@@ -631,15 +625,23 @@ export default function ExcelVentasPage() {
 
       clearFile();
     } catch (e: any) {
-      console.error('Error saving data to Supabase:', e.message);
+      console.error("Error saving data to Supabase:", e.message);
       const errorMessage =
         e.message || 'Ocurrió un problema al conectar con la base de datos.';
-      setError(`Error al guardar: ${errorMessage}`);
-      toast({
-        variant: 'destructive',
-        title: 'Error al guardar los datos',
-        description: errorMessage,
-      });
+
+      if (errorMessage.includes("No hay registros nuevos para guardar")) {
+        toast({
+            title: "Proceso completado sin cambios",
+            description: errorMessage
+        });
+      } else {
+        setError(`Error al guardar: ${errorMessage}`);
+        toast({
+          variant: 'destructive',
+          title: 'Error al guardar los datos',
+          description: errorMessage,
+        });
+      }
     } finally {
       setIsSaving(false);
     }
