@@ -68,12 +68,12 @@ const COLUMN_MAPPING: { [key: string]: number } = {
   K: 10, // costo_envio
   M: 12, // cargo_difpeso
   N: 13, // anu_reembolsos
+  O: 14, // total
   P: 15, // venta_xpublicidad
   Q: 16, // sku
   R: 17, // num_publi
   S: 18, // tienda
   W: 22, // tip_publi
-  O: 14, // total
 };
 const COLUMN_INDEXES = Object.values(COLUMN_MAPPING);
 
@@ -231,6 +231,7 @@ export default function ExcelVentasPage() {
             setIsProcessing(false);
             return;
           }
+          // This part is still synchronous and can be slow for huge files, but it's often faster than chunked enrichment.
           const workbook = XLSX.read(binaryStr, {
             type: 'binary',
             cellDates: true,
@@ -255,71 +256,8 @@ export default function ExcelVentasPage() {
           const extractedHeaders = COLUMN_INDEXES.map(
             (colIndex) => headerRow[colIndex] || `Columna ${colIndex + 1}`
           );
-
-          const extractedData = json
-            .slice(6)
-            .map((row) => {
-              return COLUMN_INDEXES.map((colIndex) => row[colIndex]);
-            })
-            .filter((row) =>
-              row.some((cell) => cell !== '' && cell !== null && cell !== undefined)
-            );
-
-          if (extractedData.length === 0) {
-            setError(
-              'No se encontraron datos en las columnas y filas especificadas.'
-            );
-            setIsProcessing(false);
-            return;
-          }
-
-          // --- Data enrichment ---
-          const skusFromExcel = [
-            ...new Set(
-              extractedData
-                .map((row) => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))
-                .filter((sku) => sku)
-            ),
-          ];
-
-          const { data: skuAlternoData, error: skuAlternoError } =
-            await supabasePROD
-              .from('sku_alterno')
-              .select('sku, sku_mdr')
-              .in('sku', skusFromExcel);
-
-          if (skuAlternoError) throw skuAlternoError;
-
-          const skuToMdrMap = new Map(
-            skuAlternoData.map((item) => [item.sku, item.sku_mdr])
-          );
-          const mdrs = [
-            ...new Set(skuAlternoData.map((item) => item.sku_mdr).filter((mdr) => mdr)),
-          ];
-
-          const mdrToPriceMap = new Map();
-          if (mdrs.length > 0) {
-            const { data: skuCostosData, error: skuCostosError } =
-              await supabasePROD
-                .from('sku_costos')
-                .select('sku_mdr, landed_cost, id')
-                .in('sku_mdr', mdrs)
-                .order('id', { ascending: false });
-
-            if (skuCostosError) {
-              throw skuCostosError;
-            }
-
-            if (skuCostosData) {
-              for (const item of skuCostosData) {
-                  if (!mdrToPriceMap.has(item.sku_mdr)) {
-                    mdrToPriceMap.set(item.sku_mdr, item.landed_cost);
-                  }
-              }
-            }
-          }
           
-           const finalHeaders = [
+          const finalHeaders = [
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.unidades],
@@ -338,20 +276,89 @@ export default function ExcelVentasPage() {
             'Costos de envío (MXN)',
             'Gran Total',
           ];
+          setHeaders(finalHeaders);
+          setSelectedColumns(new Set(finalHeaders));
+          setData([]); // Clear previous data before starting
 
-          const enrichedData: any[][] = [];
-          const CHUNK_SIZE = 1000;
+          const dataRows = json.slice(6).filter((row) =>
+              row.some((cell) => cell !== '' && cell !== null && cell !== undefined)
+          );
 
-          for (let i = 0; i < extractedData.length; i += CHUNK_SIZE) {
-            const chunk = extractedData.slice(i, i + CHUNK_SIZE);
-            const enrichedChunk = chunk.map((row) => {
+          if (dataRows.length === 0) {
+            setError(
+              'No se encontraron datos en las columnas y filas especificadas.'
+            );
+            setIsProcessing(false);
+            return;
+          }
+          
+          // --- Data enrichment in chunks ---
+          const CHUNK_SIZE = 500;
+          const allEnrichedData: any[][] = [];
+
+          for (let i = 0; i < dataRows.length; i += CHUNK_SIZE) {
+            const chunk = dataRows.slice(i, i + CHUNK_SIZE);
+            const chunkExtractedData = chunk.map((row) => {
+              return COLUMN_INDEXES.map((colIndex) => row[colIndex]);
+            });
+
+            const skusInChunk = [
+              ...new Set(
+                chunkExtractedData
+                  .map((row) => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))
+                  .filter((sku) => sku)
+              ),
+            ];
+
+            let skuToMdrMap = new Map();
+            let mdrToPriceMap = new Map();
+
+            if (skusInChunk.length > 0) {
+              const { data: skuAlternoData, error: skuAlternoError } =
+                await supabasePROD
+                  .from('sku_alterno')
+                  .select('sku, sku_mdr')
+                  .in('sku', skusInChunk);
+
+              if (skuAlternoError) throw skuAlternoError;
+
+              skuToMdrMap = new Map(
+                skuAlternoData.map((item) => [item.sku, item.sku_mdr])
+              );
+              const mdrs = [
+                ...new Set(skuAlternoData.map((item) => item.sku_mdr).filter((mdr) => mdr)),
+              ];
+
+              if (mdrs.length > 0) {
+                const { data: skuCostosData, error: skuCostosError } =
+                  await supabasePROD
+                    .from('sku_costos')
+                    .select('sku_mdr, landed_cost, id')
+                    .in('sku_mdr', mdrs)
+                    .order('id', { ascending: false });
+
+                if (skuCostosError) {
+                  throw skuCostosError;
+                }
+
+                if (skuCostosData) {
+                  for (const item of skuCostosData) {
+                      if (!mdrToPriceMap.has(item.sku_mdr)) {
+                        mdrToPriceMap.set(item.sku_mdr, item.landed_cost);
+                      }
+                  }
+                }
+              }
+            }
+
+            const enrichedChunk = chunkExtractedData.map((row) => {
                 const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
                 const skuMdr = skuToMdrMap.get(sku);
                 const landedCost = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
                 const totalFromExcel = parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
                 const granTotal = totalFromExcel - landedCost;
                 
-                const finalRow = [
+                return [
                     row[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
                     row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
                     parseInt(String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades] || '0')),
@@ -359,7 +366,7 @@ export default function ExcelVentasPage() {
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]),
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]),
                     row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad],
-                    row[DB_COLUMN_TO_EXCEL_INDEX.sku],
+                    sku,
                     row[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
                     row[DB_COLUMN_TO_EXCEL_INDEX.tienda],
                     row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
@@ -370,20 +377,15 @@ export default function ExcelVentasPage() {
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
                     parseFloat(granTotal.toFixed(2))
                 ];
-                
-                return finalRow;
             });
 
-            enrichedData.push(...enrichedChunk);
+            allEnrichedData.push(...enrichedChunk);
+            setData(allEnrichedData.slice()); // Use slice to create a new array reference, forcing a re-render
 
+            // Yield to the main thread to allow UI updates
             await new Promise(resolve => setTimeout(resolve, 0));
           }
 
-
-          setHeaders(finalHeaders);
-          setSelectedColumns(new Set(finalHeaders));
-          setData(enrichedData);
-          // --- End of enrichment ---
         } catch (e) {
           console.error(e);
           setError(
@@ -707,21 +709,18 @@ export default function ExcelVentasPage() {
           totalInsertedCount += recordsToInsert.length;
         }
       }
-
-      if (totalInsertedCount === 0 && totalSkippedForDuplication > 0) {
-        throw new Error(
-          `No hay registros nuevos para guardar. Se encontraron ${totalSkippedForDuplication} registros duplicados.`
-        );
-      }
       
-      let successDescription = `Se guardaron ${totalInsertedCount} registros nuevos exitosamente.`;
+      let successMessage = `Se guardaron ${totalInsertedCount} registros nuevos exitosamente.`;
       if (totalSkippedForDuplication > 0) {
-        successDescription += ` Se omitieron ${totalSkippedForDuplication} registros duplicados.`;
+        successMessage = `Proceso completado: ${totalInsertedCount} registros nuevos guardados, ${totalSkippedForDuplication} registros duplicados omitidos.`;
+      }
+      if (totalInsertedCount === 0 && totalSkippedForDuplication > 0) {
+        successMessage = `No hay registros nuevos para guardar. Se encontraron ${totalSkippedForDuplication} registros duplicados.`;
       }
 
       toast({
-        title: "Datos guardados",
-        description: successDescription,
+        title: "Proceso completado",
+        description: successMessage,
       });
 
       clearFile();
