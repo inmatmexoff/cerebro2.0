@@ -187,6 +187,7 @@ export default function ExcelVentasPage() {
 
   const [skuSearchTerm, setSkuSearchTerm] = React.useState('');
   const [showOnlyNegative, setShowOnlyNegative] = useState(false);
+  const [showOnlyPositive, setShowOnlyPositive] = useState(false);
   const [editingInfo, setEditingInfo] = useState<{
     rowIndex: number;
     sku: string;
@@ -315,7 +316,7 @@ export default function ExcelVentasPage() {
             }
           }
           
-          const finalHeaders = [
+           const finalHeaders = [
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.unidades],
@@ -327,11 +328,11 @@ export default function ExcelVentasPage() {
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tienda],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
+            'Total',
+            'Landed Cost',
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.costo_envio],
-            'Total',
-            'Landed Cost',
             'Gran Total',
           ];
 
@@ -355,11 +356,11 @@ export default function ExcelVentasPage() {
                 row[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
                 row[DB_COLUMN_TO_EXCEL_INDEX.tienda],
                 row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
+                totalFromExcel,
+                landedCost,
                 row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad],
                 row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta],
                 row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio],
-                totalFromExcel,
-                landedCost,
                 parseFloat(granTotal.toFixed(2))
             ];
             
@@ -398,13 +399,19 @@ export default function ExcelVentasPage() {
         // SKU search filter
         const skuMatch = !skuSearchTerm || (skuIndex !== -1 && String(row[skuIndex] || '').toLowerCase().includes(skuSearchTerm.toLowerCase()));
 
-        // Negative Gran Total filter
+        // Gran Total filter
         const granTotal = granTotalIndex !== -1 ? row[granTotalIndex] : null;
-        const negativeMatch = !showOnlyNegative || (typeof granTotal === 'number' && granTotal < 0);
         
-        return skuMatch && negativeMatch;
+        let granTotalMatch = true;
+        if (showOnlyNegative) {
+            granTotalMatch = typeof granTotal === 'number' && granTotal < 0;
+        } else if (showOnlyPositive) {
+            granTotalMatch = typeof granTotal === 'number' && granTotal >= 0;
+        }
+        
+        return skuMatch && granTotalMatch;
     });
-  }, [data, skuSearchTerm, showOnlyNegative, headers]);
+  }, [data, skuSearchTerm, showOnlyNegative, showOnlyPositive, headers]);
 
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -537,22 +544,23 @@ export default function ExcelVentasPage() {
     setError(null);
 
     const newIndices = {
-        num_venta: 0,
-        fecha_venta: 1,
-        unidades: 2,
-        ing_xenvio: 3,
-        cargo_difpeso: 4,
-        anu_reembolsos: 5,
-        venta_xpublicidad: 6,
-        sku: 7,
-        num_publi: 8,
-        tienda: 9,
-        tip_publi: 10,
-        ing_xunidad: 11,
-        cargo_venta: 12,
-        costo_envio: 13,
-        total: 14,
-        total_final: 16,
+        num_venta: headers.indexOf('Nº de venta'),
+        fecha_venta: headers.indexOf('Fecha de venta'),
+        unidades: headers.indexOf('Unidades'),
+        ing_xenvio: headers.indexOf('Ingresos por envío (MXN)'),
+        cargo_difpeso: headers.indexOf('Cargo por diferencia de peso (MXN)'),
+        anu_reembolsos: headers.indexOf('Anulaciones y reembolsos (MXN)'),
+        venta_xpublicidad: headers.indexOf('Venta por Publicidad'),
+        sku: headers.indexOf('SKU'),
+        num_publi: headers.indexOf('Nº de publicación'),
+        tienda: headers.indexOf('Tienda'),
+        tip_publi: headers.indexOf('Tipo de publicación'),
+        total: headers.indexOf('Total'),
+        landed_cost: headers.indexOf('Landed Cost'),
+        ing_xunidad: headers.indexOf('Ingresos por productos (MXN)'),
+        cargo_venta: headers.indexOf('Cargo por venta e impuestos (MXN)'),
+        costo_envio: headers.indexOf('Costos de envío (MXN)'),
+        total_final: headers.indexOf('Gran Total'),
     };
 
     const CHUNK_SIZE = 500;
@@ -688,8 +696,7 @@ export default function ExcelVentasPage() {
       clearFile();
     } catch (e: any) {
       console.error("Error saving data to Supabase:", e.message);
-      const errorMessage =
-        e.message || 'Ocurrió un problema al conectar con la base de datos.';
+      const errorMessage = e.message || 'Ocurrió un problema al conectar con la base de datos.';
 
       if (errorMessage.includes("No hay registros nuevos para guardar")) {
         toast({
@@ -896,18 +903,39 @@ export default function ExcelVentasPage() {
                       </CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2">
                           <Checkbox
-                              id="show-negative"
-                              checked={showOnlyNegative}
-                              onCheckedChange={(checked) => setShowOnlyNegative(checked as boolean)}
+                            id="show-negative"
+                            checked={showOnlyNegative}
+                            onCheckedChange={(checked) => {
+                              setShowOnlyNegative(checked as boolean);
+                              if (checked) setShowOnlyPositive(false);
+                            }}
                           />
                           <label
-                              htmlFor="show-negative"
-                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            htmlFor="show-negative"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                              Mostrar solo negativos
+                            Mostrar solo negativos
                           </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="show-positive"
+                            checked={showOnlyPositive}
+                            onCheckedChange={(checked) => {
+                              setShowOnlyPositive(checked as boolean);
+                              if (checked) setShowOnlyNegative(false);
+                            }}
+                          />
+                          <label
+                            htmlFor="show-positive"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Mostrar 0 o positivos
+                          </label>
+                        </div>
                       </div>
                       <div className="relative w-full sm:max-w-xs">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
