@@ -261,10 +261,10 @@ export default function ExcelVentasPage() {
             headerRow[COLUMN_MAPPING.B] || 'Fecha de venta',
             headerRow[COLUMN_MAPPING.C] || 'ESTADO',
             headerRow[COLUMN_MAPPING.G] || 'Unidades',
+            headerRow[COLUMN_MAPPING.Q] || 'SKU',
             headerRow[COLUMN_MAPPING.R] || 'Nº de publicación',
             headerRow[COLUMN_MAPPING.S] || 'Tienda',
             headerRow[COLUMN_MAPPING.W] || 'Tipo de publicación',
-            headerRow[COLUMN_MAPPING.Q] || 'SKU',
             'Ingresos por productos (MXN)',
             'Cargo por venta e impuestos (MXN)',
             'Costos de envío (MXN)',
@@ -382,10 +382,10 @@ export default function ExcelVentasPage() {
                 row[COLUMN_MAPPING.B] || '',
                 estado,
                 unidades,
+                sku,
                 row[COLUMN_MAPPING.R] || '',
                 row[COLUMN_MAPPING.S] || '',
                 row[COLUMN_MAPPING.W] || '',
-                sku,
                 parseCurrency(row[COLUMN_MAPPING.H]),
                 parseCurrency(row[COLUMN_MAPPING.I]),
                 parseCurrency(row[COLUMN_MAPPING.K]),
@@ -405,43 +405,94 @@ export default function ExcelVentasPage() {
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
 
-          // Post-process for "Paquete de" logic
-          const estadoIndex = finalHeaders.indexOf('ESTADO');
+          // --- Aggregation Logics ---
+          // Run these after all rows are fetched and enriched.
+          const ingresosIndex = finalHeaders.indexOf('Ingresos por productos (MXN)');
+          const cargoVentaIndex = finalHeaders.indexOf('Cargo por venta e impuestos (MXN)');
+          const costoEnvioIndex = finalHeaders.indexOf('Costos de envío (MXN)');
           const landedCostTotalIndex = finalHeaders.indexOf('Landed Cost Total');
-          const granTotalIndex = finalHeaders.indexOf('Gran Total');
           const totalIndex = finalHeaders.indexOf('Total');
-          
+          const granTotalIndex = finalHeaders.indexOf('Gran Total');
+          const estadoIndex = finalHeaders.indexOf('ESTADO');
+
+
+          // ALGORITHM 1: Component cost aggregation (based on empty financial columns)
+          if (ingresosIndex > -1 && cargoVentaIndex > -1 && costoEnvioIndex > -1 && landedCostTotalIndex > -1) {
+              const isComponentRow = (row: any[]) => {
+                  const ingresos = row[ingresosIndex];
+                  const cargoVenta = row[cargoVentaIndex];
+                  const costoEnvio = row[costoEnvioIndex];
+                  return (ingresos === null || ingresos === 0) &&
+                         (cargoVenta === null || cargoVenta === 0) &&
+                         (costoEnvio === null || costoEnvio === 0);
+              };
+
+              const isParentRow = (row: any[]) => {
+                  const ingresos = row[ingresosIndex];
+                  const cargoVenta = row[cargoVentaIndex];
+                  const costoEnvio = row[costoEnvioIndex];
+                  const landedCost = row[landedCostTotalIndex];
+                  return (ingresos !== null && ingresos !== 0 ||
+                          cargoVenta !== null && cargoVenta !== 0 ||
+                          costoEnvio !== null && costoEnvio !== 0) &&
+                         (landedCost === 0 || landedCost === null); // Parent's initial cost should be 0 or null
+              };
+
+              for (let i = 0; i < allEnrichedData.length; i++) {
+                  if (isParentRow(allEnrichedData[i])) {
+                      let componentCostSum = 0;
+                      // Look ahead for component rows immediately following the parent
+                      for (let j = i + 1; j < allEnrichedData.length; j++) {
+                          const nextRow = allEnrichedData[j];
+                          if (isComponentRow(nextRow)) {
+                              const componentLandedCost = nextRow[landedCostTotalIndex] || 0;
+                              if (componentLandedCost > 0) {
+                                  componentCostSum += componentLandedCost;
+                              }
+                          } else {
+                              break; // Stop when we find a non-component row
+                          }
+                      }
+
+                      if (componentCostSum > 0) {
+                          allEnrichedData[i][landedCostTotalIndex] = componentCostSum;
+                          const totalFromExcel = allEnrichedData[i][totalIndex] || 0;
+                          const newGranTotal = totalFromExcel - componentCostSum;
+                          allEnrichedData[i][granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
+                      }
+                  }
+              }
+          }
+
+          // ALGORITHM 2: "Paquete de" logic
           if (estadoIndex !== -1 && landedCostTotalIndex !== -1 && granTotalIndex !== -1 && totalIndex !== -1) {
             for (let i = 0; i < allEnrichedData.length; i++) {
               const row = allEnrichedData[i];
               const estado = row[estadoIndex] ? String(row[estadoIndex]).trim() : '';
       
-              // Use a more specific regex to capture the number of items in a package.
               const match = estado.match(/Paquete de (\d+)/i);
       
               if (match && match[1]) {
                 const packageSize = parseInt(match[1], 10);
                 if (!isNaN(packageSize) && packageSize > 0) {
                   let summedLandedCost = 0;
-                  // Look at the next `packageSize` rows to sum their costs
                   for (let j = 1; j <= packageSize && (i + j) < allEnrichedData.length; j++) {
                     const itemRow = allEnrichedData[i + j];
                     const itemLandedCost = itemRow[landedCostTotalIndex] || 0;
                     summedLandedCost += itemLandedCost;
                   }
       
-                  // Update the package row's landed cost and gran total
                   allEnrichedData[i][landedCostTotalIndex] = summedLandedCost;
-                  
                   const totalFromExcel = allEnrichedData[i][totalIndex] || 0;
                   const newGranTotal = totalFromExcel - summedLandedCost;
                   allEnrichedData[i][granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
                 }
               }
             }
-            // Update state with the final, package-processed data
-            setData(allEnrichedData.slice());
           }
+
+          // Update state with the final, fully processed data
+          setData(allEnrichedData.slice());
 
         } catch (e) {
           console.error(e);
@@ -1272,7 +1323,7 @@ export default function ExcelVentasPage() {
                                         return (
                                           <div className="flex items-center justify-between gap-2">
                                             <span className="text-destructive font-bold">
-                                              {(totalLandedCost ?? '').toLocaleString(
+                                              {(totalLandedCost ?? 0).toLocaleString(
                                                 'es-MX',
                                                 {
                                                   minimumFractionDigits: 2,
