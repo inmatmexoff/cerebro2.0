@@ -61,6 +61,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 const COLUMN_MAPPING: { [key: string]: number } = {
   A: 0, // num_venta
   B: 1, // fecha_venta
+  C: 2, // estado
   G: 6, // unidades
   H: 7, // ing_xunidad
   I: 8, // cargo_venta
@@ -80,19 +81,20 @@ const COLUMN_INDEXES = Object.values(COLUMN_MAPPING);
 const DB_COLUMN_TO_EXCEL_INDEX = {
   num_venta: 0,
   fecha_venta: 1,
-  unidades: 2,
-  ing_xunidad: 3,
-  cargo_venta: 4,
-  ing_xenvio: 5,
-  costo_envio: 6,
-  cargo_difpeso: 7,
-  anu_reembolsos: 8,
-  total: 9,
-  venta_xpublicidad: 10,
-  sku: 11,
-  num_publi: 12,
-  tienda: 13,
-  tip_publi: 14,
+  estado: 2,
+  unidades: 3,
+  ing_xunidad: 4,
+  cargo_venta: 5,
+  ing_xenvio: 6,
+  costo_envio: 7,
+  cargo_difpeso: 8,
+  anu_reembolsos: 9,
+  total: 10,
+  venta_xpublicidad: 11,
+  sku: 12,
+  num_publi: 13,
+  tienda: 14,
+  tip_publi: 15,
 };
 
 
@@ -261,15 +263,16 @@ export default function ExcelVentasPage() {
           const finalHeaders = [
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.estado],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.unidades],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tienda],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
+            'SKU',
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos],
-            'SKU',
             'Ingresos por productos (MXN)',
             'Cargo por venta e impuestos (MXN)',
             'Costos de envío (MXN)',
@@ -373,15 +376,16 @@ export default function ExcelVentasPage() {
                 return [
                     row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || '',
                     row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta] || '',
+                    row[DB_COLUMN_TO_EXCEL_INDEX.estado] || '',
                     unidades,
                     row[DB_COLUMN_TO_EXCEL_INDEX.num_publi] || '',
                     row[DB_COLUMN_TO_EXCEL_INDEX.tienda] || '',
                     row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi] || '',
+                    sku,
                     row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad] || '',
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]),
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]),
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]),
-                    sku,
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]),
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]),
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
@@ -591,6 +595,7 @@ export default function ExcelVentasPage() {
     const newIndices = {
         num_venta: headers.indexOf('Nº de venta'),
         fecha_venta: headers.indexOf('Fecha de venta'),
+        status: headers.indexOf('ESTADO'),
         unidades: headers.indexOf('Unidades'),
         ing_xenvio: headers.indexOf('Ingresos por envío (MXN)'),
         cargo_difpeso: headers.indexOf('Cargo por diferencia de peso (MXN)'),
@@ -665,6 +670,7 @@ export default function ExcelVentasPage() {
                 row[newIndices.num_venta] || ''
               ),
               fecha_venta: saleDate ? saleDate.toISOString() : null,
+              status: String(row[newIndices.status] || ''),
               unidades:
                 parseInt(
                   String(row[newIndices.unidades]),
@@ -714,6 +720,15 @@ export default function ExcelVentasPage() {
             ) {
               throw new Error(
                 "La columna 'total_final' no existe en la tabla 'ml_sales'. Por favor, añádela antes de guardar."
+              );
+            }
+            if (
+              insertError.message.includes(
+                'column "status" of relation "ml_sales" does not exist'
+              )
+            ) {
+              throw new Error(
+                "La columna 'status' no existe en la tabla 'ml_sales'. Por favor, añádela antes de guardar."
               );
             }
             throw insertError;
