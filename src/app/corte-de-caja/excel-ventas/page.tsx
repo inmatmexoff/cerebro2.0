@@ -257,6 +257,7 @@ export default function ExcelVentasPage() {
           const headerRow = json[5] || [];
           // Define the order and labels for the final headers array
           const finalHeaders = [
+            'Fila',
             'ID',
             headerRow[COLUMN_MAPPING.B] || 'Fecha de venta',
             headerRow[COLUMN_MAPPING.C] || 'ESTADO',
@@ -281,13 +282,14 @@ export default function ExcelVentasPage() {
           setSelectedColumns(new Set(finalHeaders));
           setData([]);
 
-          const dataRows = json
+          const dataRowsWithMeta = json
             .slice(6)
-            .filter((row) =>
+            .map((row, index) => ({ row, excelRowNum: index + 7 }))
+            .filter(({ row }) =>
               row.some((cell) => cell !== '' && cell !== null && cell !== undefined)
             );
 
-          if (dataRows.length === 0) {
+          if (dataRowsWithMeta.length === 0) {
             setError(
               'No se encontraron datos en las columnas y filas especificadas.'
             );
@@ -298,12 +300,12 @@ export default function ExcelVentasPage() {
           const CHUNK_SIZE = 500;
           const allEnrichedData: any[][] = [];
 
-          for (let i = 0; i < dataRows.length; i += CHUNK_SIZE) {
-            const chunk = dataRows.slice(i, i + CHUNK_SIZE);
+          for (let i = 0; i < dataRowsWithMeta.length; i += CHUNK_SIZE) {
+            const chunk = dataRowsWithMeta.slice(i, i + CHUNK_SIZE);
             const skusInChunk = [
               ...new Set(
                 chunk
-                  .map((row) => String(row[COLUMN_MAPPING.Q] || ''))
+                  .map(({ row }) => String(row[COLUMN_MAPPING.Q] || ''))
                   .filter((sku) => sku)
               ),
             ];
@@ -359,7 +361,7 @@ export default function ExcelVentasPage() {
               }
             }
 
-            const enrichedChunk = chunk.map((row) => {
+            const enrichedChunk = chunk.map(({ row, excelRowNum }) => {
               const unidades =
                 parseInt(String(row[COLUMN_MAPPING.G] || '1')) || 1;
               const sku = String(row[COLUMN_MAPPING.Q] || '');
@@ -378,6 +380,7 @@ export default function ExcelVentasPage() {
               }
 
               return [
+                excelRowNum,
                 row[COLUMN_MAPPING.A] || '',
                 row[COLUMN_MAPPING.B] || '',
                 estado,
@@ -426,20 +429,20 @@ export default function ExcelVentasPage() {
                        (cargoVenta === null || cargoVenta === 0) &&
                        (costoEnvio === null || costoEnvio === 0);
             };
-
-            const isParentRow = (row: any[]) => {
-                const ingresos = row[ingresosIndex];
-                const cargoVenta = row[cargoVentaIndex];
-                const costoEnvio = row[costoEnvioIndex];
-                const landedCost = row[landedCostTotalIndex];
-                return (ingresos !== null && ingresos !== 0 ||
-                        cargoVenta !== null && cargoVenta !== 0 ||
-                        costoEnvio !== null && costoEnvio !== 0) &&
-                       (landedCost === 0 || landedCost === null);
-            };
-
+          
             for (let i = 0; i < allEnrichedData.length; i++) {
-                if (isParentRow(allEnrichedData[i])) {
+                const parentRow = allEnrichedData[i];
+                const parentTotalValue = parentRow[totalIndex] || 0;
+                const parentLandedCost = parentRow[landedCostTotalIndex] || 0;
+
+                const isParentRow = (
+                    parentTotalValue !== 0 ||
+                    parentRow[ingresosIndex] !== 0 ||
+                    parentRow[cargoVentaIndex] !== 0 ||
+                    parentRow[costoEnvioIndex] !== 0
+                ) && parentLandedCost === 0;
+
+                if (isParentRow) {
                     let componentCostSum = 0;
                     
                     let childRowIndex = i + 1;
@@ -452,13 +455,8 @@ export default function ExcelVentasPage() {
                     }
 
                     if (componentCostSum > 0) {
-                        const parentRow = allEnrichedData[i];
-                        const parentTotalValue = parentRow[totalIndex] || 0;
-                        
                         parentRow[landedCostTotalIndex] = componentCostSum;
-                        
                         const newGranTotal = parentTotalValue - componentCostSum;
-                        
                         parentRow[granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
                     }
                 }
