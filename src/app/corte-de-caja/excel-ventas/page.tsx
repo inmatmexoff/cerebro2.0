@@ -370,12 +370,17 @@ export default function ExcelVentasPage() {
               const totalLandedCost = landedCostPerUnit * unidades;
               const totalFromExcel =
                 parseCurrency(row[COLUMN_MAPPING.O]) || 0;
-              const granTotal = totalFromExcel - totalLandedCost;
+              
+              let granTotal = totalFromExcel - totalLandedCost;
+              const estado = row[COLUMN_MAPPING.C] ? String(row[COLUMN_MAPPING.C]).trim() : '';
+              if (totalFromExcel === 0 && !estado.toLowerCase().startsWith('paquete de')) {
+                granTotal = 0;
+              }
 
               return [
                 row[COLUMN_MAPPING.A] || '',
                 row[COLUMN_MAPPING.B] || '',
-                row[COLUMN_MAPPING.C] || '',
+                estado,
                 unidades,
                 row[COLUMN_MAPPING.R] || '',
                 row[COLUMN_MAPPING.S] || '',
@@ -881,7 +886,13 @@ export default function ExcelVentasPage() {
             ? parseInt(String(row[unidadesIndex] || '1'))
             : 1) || 1;
         const newTotalLandedCost = newLandedCostPerUnit * unidades;
-        const newGranTotal = totalFromExcel - newTotalLandedCost;
+        let newGranTotal = totalFromExcel - newTotalLandedCost;
+        
+        const estadoIndex = headers.indexOf('ESTADO');
+        const estado = (estadoIndex !== -1 && row[estadoIndex]) ? String(row[estadoIndex]).trim() : '';
+        if (totalFromExcel === 0 && !estado.toLowerCase().startsWith('paquete de')) {
+            newGranTotal = 0;
+        }
 
         row[landedCostIndex] = newTotalLandedCost;
         row[granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
