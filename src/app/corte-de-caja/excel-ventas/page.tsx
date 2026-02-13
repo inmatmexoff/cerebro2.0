@@ -257,7 +257,7 @@ export default function ExcelVentasPage() {
           const headerRow = json[5] || [];
           // Define the order and labels for the final headers array
           const finalHeaders = [
-            headerRow[COLUMN_MAPPING.A] || 'Nº de venta',
+            'ID',
             headerRow[COLUMN_MAPPING.B] || 'Fecha de venta',
             headerRow[COLUMN_MAPPING.C] || 'ESTADO',
             headerRow[COLUMN_MAPPING.G] || 'Unidades',
@@ -659,7 +659,7 @@ export default function ExcelVentasPage() {
     setError(null);
 
     const newIndices = {
-      num_venta: headers.indexOf('Nº de venta'),
+      num_venta: headers.indexOf('ID'),
       fecha_venta: headers.indexOf('Fecha de venta'),
       status: headers.indexOf('ESTADO'),
       unidades: headers.indexOf('Unidades'),
