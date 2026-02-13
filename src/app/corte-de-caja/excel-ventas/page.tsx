@@ -272,7 +272,7 @@ export default function ExcelVentasPage() {
             headerRow[COLUMN_MAPPING.M] || 'Cargo por diferencia de peso (MXN)',
             headerRow[COLUMN_MAPPING.N] || 'Anulaciones y reembolsos (MXN)',
             headerRow[COLUMN_MAPPING.P] || 'Venta por Publicidad',
-            'Total',
+            headerRow[COLUMN_MAPPING.O] || 'Total',
             'Landed Cost Total',
             'Gran Total',
           ];
@@ -399,6 +399,45 @@ export default function ExcelVentasPage() {
 
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
+
+          // Post-process for "Paquete de" logic
+          const estadoIndex = finalHeaders.indexOf('ESTADO');
+          const landedCostTotalIndex = finalHeaders.indexOf('Landed Cost Total');
+          const granTotalIndex = finalHeaders.indexOf('Gran Total');
+          const totalIndex = finalHeaders.indexOf('Total');
+          
+          if (estadoIndex !== -1 && landedCostTotalIndex !== -1 && granTotalIndex !== -1 && totalIndex !== -1) {
+            for (let i = 0; i < allEnrichedData.length; i++) {
+              const row = allEnrichedData[i];
+              const estado = row[estadoIndex] ? String(row[estadoIndex]) : '';
+      
+              if (estado.toLowerCase().startsWith('paquete de ')) {
+                const parts = estado.split(' ');
+                if (parts.length >= 3) {
+                  const packageSize = parseInt(parts[2], 10);
+                  if (!isNaN(packageSize) && packageSize > 0) {
+                    let summedLandedCost = 0;
+                    // Look at the next `packageSize` rows
+                    for (let j = 1; j <= packageSize && (i + j) < allEnrichedData.length; j++) {
+                      const itemRow = allEnrichedData[i + j];
+                      const itemLandedCost = itemRow[landedCostTotalIndex] || 0;
+                      summedLandedCost += itemLandedCost;
+                    }
+      
+                    // Update the package row's landed cost and gran total
+                    allEnrichedData[i][landedCostTotalIndex] = summedLandedCost;
+                    
+                    const totalFromExcel = allEnrichedData[i][totalIndex] || 0;
+                    const newGranTotal = totalFromExcel - summedLandedCost;
+                    allEnrichedData[i][granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
+                  }
+                }
+              }
+            }
+            // Update state with the final, package-processed data
+            setData(allEnrichedData.slice());
+          }
+
         } catch (e) {
           console.error(e);
           setError(
@@ -1218,7 +1257,7 @@ export default function ExcelVentasPage() {
                                         return (
                                           <div className="flex items-center justify-between gap-2">
                                             <span className="text-destructive font-bold">
-                                              {totalLandedCost.toLocaleString(
+                                              {(totalLandedCost ?? '').toLocaleString(
                                                 'es-MX',
                                                 {
                                                   minimumFractionDigits: 2,
