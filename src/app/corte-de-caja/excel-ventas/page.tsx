@@ -1229,7 +1229,7 @@ export default function ExcelVentasPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[60vh] w-full overflow-auto">
+                  <div className="h-[60vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     <Table>
                       <TableHeader className="sticky top-0 bg-background">
                         <TableRow>
