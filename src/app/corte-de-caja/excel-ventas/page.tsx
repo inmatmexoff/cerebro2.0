@@ -409,15 +409,15 @@ export default function ExcelVentasPage() {
           if (estadoIndex !== -1 && landedCostTotalIndex !== -1 && granTotalIndex !== -1 && totalIndex !== -1) {
             for (let i = 0; i < allEnrichedData.length; i++) {
               const row = allEnrichedData[i];
-              const estado = row[estadoIndex] ? String(row[estadoIndex]) : '';
+              const estado = row[estadoIndex] ? String(row[estadoIndex]).trim() : '';
       
-              if (estado.toLowerCase().startsWith('paquete de ')) {
-                const parts = estado.split(' ');
-                if (parts.length >= 3) {
-                  const packageSize = parseInt(parts[2], 10);
+              if (estado.toLowerCase().startsWith('paquete de')) {
+                const match = estado.match(/\d+/); // Find the first sequence of digits
+                if (match && match[0]) {
+                  const packageSize = parseInt(match[0], 10);
                   if (!isNaN(packageSize) && packageSize > 0) {
                     let summedLandedCost = 0;
-                    // Look at the next `packageSize` rows
+                    // Look at the next `packageSize` rows to sum their costs
                     for (let j = 1; j <= packageSize && (i + j) < allEnrichedData.length; j++) {
                       const itemRow = allEnrichedData[i + j];
                       const itemLandedCost = itemRow[landedCostTotalIndex] || 0;
