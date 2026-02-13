@@ -432,15 +432,15 @@ export default function ExcelVentasPage() {
           
             for (let i = 0; i < allEnrichedData.length; i++) {
                 const parentRow = allEnrichedData[i];
-                const parentTotalValue = parentRow[totalIndex] || 0;
-                const parentLandedCost = parentRow[landedCostTotalIndex] || 0;
-
+                const parentTotalValue = parentRow[totalIndex];
+                
                 const isParentRow = (
-                    parentTotalValue !== 0 ||
-                    parentRow[ingresosIndex] !== 0 ||
-                    parentRow[cargoVentaIndex] !== 0 ||
-                    parentRow[costoEnvioIndex] !== 0
-                ) && parentLandedCost === 0;
+                    (parentTotalValue !== null && parentTotalValue !== 0) ||
+                    (parentRow[ingresosIndex] !== null && parentRow[ingresosIndex] !== 0) ||
+                    (parentRow[cargoVentaIndex] !== null && parentRow[cargoVentaIndex] !== 0) ||
+                    (parentRow[costoEnvioIndex] !== null && parentRow[costoEnvioIndex] !== 0)
+                ) && parentRow[landedCostTotalIndex] === 0;
+
 
                 if (isParentRow) {
                     let componentCostSum = 0;
@@ -1295,6 +1295,10 @@ export default function ExcelVentasPage() {
                                   })}
                                 >
                                   {(() => {
+                                     if (headers[cellIndex] === 'Fila' && typeof cell === 'number') {
+                                      return cell.toFixed(0);
+                                    }
+                                    
                                     if (
                                       headers[cellIndex] === 'Landed Cost Total'
                                     ) {
