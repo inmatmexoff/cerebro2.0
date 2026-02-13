@@ -262,19 +262,19 @@ export default function ExcelVentasPage() {
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.unidades],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tienda],
             extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.sku],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso],
+            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos],
+            'SKU',
             'Ingresos por productos (MXN)',
             'Cargo por venta e impuestos (MXN)',
             'Costos de envío (MXN)',
             'Total',
-            'Landed Cost',
+            'Landed Cost Total',
             'Gran Total',
           ];
           setHeaders(finalHeaders);
@@ -362,29 +362,31 @@ export default function ExcelVentasPage() {
             }
 
             const enrichedChunk = chunkExtractedData.map((row) => {
+                const unidades = parseInt(String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades] || '1')) || 1;
                 const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
                 const skuMdr = skuToMdrMap.get(sku);
-                const landedCost = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
+                const landedCostPerUnit = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
+                const totalLandedCost = landedCostPerUnit * unidades;
                 const totalFromExcel = parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
-                const granTotal = totalFromExcel - landedCost;
+                const granTotal = totalFromExcel - totalLandedCost;
                 
                 return [
-                    row[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
-                    row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
-                    parseInt(String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades] || '0')),
+                    row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || '',
+                    row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta] || '',
+                    unidades,
+                    row[DB_COLUMN_TO_EXCEL_INDEX.num_publi] || '',
+                    row[DB_COLUMN_TO_EXCEL_INDEX.tienda] || '',
+                    row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi] || '',
+                    row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad] || '',
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]),
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]),
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]),
-                    row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad],
-                    row[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
-                    row[DB_COLUMN_TO_EXCEL_INDEX.tienda],
-                    row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
                     sku,
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]),
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]),
                     parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
                     totalFromExcel,
-                    landedCost,
+                    totalLandedCost,
                     parseFloat(granTotal.toFixed(2))
                 ];
             });
@@ -450,7 +452,7 @@ export default function ExcelVentasPage() {
   };
 
   const granTotalSum = createSumCalculator('Gran Total');
-  const landedCostSum = createSumCalculator('Landed Cost');
+  const landedCostSum = createSumCalculator('Landed Cost Total');
   const ingresosPorProductosSum = createSumCalculator('Ingresos por productos (MXN)');
   const cargoVentaSum = createSumCalculator('Cargo por venta e impuestos (MXN)');
   const costoEnvioSum = createSumCalculator('Costos de envío (MXN)');
@@ -599,7 +601,7 @@ export default function ExcelVentasPage() {
         tienda: headers.indexOf('Tienda'),
         tip_publi: headers.indexOf('Tipo de publicación'),
         total: headers.indexOf('Total'),
-        landed_cost: headers.indexOf('Landed Cost'),
+        landed_cost: headers.indexOf('Landed Cost Total'),
         ing_xunidad: headers.indexOf('Ingresos por productos (MXN)'),
         cargo_venta: headers.indexOf('Cargo por venta e impuestos (MXN)'),
         costo_envio: headers.indexOf('Costos de envío (MXN)'),
@@ -725,7 +727,13 @@ export default function ExcelVentasPage() {
         successMessage = `Proceso completado: ${totalInsertedCount} registros nuevos guardados, ${totalSkippedForDuplication} registros duplicados omitidos.`;
       }
       if (totalInsertedCount === 0 && totalSkippedForDuplication > 0) {
-        successMessage = `No hay registros nuevos para guardar. Se encontraron ${totalSkippedForDuplication} registros duplicados.`;
+         const message = `No hay registros nuevos para guardar. Se encontraron ${totalSkippedForDuplication} registros duplicados.`;
+         toast({
+            title: "Proceso completado sin cambios",
+            description: message,
+         });
+         setIsSaving(false);
+         return; // Prevent clearing file or showing another toast
       }
 
       toast({
@@ -736,19 +744,12 @@ export default function ExcelVentasPage() {
       clearFile();
     } catch (e: any) {
         const errorMessage = e.message || "Ocurrió un problema al conectar con la base de datos.";
-        if (errorMessage.includes("No hay registros nuevos para guardar")) {
-            toast({
-                title: "Proceso completado sin cambios",
-                description: errorMessage
-            });
-        } else {
-            setError(`Error al guardar: ${errorMessage}`);
-            toast({
-                variant: "destructive",
-                title: "Error al guardar los datos",
-                description: errorMessage,
-            });
-        }
+        setError(`Error al guardar: ${errorMessage}`);
+        toast({
+            variant: "destructive",
+            title: "Error al guardar los datos",
+            description: errorMessage,
+        });
     } finally {
       setIsSaving(false);
     }
@@ -758,19 +759,23 @@ export default function ExcelVentasPage() {
     const rowIndex = data.findIndex(r => r === rowToEdit);
     if (rowIndex === -1) return;
     
-    const landedCostIndex = headers.indexOf('Landed Cost');
+    const landedCostIndex = headers.indexOf('Landed Cost Total');
     const skuIndex = headers.indexOf('SKU');
+    const unidadesHeader = headers.find(h => /unidades/i.test(h));
+    const unidadesIndex = unidadesHeader ? headers.indexOf(unidadesHeader) : -1;
 
     const rowData = rowToEdit;
     const sku = String(rowData[skuIndex] || '');
-    const originalLandedCost =
-      parseCurrency(rowData[landedCostIndex]) || 0;
-    setEditingInfo({ rowIndex, sku, originalLandedCost });
+    const totalLandedCost = parseCurrency(rowData[landedCostIndex]) || 0;
+    const unidades = (unidadesIndex !== -1 ? parseInt(String(rowData[unidadesIndex] || '1')) : 1) || 1;
+    const perUnitLandedCost = unidades > 0 ? totalLandedCost / unidades : 0;
+    
+    setEditingInfo({ rowIndex, sku, originalLandedCost: totalLandedCost });
     form.reset({
       sku_mdr: '',
       cat_mdr: '',
       landed_cost:
-        originalLandedCost > 1 ? originalLandedCost : undefined,
+        perUnitLandedCost > 1 ? perUnitLandedCost : undefined,
     });
   };
 
@@ -805,20 +810,24 @@ export default function ExcelVentasPage() {
       // Update local state
       setData((currentData) => {
         const newData = [...currentData];
-        const rowIndex = editingInfo.rowIndex;
+        const rowIndex = editingInfo!.rowIndex;
         const totalIndex = headers.indexOf('Total');
-        const landedCostIndex = headers.indexOf('Landed Cost');
+        const landedCostIndex = headers.indexOf('Landed Cost Total');
         const granTotalIndex = headers.indexOf('Gran Total');
+        const unidadesHeader = headers.find(h => /unidades/i.test(h));
+        const unidadesIndex = unidadesHeader ? headers.indexOf(unidadesHeader) : -1;
 
-        const totalFromExcel =
-          parseCurrency(newData[rowIndex][totalIndex]) || 0;
-        const newLandedCost = values.landed_cost;
-        const newGranTotal = totalFromExcel - newLandedCost;
+        const row = newData[rowIndex];
+        
+        const totalFromExcel = parseCurrency(row[totalIndex]) || 0;
+        const newLandedCostPerUnit = values.landed_cost;
+        const unidades = (unidadesIndex !== -1 ? parseInt(String(row[unidadesIndex] || '1')) : 1) || 1;
+        const newTotalLandedCost = newLandedCostPerUnit * unidades;
+        const newGranTotal = totalFromExcel - newTotalLandedCost;
 
-        newData[rowIndex][landedCostIndex] = newLandedCost;
-        newData[rowIndex][granTotalIndex] = parseFloat(
-          newGranTotal.toFixed(2)
-        );
+        row[landedCostIndex] = newTotalLandedCost;
+        row[granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
+        
         return newData;
       });
 
@@ -1022,7 +1031,7 @@ export default function ExcelVentasPage() {
                             </div>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">Landed Cost</div>
+                            <div className="text-muted-foreground">Landed Cost Total</div>
                             <div className="font-bold text-lg text-foreground">
                                 {landedCostSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
                             </div>
@@ -1103,16 +1112,18 @@ export default function ExcelVentasPage() {
                                 })}
                               >
                                 {(() => {
-                                  if (headers[cellIndex] === 'Landed Cost') {
-                                    const landedCost = parseCurrency(cell);
-                                    if (
-                                      landedCost === 0 ||
-                                      landedCost === 1
-                                    ) {
+                                  if (headers[cellIndex] === 'Landed Cost Total') {
+                                    const totalLandedCost = parseCurrency(cell);
+                                    const unidadesHeader = headers.find(h => /unidades/i.test(h));
+                                    const unidadesIndex = unidadesHeader ? headers.indexOf(unidadesHeader) : -1;
+                                    const unidades = (unidadesIndex > -1 ? row[unidadesIndex] : 1) || 1;
+                                    const landedCostPerUnit = unidades > 0 ? (totalLandedCost ?? 0) / unidades : 0;
+                                    
+                                    if (landedCostPerUnit === 0 || landedCostPerUnit === 1) {
                                       return (
                                         <div className="flex items-center justify-between gap-2">
                                           <span className="text-destructive font-bold">
-                                            {String(cell ?? '')}
+                                            {(totalLandedCost ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </span>
                                           <Button
                                             variant="ghost"
@@ -1190,7 +1201,7 @@ export default function ExcelVentasPage() {
                   name="landed_cost"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Landed Cost</FormLabel>
+                      <FormLabel>Landed Cost (por unidad)</FormLabel>
                       <FormControl>
                         <Input type="number" step="0.01" {...field} />
                       </FormControl>
