@@ -272,7 +272,7 @@ export default function ExcelVentasPage() {
             headerRow[COLUMN_MAPPING.R] || 'Nº de publicación',
             headerRow[COLUMN_MAPPING.S] || 'Tienda',
             headerRow[COLUMN_MAPPING.W] || 'Tipo de publicación',
-            headerRow[COLUMN_MAPPING.O] || 'Total',
+            'Total',
             'Landed Cost Total',
             'Gran Total',
           ];
@@ -417,52 +417,53 @@ export default function ExcelVentasPage() {
 
 
           // ALGORITHM 1: Component cost aggregation (based on empty financial columns)
-          if (ingresosIndex > -1 && cargoVentaIndex > -1 && costoEnvioIndex > -1 && landedCostTotalIndex > -1) {
-              const isComponentRow = (row: any[]) => {
-                  const ingresos = row[ingresosIndex];
-                  const cargoVenta = row[cargoVentaIndex];
-                  const costoEnvio = row[costoEnvioIndex];
-                  return (ingresos === null || ingresos === 0) &&
-                         (cargoVenta === null || cargoVenta === 0) &&
-                         (costoEnvio === null || costoEnvio === 0);
-              };
+          if (ingresosIndex > -1 && cargoVentaIndex > -1 && costoEnvioIndex > -1 && landedCostTotalIndex > -1 && totalIndex > -1 && granTotalIndex > -1) {
+            const isComponentRow = (row: any[]) => {
+                const ingresos = row[ingresosIndex];
+                const cargoVenta = row[cargoVentaIndex];
+                const costoEnvio = row[costoEnvioIndex];
+                return (ingresos === null || ingresos === 0) &&
+                       (cargoVenta === null || cargoVenta === 0) &&
+                       (costoEnvio === null || costoEnvio === 0);
+            };
 
-              const isParentRow = (row: any[]) => {
-                  const ingresos = row[ingresosIndex];
-                  const cargoVenta = row[cargoVentaIndex];
-                  const costoEnvio = row[costoEnvioIndex];
-                  const landedCost = row[landedCostTotalIndex];
-                  return (ingresos !== null && ingresos !== 0 ||
-                          cargoVenta !== null && cargoVenta !== 0 ||
-                          costoEnvio !== null && costoEnvio !== 0) &&
-                         (landedCost === 0 || landedCost === null); // Parent's initial cost should be 0 or null
-              };
+            const isParentRow = (row: any[]) => {
+                const ingresos = row[ingresosIndex];
+                const cargoVenta = row[cargoVentaIndex];
+                const costoEnvio = row[costoEnvioIndex];
+                const landedCost = row[landedCostTotalIndex];
+                return (ingresos !== null && ingresos !== 0 ||
+                        cargoVenta !== null && cargoVenta !== 0 ||
+                        costoEnvio !== null && costoEnvio !== 0) &&
+                       (landedCost === 0 || landedCost === null);
+            };
 
-              for (let i = 0; i < allEnrichedData.length; i++) {
-                  if (isParentRow(allEnrichedData[i])) {
-                      let componentCostSum = 0;
-                      // Look ahead for component rows immediately following the parent
-                      for (let j = i + 1; j < allEnrichedData.length; j++) {
-                          const nextRow = allEnrichedData[j];
-                          if (isComponentRow(nextRow)) {
-                              const componentLandedCost = nextRow[landedCostTotalIndex] || 0;
-                              if (componentLandedCost > 0) {
-                                  componentCostSum += componentLandedCost;
-                              }
-                          } else {
-                              break; // Stop when we find a non-component row
-                          }
-                      }
+            for (let i = 0; i < allEnrichedData.length; i++) {
+                if (isParentRow(allEnrichedData[i])) {
+                    let componentCostSum = 0;
+                    
+                    let childRowIndex = i + 1;
+                    while(childRowIndex < allEnrichedData.length && isComponentRow(allEnrichedData[childRowIndex])) {
+                        const componentLandedCost = allEnrichedData[childRowIndex][landedCostTotalIndex] || 0;
+                        if (componentLandedCost > 0) {
+                          componentCostSum += componentLandedCost;
+                        }
+                        childRowIndex++;
+                    }
 
-                      if (componentCostSum > 0) {
-                          allEnrichedData[i][landedCostTotalIndex] = componentCostSum;
-                          const totalFromExcel = allEnrichedData[i][totalIndex] || 0;
-                          const newGranTotal = totalFromExcel - componentCostSum;
-                          allEnrichedData[i][granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
-                      }
-                  }
-              }
-          }
+                    if (componentCostSum > 0) {
+                        const parentRow = allEnrichedData[i];
+                        const parentTotalValue = parentRow[totalIndex] || 0;
+                        
+                        parentRow[landedCostTotalIndex] = componentCostSum;
+                        
+                        const newGranTotal = parentTotalValue - componentCostSum;
+                        
+                        parentRow[granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
+                    }
+                }
+            }
+        }
 
           // ALGORITHM 2: "Paquete de" logic
           if (estadoIndex !== -1 && landedCostTotalIndex !== -1 && granTotalIndex !== -1 && totalIndex !== -1) {
