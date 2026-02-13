@@ -78,26 +78,6 @@ const COLUMN_MAPPING: { [key: string]: number } = {
 };
 const COLUMN_INDEXES = Object.values(COLUMN_MAPPING);
 
-const DB_COLUMN_TO_EXCEL_INDEX = {
-  num_venta: 0,
-  fecha_venta: 1,
-  estado: 2,
-  unidades: 3,
-  ing_xunidad: 4,
-  cargo_venta: 5,
-  ing_xenvio: 6,
-  costo_envio: 7,
-  cargo_difpeso: 8,
-  anu_reembolsos: 9,
-  total: 10,
-  venta_xpublicidad: 11,
-  sku: 12,
-  num_publi: 13,
-  tienda: 14,
-  tip_publi: 15,
-};
-
-
 // Helper to parse currency strings like "$ 1,234.50" into numbers
 const parseCurrency = (value: any): number | null => {
   if (typeof value === 'number') {
@@ -120,56 +100,75 @@ const parseBoolean = (value: any): boolean => {
 };
 
 const parseSaleDate = (value: any): Date | null => {
-    if (!value) return null;
+  if (!value) return null;
 
-    // Case 1: Already a Date object
-    if (value instanceof Date && !isNaN(value.getTime())) {
-        return value;
+  // Case 1: Already a Date object
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value;
+  }
+
+  // Case 2: Excel date serial number
+  if (typeof value === 'number') {
+    // 25569 is the serial number for 1970-01-01
+    return new Date(Math.round((value - 25569) * 86400 * 1000));
+  }
+
+  // Case 3: String value
+  if (typeof value === 'string') {
+    // Try parsing Spanish format: "1 de febrero de 2026 23:50 hs."
+    const monthMap: { [key: string]: number } = {
+      enero: 0,
+      febrero: 1,
+      marzo: 2,
+      abril: 3,
+      mayo: 4,
+      junio: 5,
+      julio: 6,
+      agosto: 7,
+      septiembre: 8,
+      octubre: 9,
+      noviembre: 10,
+      diciembre: 11,
+    };
+
+    const cleanedString = value
+      .replace(/\sde\s/g, ' ')
+      .replace(/\s?hs\.?/, '')
+      .toLowerCase()
+      .trim();
+    const parts = cleanedString.split(' '); // e.g., ["1", "febrero", "2026", "23:50"]
+
+    if (parts.length >= 3) {
+      const day = parseInt(parts[0], 10);
+      const monthName = parts[1];
+      const year = parseInt(parts[2], 10);
+      const timeString = parts[3] || '00:00';
+      const timeParts = timeString.split(':');
+      const hours = parseInt(timeParts[0], 10);
+      const minutes = parseInt(timeParts[1], 10);
+      const month = monthMap[monthName];
+
+      if (
+        !isNaN(day) &&
+        month !== undefined &&
+        !isNaN(year) &&
+        !isNaN(hours) &&
+        !isNaN(minutes)
+      ) {
+        const date = new Date(year, month, day, hours, minutes);
+        if (!isNaN(date.getTime())) return date;
+      }
     }
 
-    // Case 2: Excel date serial number
-    if (typeof value === 'number') {
-        // 25569 is the serial number for 1970-01-01
-        return new Date(Math.round((value - 25569) * 86400 * 1000));
+    // Fallback for other standard date string formats
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
     }
+  }
 
-    // Case 3: String value
-    if (typeof value === 'string') {
-        // Try parsing Spanish format: "1 de febrero de 2026 23:50 hs."
-        const monthMap: { [key: string]: number } = {
-            'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
-            'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
-        };
-        
-        const cleanedString = value.replace(/\sde\s/g, ' ').replace(/\s?hs\.?/, '').toLowerCase().trim();
-        const parts = cleanedString.split(' '); // e.g., ["1", "febrero", "2026", "23:50"]
-        
-        if (parts.length >= 3) {
-            const day = parseInt(parts[0], 10);
-            const monthName = parts[1];
-            const year = parseInt(parts[2], 10);
-            const timeString = parts[3] || '00:00';
-            const timeParts = timeString.split(':');
-            const hours = parseInt(timeParts[0], 10);
-            const minutes = parseInt(timeParts[1], 10);
-            const month = monthMap[monthName];
-
-            if (!isNaN(day) && month !== undefined && !isNaN(year) && !isNaN(hours) && !isNaN(minutes)) {
-                const date = new Date(year, month, day, hours, minutes);
-                if (!isNaN(date.getTime())) return date;
-            }
-        }
-
-        // Fallback for other standard date string formats
-        const parsed = new Date(value);
-        if (!isNaN(parsed.getTime())) {
-            return parsed;
-        }
-    }
-
-    return null;
+  return null;
 };
-
 
 const formSchema = z.object({
   sku_mdr: z.string().min(1, 'SKU MDR es requerido.'),
@@ -191,6 +190,7 @@ export default function ExcelVentasPage() {
   const [skuSearchTerm, setSkuSearchTerm] = React.useState('');
   const [showOnlyNegative, setShowOnlyNegative] = useState(false);
   const [showOnlyPositive, setShowOnlyPositive] = useState(false);
+  const [showHighShippingCost, setShowHighShippingCost] = useState(false);
   const [editingInfo, setEditingInfo] = useState<{
     rowIndex: number;
     sku: string;
@@ -211,7 +211,7 @@ export default function ExcelVentasPage() {
   });
 
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
+    async (acceptedFiles: File[]) => {
       const file = acceptedFiles[0];
       if (!file) {
         setError('No se seleccionó ningún archivo.');
@@ -234,7 +234,6 @@ export default function ExcelVentasPage() {
             setIsProcessing(false);
             return;
           }
-          // This part is still synchronous and can be slow for huge files, but it's often faster than chunked enrichment.
           const workbook = XLSX.read(binaryStr, {
             type: 'binary',
             cellDates: true,
@@ -256,37 +255,37 @@ export default function ExcelVentasPage() {
           }
 
           const headerRow = json[5] || [];
-          const extractedHeaders = COLUMN_INDEXES.map(
-            (colIndex) => headerRow[colIndex] || `Columna ${colIndex + 1}`
-          );
-          
+          // Define the order and labels for the final headers array
           const finalHeaders = [
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_venta],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.estado],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.unidades],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.num_publi],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tienda],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.tip_publi],
-            'SKU',
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso],
-            extractedHeaders[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos],
+            headerRow[COLUMN_MAPPING.A] || 'Nº de venta',
+            headerRow[COLUMN_MAPPING.B] || 'Fecha de venta',
+            headerRow[COLUMN_MAPPING.C] || 'ESTADO',
+            headerRow[COLUMN_MAPPING.G] || 'Unidades',
+            headerRow[COLUMN_MAPPING.R] || 'Nº de publicación',
+            headerRow[COLUMN_MAPPING.S] || 'Tienda',
+            headerRow[COLUMN_MAPPING.W] || 'Tipo de publicación',
+            headerRow[COLUMN_MAPPING.Q] || 'SKU',
             'Ingresos por productos (MXN)',
             'Cargo por venta e impuestos (MXN)',
             'Costos de envío (MXN)',
+            headerRow[COLUMN_MAPPING.J] || 'Ingresos por envío (MXN)',
+            headerRow[COLUMN_MAPPING.M] || 'Cargo por diferencia de peso (MXN)',
+            headerRow[COLUMN_MAPPING.N] || 'Anulaciones y reembolsos (MXN)',
+            headerRow[COLUMN_MAPPING.P] || 'Venta por Publicidad',
             'Total',
             'Landed Cost Total',
             'Gran Total',
           ];
+
           setHeaders(finalHeaders);
           setSelectedColumns(new Set(finalHeaders));
-          setData([]); // Clear previous data before starting
+          setData([]);
 
-          const dataRows = json.slice(6).filter((row) =>
+          const dataRows = json
+            .slice(6)
+            .filter((row) =>
               row.some((cell) => cell !== '' && cell !== null && cell !== undefined)
-          );
+            );
 
           if (dataRows.length === 0) {
             setError(
@@ -295,21 +294,16 @@ export default function ExcelVentasPage() {
             setIsProcessing(false);
             return;
           }
-          
-          // --- Data enrichment in chunks ---
+
           const CHUNK_SIZE = 500;
           const allEnrichedData: any[][] = [];
 
           for (let i = 0; i < dataRows.length; i += CHUNK_SIZE) {
             const chunk = dataRows.slice(i, i + CHUNK_SIZE);
-            const chunkExtractedData = chunk.map((row) => {
-              return COLUMN_INDEXES.map((colIndex) => row[colIndex]);
-            });
-
             const skusInChunk = [
               ...new Set(
-                chunkExtractedData
-                  .map((row) => String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || ''))
+                chunk
+                  .map((row) => String(row[COLUMN_MAPPING.Q] || ''))
                   .filter((sku) => sku)
               ),
             ];
@@ -323,25 +317,30 @@ export default function ExcelVentasPage() {
                   .from('sku_alterno')
                   .select('sku, sku_mdr')
                   .in('sku', skusInChunk);
-
               if (skuAlternoError) throw skuAlternoError;
-              
-              skuAlternoData.forEach(item => skuToMdrMap.set(item.sku, item.sku_mdr));
+              skuAlternoData.forEach((item) =>
+                skuToMdrMap.set(item.sku, item.sku_mdr)
+              );
 
-              const foundSkus = new Set(skuAlternoData.map(item => item.sku));
-              const remainingSkus = skusInChunk.filter(sku => !foundSkus.has(sku));
+              const foundSkus = new Set(skuAlternoData.map((item) => item.sku));
+              const remainingSkus = skusInChunk.filter(
+                (sku) => !foundSkus.has(sku)
+              );
 
               if (remainingSkus.length > 0) {
                 const { data: skuMData, error: skuMError } = await supabasePROD
-                    .from('sku_m')
-                    .select('sku, sku_mdr')
-                    .in('sku', remainingSkus);
+                  .from('sku_m')
+                  .select('sku, sku_mdr')
+                  .in('sku', remainingSkus);
                 if (skuMError) throw skuMError;
-                skuMData.forEach(item => skuToMdrMap.set(item.sku, item.sku_mdr));
+                skuMData.forEach((item) =>
+                  skuToMdrMap.set(item.sku, item.sku_mdr)
+                );
               }
 
-              const mdrs = [...new Set(Array.from(skuToMdrMap.values()))].filter(mdr => mdr);
-
+              const mdrs = [
+                ...new Set(Array.from(skuToMdrMap.values())),
+              ].filter((mdr) => mdr);
               if (mdrs.length > 0) {
                 const { data: skuCostosData, error: skuCostosError } =
                   await supabasePROD
@@ -349,59 +348,57 @@ export default function ExcelVentasPage() {
                     .select('sku_mdr, landed_cost, id')
                     .in('sku_mdr', mdrs)
                     .order('id', { ascending: false });
-
-                if (skuCostosError) {
-                  throw skuCostosError;
-                }
-
+                if (skuCostosError) throw skuCostosError;
                 if (skuCostosData) {
                   for (const item of skuCostosData) {
-                      if (!mdrToPriceMap.has(item.sku_mdr)) {
-                        mdrToPriceMap.set(item.sku_mdr, item.landed_cost);
-                      }
+                    if (!mdrToPriceMap.has(item.sku_mdr)) {
+                      mdrToPriceMap.set(item.sku_mdr, item.landed_cost);
+                    }
                   }
                 }
               }
             }
 
-            const enrichedChunk = chunkExtractedData.map((row) => {
-                const unidades = parseInt(String(row[DB_COLUMN_TO_EXCEL_INDEX.unidades] || '1')) || 1;
-                const sku = String(row[DB_COLUMN_TO_EXCEL_INDEX.sku] || '');
-                const skuMdr = skuToMdrMap.get(sku);
-                const landedCostPerUnit = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
-                const totalLandedCost = landedCostPerUnit * unidades;
-                const totalFromExcel = parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.total]) || 0;
-                const granTotal = totalFromExcel - totalLandedCost;
-                
-                return [
-                    row[DB_COLUMN_TO_EXCEL_INDEX.num_venta] || '',
-                    row[DB_COLUMN_TO_EXCEL_INDEX.fecha_venta] || '',
-                    row[DB_COLUMN_TO_EXCEL_INDEX.estado] || '',
-                    unidades,
-                    row[DB_COLUMN_TO_EXCEL_INDEX.num_publi] || '',
-                    row[DB_COLUMN_TO_EXCEL_INDEX.tienda] || '',
-                    row[DB_COLUMN_TO_EXCEL_INDEX.tip_publi] || '',
-                    sku,
-                    row[DB_COLUMN_TO_EXCEL_INDEX.venta_xpublicidad] || '',
-                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xenvio]),
-                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_difpeso]),
-                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.anu_reembolsos]),
-                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.ing_xunidad]),
-                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.cargo_venta]),
-                    parseCurrency(row[DB_COLUMN_TO_EXCEL_INDEX.costo_envio]),
-                    totalFromExcel,
-                    totalLandedCost,
-                    parseFloat(granTotal.toFixed(2))
-                ];
+            const enrichedChunk = chunk.map((row) => {
+              const unidades =
+                parseInt(String(row[COLUMN_MAPPING.G] || '1')) || 1;
+              const sku = String(row[COLUMN_MAPPING.Q] || '');
+              const skuMdr = skuToMdrMap.get(sku);
+              const landedCostPerUnit = skuMdr
+                ? mdrToPriceMap.get(skuMdr) || 0
+                : 0;
+              const totalLandedCost = landedCostPerUnit * unidades;
+              const totalFromExcel =
+                parseCurrency(row[COLUMN_MAPPING.O]) || 0;
+              const granTotal = totalFromExcel - totalLandedCost;
+
+              return [
+                row[COLUMN_MAPPING.A] || '',
+                row[COLUMN_MAPPING.B] || '',
+                row[COLUMN_MAPPING.C] || '',
+                unidades,
+                row[COLUMN_MAPPING.R] || '',
+                row[COLUMN_MAPPING.S] || '',
+                row[COLUMN_MAPPING.W] || '',
+                sku,
+                parseCurrency(row[COLUMN_MAPPING.H]),
+                parseCurrency(row[COLUMN_MAPPING.I]),
+                parseCurrency(row[COLUMN_MAPPING.K]),
+                parseCurrency(row[COLUMN_MAPPING.J]),
+                parseCurrency(row[COLUMN_MAPPING.M]),
+                parseCurrency(row[COLUMN_MAPPING.N]),
+                parseBoolean(row[COLUMN_MAPPING.P]),
+                totalFromExcel,
+                totalLandedCost,
+                parseFloat(granTotal.toFixed(2)),
+              ];
             });
 
             allEnrichedData.push(...enrichedChunk);
-            setData(allEnrichedData.slice()); // Use slice to create a new array reference, forcing a re-render
+            setData(allEnrichedData.slice());
 
-            // Yield to the main thread to allow UI updates
-            await new Promise(resolve => setTimeout(resolve, 0));
+            await new Promise((resolve) => setTimeout(resolve, 0));
           }
-
         } catch (e) {
           console.error(e);
           setError(
@@ -421,47 +418,66 @@ export default function ExcelVentasPage() {
     },
     [toast]
   );
-  
+
   const filteredData = React.useMemo(() => {
     const granTotalIndex = headers.indexOf('Gran Total');
     const skuIndex = headers.indexOf('SKU');
-    
-    return data.filter((row) => {
-        // SKU search filter
-        const skuMatch = !skuSearchTerm || (skuIndex !== -1 && String(row[skuIndex] || '').toLowerCase().includes(skuSearchTerm.toLowerCase()));
+    const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
 
-        // Gran Total filter
-        const granTotal = granTotalIndex !== -1 ? row[granTotalIndex] : null;
-        
-        let granTotalMatch = true;
-        if (showOnlyNegative) {
-            granTotalMatch = typeof granTotal === 'number' && granTotal < 0;
-        } else if (showOnlyPositive) {
-            granTotalMatch = typeof granTotal === 'number' && granTotal >= 0;
-        }
-        
-        return skuMatch && granTotalMatch;
+    return data.filter((row) => {
+      const skuMatch =
+        !skuSearchTerm ||
+        (skuIndex !== -1 &&
+          String(row[skuIndex] || '')
+            .toLowerCase()
+            .includes(skuSearchTerm.toLowerCase()));
+
+      const granTotal = granTotalIndex !== -1 ? row[granTotalIndex] : null;
+      let granTotalMatch = true;
+      if (showOnlyNegative) {
+        granTotalMatch = typeof granTotal === 'number' && granTotal < 0;
+      } else if (showOnlyPositive) {
+        granTotalMatch = typeof granTotal === 'number' && granTotal >= 0;
+      }
+
+      const shippingCost =
+        shippingCostIndex !== -1 ? row[shippingCostIndex] : null;
+      const highShippingCostMatch =
+        !showHighShippingCost ||
+        (typeof shippingCost === 'number' && shippingCost <= -300);
+
+      return skuMatch && granTotalMatch && highShippingCostMatch;
     });
-  }, [data, skuSearchTerm, showOnlyNegative, showOnlyPositive, headers]);
+  }, [
+    data,
+    skuSearchTerm,
+    showOnlyNegative,
+    showOnlyPositive,
+    showHighShippingCost,
+    headers,
+  ]);
 
   const createSumCalculator = (columnName: string) => {
     return React.useMemo(() => {
-        const index = headers.indexOf(columnName);
-        if (index === -1) return 0;
-        return filteredData.reduce((sum, row) => {
-            const value = row[index];
-            return sum + (typeof value === 'number' ? value : 0);
-        }, 0);
+      const index = headers.indexOf(columnName);
+      if (index === -1) return 0;
+      return filteredData.reduce((sum, row) => {
+        const value = row[index];
+        return sum + (typeof value === 'number' ? value : 0);
+      }, 0);
     }, [filteredData, headers]);
   };
 
   const granTotalSum = createSumCalculator('Gran Total');
   const landedCostSum = createSumCalculator('Landed Cost Total');
-  const ingresosPorProductosSum = createSumCalculator('Ingresos por productos (MXN)');
-  const cargoVentaSum = createSumCalculator('Cargo por venta e impuestos (MXN)');
+  const ingresosPorProductosSum = createSumCalculator(
+    'Ingresos por productos (MXN)'
+  );
+  const cargoVentaSum = createSumCalculator(
+    'Cargo por venta e impuestos (MXN)'
+  );
   const costoEnvioSum = createSumCalculator('Costos de envío (MXN)');
   const totalSum = createSumCalculator('Total');
-
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -493,7 +509,10 @@ export default function ExcelVentasPage() {
     const colIndices = colsToDownload.map((h) => headers.indexOf(h));
 
     if (colsToDownload.length === 0) {
-      toast({ variant: 'destructive', title: 'Selecciona al menos una columna' });
+      toast({
+        variant: 'destructive',
+        title: 'Selecciona al menos una columna',
+      });
       return;
     }
 
@@ -546,7 +565,10 @@ export default function ExcelVentasPage() {
     const colIndices = colsToDownload.map((h) => headers.indexOf(h));
 
     if (colsToDownload.length === 0) {
-      toast({ variant: 'destructive', title: 'Selecciona al menos una columna' });
+      toast({
+        variant: 'destructive',
+        title: 'Selecciona al menos una columna',
+      });
       return;
     }
 
@@ -593,24 +615,24 @@ export default function ExcelVentasPage() {
     setError(null);
 
     const newIndices = {
-        num_venta: headers.indexOf('Nº de venta'),
-        fecha_venta: headers.indexOf('Fecha de venta'),
-        status: headers.indexOf('ESTADO'),
-        unidades: headers.indexOf('Unidades'),
-        ing_xenvio: headers.indexOf('Ingresos por envío (MXN)'),
-        cargo_difpeso: headers.indexOf('Cargo por diferencia de peso (MXN)'),
-        anu_reembolsos: headers.indexOf('Anulaciones y reembolsos (MXN)'),
-        venta_xpublicidad: headers.indexOf('Venta por Publicidad'),
-        sku: headers.indexOf('SKU'),
-        num_publi: headers.indexOf('Nº de publicación'),
-        tienda: headers.indexOf('Tienda'),
-        tip_publi: headers.indexOf('Tipo de publicación'),
-        total: headers.indexOf('Total'),
-        landed_cost: headers.indexOf('Landed Cost Total'),
-        ing_xunidad: headers.indexOf('Ingresos por productos (MXN)'),
-        cargo_venta: headers.indexOf('Cargo por venta e impuestos (MXN)'),
-        costo_envio: headers.indexOf('Costos de envío (MXN)'),
-        total_final: headers.indexOf('Gran Total'),
+      num_venta: headers.indexOf('Nº de venta'),
+      fecha_venta: headers.indexOf('Fecha de venta'),
+      status: headers.indexOf('ESTADO'),
+      unidades: headers.indexOf('Unidades'),
+      ing_xenvio: headers.indexOf('Ingresos por envío (MXN)'),
+      cargo_difpeso: headers.indexOf('Cargo por diferencia de peso (MXN)'),
+      anu_reembolsos: headers.indexOf('Anulaciones y reembolsos (MXN)'),
+      venta_xpublicidad: headers.indexOf('Venta por Publicidad'),
+      sku: headers.indexOf('SKU'),
+      num_publi: headers.indexOf('Nº de publicación'),
+      tienda: headers.indexOf('Tienda'),
+      tip_publi: headers.indexOf('Tipo de publicación'),
+      total: headers.indexOf('Total'),
+      landed_cost: headers.indexOf('Landed Cost Total'),
+      ing_xunidad: headers.indexOf('Ingresos por productos (MXN)'),
+      cargo_venta: headers.indexOf('Cargo por venta e impuestos (MXN)'),
+      costo_envio: headers.indexOf('Costos de envío (MXN)'),
+      total_final: headers.indexOf('Gran Total'),
     };
 
     const CHUNK_SIZE = 500;
@@ -624,9 +646,7 @@ export default function ExcelVentasPage() {
         const allNumVentasFromChunk = [
           ...new Set(
             chunk
-              .map((row) =>
-                String(row[newIndices.num_venta] || '')
-              )
+              .map((row) => String(row[newIndices.num_venta] || ''))
               .filter(Boolean)
           ),
         ];
@@ -648,9 +668,7 @@ export default function ExcelVentasPage() {
         );
 
         const validDataInChunk = chunk.filter((row) => {
-          const numVenta = String(
-            row[newIndices.num_venta] || ''
-          );
+          const numVenta = String(row[newIndices.num_venta] || '');
           return !existingNumVentasSet.has(numVenta);
         });
 
@@ -662,42 +680,20 @@ export default function ExcelVentasPage() {
 
         const recordsToInsert = validDataInChunk
           .map((row) => {
-            const saleDate = parseSaleDate(
-              row[newIndices.fecha_venta]
-            );
+            const saleDate = parseSaleDate(row[newIndices.fecha_venta]);
             return {
-              num_venta: String(
-                row[newIndices.num_venta] || ''
-              ),
+              num_venta: String(row[newIndices.num_venta] || ''),
               fecha_venta: saleDate ? saleDate.toISOString() : null,
               status: String(row[newIndices.status] || ''),
-              unidades:
-                parseInt(
-                  String(row[newIndices.unidades]),
-                  10
-                ) || null,
-              ing_xunidad: parseCurrency(
-                row[newIndices.ing_xunidad]
-              ),
-              cargo_venta: parseCurrency(
-                row[newIndices.cargo_venta]
-              ),
-              ing_xenvio: parseCurrency(
-                row[newIndices.ing_xenvio]
-              ),
-              costo_envio: parseCurrency(
-                row[newIndices.costo_envio]
-              ),
-              cargo_difpeso: parseCurrency(
-                row[newIndices.cargo_difpeso]
-              ),
-              anu_reembolsos: parseCurrency(
-                row[newIndices.anu_reembolsos]
-              ),
+              unidades: parseInt(String(row[newIndices.unidades]), 10) || null,
+              ing_xunidad: parseCurrency(row[newIndices.ing_xunidad]),
+              cargo_venta: parseCurrency(row[newIndices.cargo_venta]),
+              ing_xenvio: parseCurrency(row[newIndices.ing_xenvio]),
+              costo_envio: parseCurrency(row[newIndices.costo_envio]),
+              cargo_difpeso: parseCurrency(row[newIndices.cargo_difpeso]),
+              anu_reembolsos: parseCurrency(row[newIndices.anu_reembolsos]),
               total: parseCurrency(row[newIndices.total]),
-              venta_xpublicidad: parseBoolean(
-                row[newIndices.venta_xpublicidad]
-              ),
+              venta_xpublicidad: parseBoolean(row[newIndices.venta_xpublicidad]),
               sku: String(row[newIndices.sku] || ''),
               num_publi: String(row[newIndices.num_publi] || ''),
               tienda: String(row[newIndices.tienda] || ''),
@@ -736,61 +732,64 @@ export default function ExcelVentasPage() {
           totalInsertedCount += recordsToInsert.length;
         }
       }
-      
+
       let successMessage = `Se guardaron ${totalInsertedCount} registros nuevos exitosamente.`;
       if (totalSkippedForDuplication > 0) {
         successMessage = `Proceso completado: ${totalInsertedCount} registros nuevos guardados, ${totalSkippedForDuplication} registros duplicados omitidos.`;
       }
       if (totalInsertedCount === 0 && totalSkippedForDuplication > 0) {
-         const message = `No hay registros nuevos para guardar. Se encontraron ${totalSkippedForDuplication} registros duplicados.`;
-         toast({
-            title: "Proceso completado sin cambios",
-            description: message,
-         });
-         setIsSaving(false);
-         return; // Prevent clearing file or showing another toast
+        const message = `No hay registros nuevos para guardar. Se encontraron ${totalSkippedForDuplication} registros duplicados.`;
+        toast({
+          title: 'Proceso completado sin cambios',
+          description: message,
+        });
+        setIsSaving(false);
+        return; // Prevent clearing file or showing another toast
       }
 
       toast({
-        title: "Proceso completado",
+        title: 'Proceso completado',
         description: successMessage,
       });
 
       clearFile();
     } catch (e: any) {
-        const errorMessage = e.message || "Ocurrió un problema al conectar con la base de datos.";
-        setError(`Error al guardar: ${errorMessage}`);
-        toast({
-            variant: "destructive",
-            title: "Error al guardar los datos",
-            description: errorMessage,
-        });
+      const errorMessage =
+        e.message || 'Ocurrió un problema al conectar con la base de datos.';
+      setError(`Error al guardar: ${errorMessage}`);
+      toast({
+        variant: 'destructive',
+        title: 'Error al guardar los datos',
+        description: errorMessage,
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleEditClick = (rowToEdit: any[]) => {
-    const rowIndex = data.findIndex(r => r === rowToEdit);
+    const rowIndex = data.findIndex((r) => r === rowToEdit);
     if (rowIndex === -1) return;
-    
+
     const landedCostIndex = headers.indexOf('Landed Cost Total');
     const skuIndex = headers.indexOf('SKU');
-    const unidadesHeader = headers.find(h => /unidades/i.test(h));
+    const unidadesHeader = headers.find((h) => /unidades/i.test(h));
     const unidadesIndex = unidadesHeader ? headers.indexOf(unidadesHeader) : -1;
 
     const rowData = rowToEdit;
     const sku = String(rowData[skuIndex] || '');
     const totalLandedCost = parseCurrency(rowData[landedCostIndex]) || 0;
-    const unidades = (unidadesIndex !== -1 ? parseInt(String(rowData[unidadesIndex] || '1')) : 1) || 1;
+    const unidades =
+      (unidadesIndex !== -1
+        ? parseInt(String(rowData[unidadesIndex] || '1'))
+        : 1) || 1;
     const perUnitLandedCost = unidades > 0 ? totalLandedCost / unidades : 0;
-    
+
     setEditingInfo({ rowIndex, sku, originalLandedCost: totalLandedCost });
     form.reset({
       sku_mdr: '',
       cat_mdr: '',
-      landed_cost:
-        perUnitLandedCost > 1 ? perUnitLandedCost : undefined,
+      landed_cost: perUnitLandedCost > 1 ? perUnitLandedCost : undefined,
     });
   };
 
@@ -829,20 +828,25 @@ export default function ExcelVentasPage() {
         const totalIndex = headers.indexOf('Total');
         const landedCostIndex = headers.indexOf('Landed Cost Total');
         const granTotalIndex = headers.indexOf('Gran Total');
-        const unidadesHeader = headers.find(h => /unidades/i.test(h));
-        const unidadesIndex = unidadesHeader ? headers.indexOf(unidadesHeader) : -1;
+        const unidadesHeader = headers.find((h) => /unidades/i.test(h));
+        const unidadesIndex = unidadesHeader
+          ? headers.indexOf(unidadesHeader)
+          : -1;
 
         const row = newData[rowIndex];
-        
+
         const totalFromExcel = parseCurrency(row[totalIndex]) || 0;
         const newLandedCostPerUnit = values.landed_cost;
-        const unidades = (unidadesIndex !== -1 ? parseInt(String(row[unidadesIndex] || '1')) : 1) || 1;
+        const unidades =
+          (unidadesIndex !== -1
+            ? parseInt(String(row[unidadesIndex] || '1'))
+            : 1) || 1;
         const newTotalLandedCost = newLandedCostPerUnit * unidades;
         const newGranTotal = totalFromExcel - newTotalLandedCost;
 
         row[landedCostIndex] = newTotalLandedCost;
         row[granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
-        
+
         return newData;
       });
 
@@ -965,7 +969,7 @@ export default function ExcelVentasPage() {
                       </CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
-                      <div className="flex items-center space-x-4">
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-2">
                         <div className="flex items-center space-x-2">
                           <Checkbox
                             id="show-negative"
@@ -996,6 +1000,21 @@ export default function ExcelVentasPage() {
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
                             Mostrar 0 o positivos
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                           <Checkbox
+                            id="show-high-shipping"
+                            checked={showHighShippingCost}
+                            onCheckedChange={(checked) => {
+                              setShowHighShippingCost(checked as boolean);
+                            }}
+                          />
+                          <label
+                            htmlFor="show-high-shipping"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Costo Envío &lt;= -$300
                           </label>
                         </div>
                       </div>
@@ -1031,46 +1050,81 @@ export default function ExcelVentasPage() {
                     </div>
                   </div>
                   <div className="pt-4 border-t mt-4">
-                    <h4 className="text-sm font-medium mb-2">Resumen de Totales (Filtrado)</h4>
+                    <h4 className="text-sm font-medium mb-2">
+                      Resumen de Totales (Filtrado)
+                    </h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                        <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">Gran Total</div>
-                            <div className={cn( "font-bold text-lg", granTotalSum >= 0 ? "text-green-700" : "text-red-700" )}>
-                                {granTotalSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
-                            </div>
+                      <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">Gran Total</div>
+                        <div
+                          className={cn(
+                            'font-bold text-lg',
+                            granTotalSum >= 0
+                              ? 'text-green-700'
+                              : 'text-red-700'
+                          )}
+                        >
+                          {granTotalSum.toLocaleString('es-MX', {
+                            style: 'currency',
+                            currency: 'MXN',
+                          })}
                         </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">Total</div>
-                            <div className="font-bold text-lg text-foreground">
-                                {totalSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
-                            </div>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">Total</div>
+                        <div className="font-bold text-lg text-foreground">
+                          {totalSum.toLocaleString('es-MX', {
+                            style: 'currency',
+                            currency: 'MXN',
+                          })}
                         </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">Landed Cost Total</div>
-                            <div className="font-bold text-lg text-foreground">
-                                {landedCostSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
-                            </div>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">
+                          Landed Cost Total
                         </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">Ingresos x Productos</div>
-                            <div className="font-bold text-lg text-foreground">
-                                {ingresosPorProductosSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
-                            </div>
+                        <div className="font-bold text-lg text-foreground">
+                          {landedCostSum.toLocaleString('es-MX', {
+                            style: 'currency',
+                            currency: 'MXN',
+                          })}
                         </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">Cargos x Venta</div>
-                            <div className="font-bold text-lg text-foreground">
-                                {cargoVentaSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
-                            </div>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">
+                          Ingresos x Productos
                         </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">Costos x Envío</div>
-                            <div className="font-bold text-lg text-foreground">
-                                {costoEnvioSum.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
-                            </div>
+                        <div className="font-bold text-lg text-foreground">
+                          {ingresosPorProductosSum.toLocaleString('es-MX', {
+                            style: 'currency',
+                            currency: 'MXN',
+                          })}
                         </div>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">
+                          Cargos x Venta
+                        </div>
+                        <div className="font-bold text-lg text-foreground">
+                          {cargoVentaSum.toLocaleString('es-MX', {
+                            style: 'currency',
+                            currency: 'MXN',
+                          })}
+                        </div>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">
+                          Costos x Envío
+                        </div>
+                        <div className="font-bold text-lg text-foreground">
+                          {costoEnvioSum.toLocaleString('es-MX', {
+                            style: 'currency',
+                            currency: 'MXN',
+                          })}
+                        </div>
+                      </div>
                     </div>
-                </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[60vh] w-full overflow-auto">
@@ -1078,7 +1132,10 @@ export default function ExcelVentasPage() {
                       <TableHeader className="sticky top-0 bg-background">
                         <TableRow>
                           {headers.map((header, index) => {
-                            const id = `select-col-${header.replace(/[^a-zA-Z0-9]/g, '-')}-${index}`;
+                            const id = `select-col-${header.replace(
+                              /[^a-zA-Z0-9]/g,
+                              '-'
+                            )}-${index}`;
                             return (
                               <TableHead key={index}>
                                 <div className="flex items-center gap-2">
@@ -1110,68 +1167,105 @@ export default function ExcelVentasPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredData.map((row, rowIndex) => (
-                          <TableRow key={rowIndex}>
-                            {row.map((cell, cellIndex) => (
-                              <TableCell
-                                key={cellIndex}
-                                className={cn({
-                                  'bg-red-100 text-red-800 font-medium':
-                                    headers[cellIndex] === 'Gran Total' &&
-                                    typeof cell === 'number' &&
-                                    cell < 0,
-                                  'bg-green-100 text-green-800 font-medium':
-                                    headers[cellIndex] === 'Gran Total' &&
-                                    typeof cell === 'number' &&
-                                    cell >= 0,
-                                })}
-                              >
-                                {(() => {
-                                  if (headers[cellIndex] === 'Landed Cost Total') {
-                                    const totalLandedCost = parseCurrency(cell);
-                                    const unidadesHeader = headers.find(h => /unidades/i.test(h));
-                                    const unidadesIndex = unidadesHeader ? headers.indexOf(unidadesHeader) : -1;
-                                    const unidades = (unidadesIndex > -1 ? row[unidadesIndex] : 1) || 1;
-                                    const landedCostPerUnit = unidades > 0 ? (totalLandedCost ?? 0) / unidades : 0;
-                                    
-                                    if (landedCostPerUnit === 0 || landedCostPerUnit === 1) {
-                                      return (
-                                        <div className="flex items-center justify-between gap-2">
-                                          <span className="text-destructive font-bold">
-                                            {(totalLandedCost ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                          </span>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={() =>
-                                              handleEditClick(row)
-                                            }
-                                          >
-                                            <Pencil className="h-4 w-4 text-primary" />
-                                          </Button>
-                                        </div>
+                        {filteredData.map((row, rowIndex) => {
+                           const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
+                           const shippingCost = shippingCostIndex > -1 ? row[shippingCostIndex] : 0;
+                           const isHighShippingCost = typeof shippingCost === 'number' && shippingCost <= -300;
+
+                          return (
+                            <TableRow key={rowIndex} className={cn(
+                                isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200'
+                            )}>
+                              {row.map((cell, cellIndex) => (
+                                <TableCell
+                                  key={cellIndex}
+                                  className={cn({
+                                    'text-red-800 font-medium':
+                                      headers[cellIndex] === 'Gran Total' &&
+                                      typeof cell === 'number' &&
+                                      cell < 0,
+                                    'text-green-800 font-medium':
+                                      headers[cellIndex] === 'Gran Total' &&
+                                      typeof cell === 'number' &&
+                                      cell >= 0,
+                                  })}
+                                >
+                                  {(() => {
+                                    if (
+                                      headers[cellIndex] === 'Landed Cost Total'
+                                    ) {
+                                      const totalLandedCost =
+                                        parseCurrency(cell) || 0;
+                                      const unidadesHeader = headers.find((h) =>
+                                        /unidades/i.test(h)
                                       );
+                                      const unidadesIndex = unidadesHeader
+                                        ? headers.indexOf(unidadesHeader)
+                                        : -1;
+                                      const unidades =
+                                        (unidadesIndex > -1
+                                          ? row[unidadesIndex]
+                                          : 1) || 1;
+                                      const landedCostPerUnit =
+                                        unidades > 0
+                                          ? totalLandedCost / unidades
+                                          : 0;
+
+                                      if (
+                                        landedCostPerUnit === 0 ||
+                                        landedCostPerUnit === 1
+                                      ) {
+                                        return (
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="text-destructive font-bold">
+                                              {totalLandedCost.toLocaleString(
+                                                'es-MX',
+                                                {
+                                                  minimumFractionDigits: 2,
+                                                  maximumFractionDigits: 2,
+                                                }
+                                              )}
+                                            </span>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8"
+                                              onClick={() =>
+                                                handleEditClick(row)
+                                              }
+                                            >
+                                              <Pencil className="h-4 w-4 text-primary" />
+                                            </Button>
+                                          </div>
+                                        );
+                                      }
                                     }
-                                  }
-                                  
-                                  if (cell instanceof Date) {
-                                      return cell.toLocaleDateString();
-                                  }
 
-                                  if (typeof cell === 'number') {
-                                      return cell.toLocaleString('es-MX', {
-                                          minimumFractionDigits: 2,
-                                          maximumFractionDigits: 2,
+                                    if (cell instanceof Date) {
+                                      return cell.toLocaleDateString('es-MX', {
+                                        year: 'numeric',
+                                        month: '2-digit',
+                                        day: '2-digit',
                                       });
-                                  }
+                                    }
 
-                                  return String(cell ?? '');
-                                })()}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
+                                    if (typeof cell === 'number') {
+                                      return cell.toLocaleString('es-MX', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      });
+                                    }
+                                    if (typeof cell === 'boolean') {
+                                        return cell ? 'Sí' : 'No';
+                                    }
+
+                                    return String(cell ?? '');
+                                  })()}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   </div>
