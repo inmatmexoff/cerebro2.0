@@ -411,26 +411,26 @@ export default function ExcelVentasPage() {
               const row = allEnrichedData[i];
               const estado = row[estadoIndex] ? String(row[estadoIndex]).trim() : '';
       
-              if (estado.toLowerCase().startsWith('paquete de')) {
-                const match = estado.match(/\d+/); // Find the first sequence of digits
-                if (match && match[0]) {
-                  const packageSize = parseInt(match[0], 10);
-                  if (!isNaN(packageSize) && packageSize > 0) {
-                    let summedLandedCost = 0;
-                    // Look at the next `packageSize` rows to sum their costs
-                    for (let j = 1; j <= packageSize && (i + j) < allEnrichedData.length; j++) {
-                      const itemRow = allEnrichedData[i + j];
-                      const itemLandedCost = itemRow[landedCostTotalIndex] || 0;
-                      summedLandedCost += itemLandedCost;
-                    }
+              // Use a more specific regex to capture the number of items in a package.
+              const match = estado.match(/Paquete de (\d+)/i);
       
-                    // Update the package row's landed cost and gran total
-                    allEnrichedData[i][landedCostTotalIndex] = summedLandedCost;
-                    
-                    const totalFromExcel = allEnrichedData[i][totalIndex] || 0;
-                    const newGranTotal = totalFromExcel - summedLandedCost;
-                    allEnrichedData[i][granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
+              if (match && match[1]) {
+                const packageSize = parseInt(match[1], 10);
+                if (!isNaN(packageSize) && packageSize > 0) {
+                  let summedLandedCost = 0;
+                  // Look at the next `packageSize` rows to sum their costs
+                  for (let j = 1; j <= packageSize && (i + j) < allEnrichedData.length; j++) {
+                    const itemRow = allEnrichedData[i + j];
+                    const itemLandedCost = itemRow[landedCostTotalIndex] || 0;
+                    summedLandedCost += itemLandedCost;
                   }
+      
+                  // Update the package row's landed cost and gran total
+                  allEnrichedData[i][landedCostTotalIndex] = summedLandedCost;
+                  
+                  const totalFromExcel = allEnrichedData[i][totalIndex] || 0;
+                  const newGranTotal = totalFromExcel - summedLandedCost;
+                  allEnrichedData[i][granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
                 }
               }
             }
