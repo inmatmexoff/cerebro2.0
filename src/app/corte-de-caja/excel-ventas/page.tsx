@@ -204,7 +204,15 @@ export default function ExcelVentasPage() {
   );
   const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
   const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
-  const [skuSummary, setSkuSummary] = useState<{ pubId: string; sku: string; unidades: number; total: number; }[]>([]);
+  const [skuSummary, setSkuSummary] = useState<{ 
+    pubId: string; 
+    sku: string; 
+    unidades: number; 
+    total: number;
+    perdidaPorSku: number;
+    perdidaTotal: number;
+    porcentajePerdida: number;
+  }[]>([]);
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -586,45 +594,66 @@ export default function ExcelVentasPage() {
 
   React.useEffect(() => {
     if (anyCheckboxFilterActive && filteredData.length > 0) {
-      const pubIndex = headers.indexOf('# de publicación');
-      const skuIndex = headers.indexOf('SKU');
-      const unidadesIndex = headers.indexOf('Unidades');
-      const granTotalIndex = headers.indexOf('Gran Total');
+        const pubIndex = headers.indexOf('# de publicación');
+        const skuIndex = headers.indexOf('SKU');
+        const unidadesIndex = headers.indexOf('Unidades');
+        const granTotalIndex = headers.indexOf('Gran Total');
 
-      if (pubIndex > -1 && skuIndex > -1) {
-        const uniquePubs = [...new Set(filteredData.map(row => String(row[pubIndex] || '')).filter(Boolean))];
-        const uniqueSkus = [...new Set(filteredData.map(row => String(row[skuIndex] || '')).filter(Boolean))];
-        
-        setFilteredPublications(uniquePubs);
-        setFilteredSkus(uniqueSkus);
+        if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && granTotalIndex > -1) {
+            const uniquePubs = [...new Set(filteredData.map(row => String(row[pubIndex] || '')).filter(Boolean))];
+            const uniqueSkus = [...new Set(filteredData.map(row => String(row[skuIndex] || '')).filter(Boolean))];
+            
+            setFilteredPublications(uniquePubs);
+            setFilteredSkus(uniqueSkus);
 
-        const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
-        filteredData.forEach(row => {
-            const pubId = String(row[pubIndex] || '').trim();
-            const sku = String(row[skuIndex] || '').trim();
-            if (pubId || sku) {
-                const key = `${pubId}|${sku}`;
-                if (!summary[key]) {
-                    summary[key] = { pubId: pubId || '-', sku: sku || '-', unidades: 0, total: 0 };
+            const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
+            filteredData.forEach(row => {
+                const pubId = String(row[pubIndex] || '').trim();
+                const sku = String(row[skuIndex] || '').trim();
+                if (pubId || sku) {
+                    const key = `${pubId}|${sku}`;
+                    if (!summary[key]) {
+                        summary[key] = { pubId: pubId || '-', sku: sku || '-', unidades: 0, total: 0 };
+                    }
+                    const unidades = parseInt(String(row[unidadesIndex])) || 0;
+                    const total = row[granTotalIndex] as number || 0;
+                    summary[key].unidades += unidades;
+                    summary[key].total += total;
                 }
-                const unidades = unidadesIndex > -1 ? (parseInt(String(row[unidadesIndex])) || 0) : 0;
-                const total = granTotalIndex > -1 ? (row[granTotalIndex] as number || 0) : 0;
-                summary[key].unidades += unidades;
-                summary[key].total += total;
-            }
-        });
+            });
 
-        const summaryArray = Object.values(summary)
-            .sort((a, b) => b.total - a.total); 
+            const summaryValues = Object.values(summary);
 
-        setSkuSummary(summaryArray);
-      }
+            const totalGlobalLoss = summaryValues.reduce((acc, item) => {
+              return item.total < 0 ? acc + item.total : acc;
+            }, 0);
+
+            const enrichedSummary = summaryValues
+              .map(item => {
+                  const perdidaTotal = item.total < 0 ? item.total : 0;
+                  const perdidaPorSku = (item.unidades > 0 && perdidaTotal < 0) ? perdidaTotal / item.unidades : 0;
+                  const porcentajePerdida = (totalGlobalLoss < 0 && perdidaTotal < 0) ? (perdidaTotal / totalGlobalLoss) * 100 : 0;
+                  
+                  return {
+                      ...item,
+                      perdidaPorSku,
+                      perdidaTotal,
+                      porcentajePerdida
+                  };
+              })
+              .filter(item => item.perdidaTotal < 0);
+
+
+            const summaryArray = enrichedSummary.sort((a, b) => a.perdidaTotal - b.perdidaTotal); 
+
+            setSkuSummary(summaryArray);
+        }
     } else {
-      setFilteredPublications([]);
-      setFilteredSkus([]);
-      setSkuSummary([]);
+        setFilteredPublications([]);
+        setFilteredSkus([]);
+        setSkuSummary([]);
     }
-  }, [filteredData, anyCheckboxFilterActive, headers]);
+}, [filteredData, anyCheckboxFilterActive, headers]);
 
   const createSumCalculator = (columnName: string) => {
     return React.useMemo(() => {
@@ -1064,15 +1093,11 @@ export default function ExcelVentasPage() {
         </header>
         <main>
           {!fileName ? (
-            <Card
+             <div
               {...getRootProps()}
-              className={`border-2 border-dashed border-gray-300  transition-colors ${
-                isProcessing
-                  ? 'cursor-not-allowed bg-muted/50'
-                  : 'hover:border-primary cursor-pointer'
-              }`}
+              className={`border-2 border-dashed border-gray-300 rounded-lg transition-colors ${isProcessing ? 'cursor-not-allowed bg-muted/50' : 'hover:border-primary cursor-pointer'}`}
             >
-              <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+              <div className="flex flex-col items-center justify-center p-12 text-center">
                 <input {...getInputProps()} />
                 <Upload className="w-12 h-12 text-muted-foreground" />
                 {isDragActive ? (
@@ -1092,8 +1117,8 @@ export default function ExcelVentasPage() {
                     </p>
                   </>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <Card>
               <CardHeader>
@@ -1112,17 +1137,19 @@ export default function ExcelVentasPage() {
                   </Button>
                 </div>
               </CardHeader>
-              {isProcessing && (
-                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                  <p className="mt-4 text-lg font-semibold text-primary">
-                    Procesando archivo... ({progress}%)
-                  </p>
-                  <Progress value={progress} className="w-full max-w-sm mt-2" />
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Por favor espera. Archivos grandes pueden tomar varios
-                    minutos.
-                  </p>
+             {isProcessing && (
+                <CardContent>
+                  <div className="flex flex-col items-center justify-center p-12 text-center">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    <p className="mt-4 text-lg font-semibold text-primary">
+                      Procesando archivo... ({progress}%)
+                    </p>
+                    <Progress value={progress} className="w-full max-w-sm mt-2" />
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Por favor espera. Archivos grandes pueden tomar varios
+                      minutos.
+                    </p>
+                </div>
               </CardContent>
               )}
             </Card>
@@ -1523,29 +1550,37 @@ export default function ExcelVentasPage() {
                       </div>
                        <div className="mt-6 pt-6 border-t">
                         <h4 className="font-semibold mb-4">Resumen por SKU</h4>
-                        <div className="border rounded-md max-h-72 overflow-y-auto">
+                        <div className="border rounded-md max-h-96 overflow-y-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead>#</TableHead>
                                         <TableHead># de Publicación</TableHead>
                                         <TableHead>SKU</TableHead>
                                         <TableHead className="text-right">Unidades</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
+                                        <TableHead className="text-right">Perdida x SKU</TableHead>
+                                        <TableHead className="text-right">Perdida Total</TableHead>
+                                        <TableHead className="text-right">% del Total</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {skuSummary.length > 0 ? (
-                                        skuSummary.map(({ pubId, sku, unidades, total }) => (
+                                        skuSummary.map(({ pubId, sku, unidades, total, perdidaPorSku, perdidaTotal, porcentajePerdida }, index) => (
                                             <TableRow key={`${pubId}-${sku}`}>
+                                                <TableCell>{index + 1}</TableCell>
                                                 <TableCell className="font-medium">{pubId}</TableCell>
                                                 <TableCell className="font-medium">{sku}</TableCell>
                                                 <TableCell className="text-right">{unidades}</TableCell>
                                                 <TableCell className="text-right">{total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                <TableCell className="text-right">{perdidaPorSku.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                <TableCell className="text-right">{perdidaTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                <TableCell className="text-right">{porcentajePerdida.toFixed(2)}%</TableCell>
                                             </TableRow>
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                            <TableCell colSpan={8} className="text-center text-muted-foreground">
                                                 No hay datos de resumen para mostrar.
                                             </TableCell>
                                         </TableRow>
