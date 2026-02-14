@@ -592,12 +592,6 @@ export default function ExcelVentasPage() {
         const granTotalIndex = headers.indexOf('Gran Total');
 
         if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && granTotalIndex > -1) {
-            const uniquePubs = [...new Set(filteredData.map(row => String(row[pubIndex] || '')).filter(Boolean))];
-            const uniqueSkus = [...new Set(filteredData.map(row => String(row[skuIndex] || '')).filter(Boolean))];
-            
-            setFilteredPublications(uniquePubs);
-            setFilteredSkus(uniqueSkus);
-
             const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
             filteredData.forEach(row => {
                 const pubId = String(row[pubIndex] || '').trim();
@@ -635,27 +629,30 @@ export default function ExcelVentasPage() {
               })
               .filter(item => item.perdidaTotal < 0);
             
-            // Group by publication ID
             const groupedByPubId: { [key: string]: typeof enrichedSummary } = {};
             enrichedSummary.forEach(item => {
-                if (!groupedByPubId[item.pubId]) {
-                    groupedByPubId[item.pubId] = [];
+                const pubId = item.pubId;
+                if (!pubId || pubId === '-') return;
+                if (!groupedByPubId[pubId]) {
+                    groupedByPubId[pubId] = [];
                 }
-                groupedByPubId[item.pubId].push(item);
+                groupedByPubId[pubId].push(item);
             });
+            
+            const uniquePubsFromSummary = Object.keys(groupedByPubId).sort();
+            const uniqueSkusFromSummary = [...new Set(enrichedSummary.map(item => item.sku))].sort();
 
-            // Sort groups by total loss
+            setFilteredPublications(uniquePubsFromSummary);
+            setFilteredSkus(uniqueSkusFromSummary);
+
             const sortedGroups = Object.values(groupedByPubId).sort((a, b) => {
                 const totalLossA = a.reduce((sum, item) => sum + item.perdidaTotal, 0);
                 const totalLossB = b.reduce((sum, item) => sum + item.perdidaTotal, 0);
-                return totalLossA - totalLossB; // Ascending sort for negative numbers
+                return totalLossA - totalLossB;
             });
 
-
-            // Flatten the groups for rendering
             const summaryArrayForRender: any[] = [];
             sortedGroups.forEach((group, groupIndex) => {
-                // Sort items within the group if needed, e.g., by SKU
                 const sortedGroupItems = group.sort((a, b) => a.sku.localeCompare(b.sku));
                 
                 sortedGroupItems.forEach((item, itemIndex) => {
