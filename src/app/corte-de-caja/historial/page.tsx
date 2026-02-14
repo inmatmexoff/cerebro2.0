@@ -186,7 +186,7 @@ export default function HistorialCortesPage() {
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="border rounded-md">
+                <div className="border rounded-md overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
