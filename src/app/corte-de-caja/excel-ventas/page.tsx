@@ -1324,15 +1324,22 @@ export default function ExcelVentasPage() {
                                       header === 'Gran Total' &&
                                       typeof cell === 'number' &&
                                       cell >= 0,
-                                    'cursor-pointer hover:text-primary hover:font-medium': isPublicationNumber && cell,
                                   })}
-                                  onClick={
-                                    isPublicationNumber && cell
-                                    ? () => handleCopyToClipboard(String(cell))
-                                    : undefined
-                                  }
                                 >
                                   {(() => {
+                                    if (isPublicationNumber) {
+                                        return cell ? (
+                                          <span
+                                            className="cursor-pointer hover:text-primary hover:font-medium"
+                                            onClick={() => handleCopyToClipboard(String(cell))}
+                                          >
+                                            {String(cell)}
+                                          </span>
+                                        ) : (
+                                          String(cell ?? '')
+                                        );
+                                      }
+
                                      if (header === 'Fila' && typeof cell === 'number') {
                                       return cell.toFixed(0);
                                     }
