@@ -1083,21 +1083,21 @@ export default function ExcelVentasPage() {
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <CardTitle>Vista Previa de Datos</CardTitle>
-                      <CardDescription>
+                      <CardDescription className="pt-2 text-lg">
                         {isFiltered ? (
                           <>
                             Mostrando{' '}
-                            <span className="font-bold text-lg text-foreground">
+                            <span className="font-bold text-foreground">
                               {filteredData.length}
                             </span>{' '}
                             de {data.length} registros.
                           </>
                         ) : (
                           <>
-                            <span className="font-bold text-lg text-foreground">
+                            <span className="font-bold text-foreground">
                               {data.length}
-                            </span>{' '}
-                            {data.length === 1 ? 'registro' : 'registros'} en
+                            </span>
+                            {data.length === 1 ? ' registro' : ' registros'} en
                             total.
                           </>
                         )}
