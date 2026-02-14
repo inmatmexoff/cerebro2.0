@@ -200,6 +200,8 @@ export default function ExcelVentasPage() {
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
     new Set()
   );
+  const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
+  const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -532,6 +534,7 @@ export default function ExcelVentasPage() {
   );
   
   const isFiltered = skuSearchTerm || showOnlyNegative || showOnlyPositive || showHighShippingCost;
+  const anyCheckboxFilterActive = showOnlyNegative || showOnlyPositive || showHighShippingCost;
 
   const filteredData = React.useMemo(() => {
     const granTotalIndex = headers.indexOf('Gran Total');
@@ -570,6 +573,24 @@ export default function ExcelVentasPage() {
     showHighShippingCost,
     headers,
   ]);
+
+  React.useEffect(() => {
+    if (anyCheckboxFilterActive && filteredData.length > 0) {
+      const pubIndex = headers.indexOf('# de publicación');
+      const skuIndex = headers.indexOf('SKU');
+
+      if (pubIndex > -1 && skuIndex > -1) {
+        const uniquePubs = [...new Set(filteredData.map(row => String(row[pubIndex] || '')).filter(Boolean))];
+        const uniqueSkus = [...new Set(filteredData.map(row => String(row[skuIndex] || '')).filter(Boolean))];
+        
+        setFilteredPublications(uniquePubs);
+        setFilteredSkus(uniqueSkus);
+      }
+    } else {
+      setFilteredPublications([]);
+      setFilteredSkus([]);
+    }
+  }, [filteredData, anyCheckboxFilterActive, headers]);
 
   const createSumCalculator = (columnName: string) => {
     return React.useMemo(() => {
@@ -1078,256 +1099,256 @@ export default function ExcelVentasPage() {
             </div>
           ) : (
             data.length > 0 && (
-              <Card className="mt-6">
-                <CardHeader>
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <CardTitle>Vista Previa de Datos</CardTitle>
-                      <CardDescription className="pt-4 text-2xl">
-                        {isFiltered ? (
-                          <>
-                            Mostrando{' '}
-                            <span className="font-bold text-foreground">
-                              {filteredData.length}
-                            </span>{' '}
-                            de {data.length} registros.
-                          </>
-                        ) : (
-                          <>
-                            <span className="font-bold text-foreground">
-                              {data.length}
-                            </span>
-                            {data.length === 1 ? ' registro' : ' registros'} en
-                            total.
-                          </>
-                        )}
-                      </CardDescription>
-                    </div>
-
-                    <div className="flex flex-wrap justify-end items-start gap-x-6 gap-y-4">
-                      <div className="flex flex-col items-start gap-1.5">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="show-negative"
-                            checked={showOnlyNegative}
-                            onCheckedChange={(checked) => {
-                              setShowOnlyNegative(checked as boolean);
-                              if (checked) setShowOnlyPositive(false);
-                            }}
-                          />
-                          <label htmlFor="show-negative" className="text-sm font-medium">
-                            Mostrar solo negativos
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="show-positive"
-                            checked={showOnlyPositive}
-                            onCheckedChange={(checked) => {
-                              setShowOnlyPositive(checked as boolean);
-                              if (checked) setShowOnlyNegative(false);
-                            }}
-                          />
-                          <label htmlFor="show-positive" className="text-sm font-medium">
-                            Mostrar 0 o positivos
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="show-high-shipping"
-                            checked={showHighShippingCost}
-                            onCheckedChange={(checked) =>
-                              setShowHighShippingCost(checked as boolean)
-                            }
-                          />
-                          <label htmlFor="show-high-shipping" className="text-sm font-medium">
-                            Costo Envío &lt;= -$300
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-col items-end gap-2">
-                        <div className="relative w-full max-w-[240px]">
-                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="Buscar por SKU..."
-                            value={skuSearchTerm}
-                            onChange={(e) => setSkuSearchTerm(e.target.value)}
-                            className="pl-8"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                           <Button
-                            onClick={handleDownloadCSV}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Download className="mr-2 h-4 w-4" />
-                            CSV
-                          </Button>
-                          <Button
-                            onClick={handleDownloadPDF}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Download className="mr-2 h-4 w-4" />
-                            PDF
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="pt-4">
-                    <h4 className="text-sm font-medium mb-2">
-                      Resumen de Totales (Filtrado)
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                      <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">Gran Total</div>
-                        <div
-                          className={cn(
-                            'font-bold text-lg',
-                            granTotalSum >= 0
-                              ? 'text-green-700'
-                              : 'text-red-700'
+              <>
+                <Card className="mt-6">
+                  <CardHeader>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <CardTitle>Vista Previa de Datos</CardTitle>
+                        <CardDescription className="pt-4 text-2xl">
+                          {isFiltered ? (
+                            <>
+                              Mostrando{' '}
+                              <span className="font-bold text-foreground">
+                                {filteredData.length}
+                              </span>{' '}
+                              de {data.length} registros.
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-bold text-foreground">
+                                {data.length}
+                              </span>
+                              {data.length === 1 ? ' registro' : ' registros'} en
+                              total.
+                            </>
                           )}
-                        >
-                          {granTotalSum.toLocaleString('es-MX', {
-                            style: 'currency',
-                            currency: 'MXN',
-                          })}
-                        </div>
+                        </CardDescription>
                       </div>
-                      <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">Total</div>
-                        <div className="font-bold text-lg text-foreground">
-                          {totalSum.toLocaleString('es-MX', {
-                            style: 'currency',
-                            currency: 'MXN',
-                          })}
+
+                      <div className="flex flex-wrap justify-end items-start gap-x-6 gap-y-4">
+                        <div className="flex flex-col items-start gap-1.5">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="show-negative"
+                              checked={showOnlyNegative}
+                              onCheckedChange={(checked) => {
+                                setShowOnlyNegative(checked as boolean);
+                                if (checked) setShowOnlyPositive(false);
+                              }}
+                            />
+                            <label htmlFor="show-negative" className="text-sm font-medium">
+                              Mostrar solo negativos
+                            </label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="show-positive"
+                              checked={showOnlyPositive}
+                              onCheckedChange={(checked) => {
+                                setShowOnlyPositive(checked as boolean);
+                                if (checked) setShowOnlyNegative(false);
+                              }}
+                            />
+                            <label htmlFor="show-positive" className="text-sm font-medium">
+                              Mostrar 0 o positivos
+                            </label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="show-high-shipping"
+                              checked={showHighShippingCost}
+                              onCheckedChange={(checked) =>
+                                setShowHighShippingCost(checked as boolean)
+                              }
+                            />
+                            <label htmlFor="show-high-shipping" className="text-sm font-medium">
+                              Costo Envío &lt;= -$300
+                            </label>
+                          </div>
                         </div>
-                      </div>
-                      <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">
-                          Landed Cost Total
-                        </div>
-                        <div className="font-bold text-lg text-foreground">
-                          {landedCostSum.toLocaleString('es-MX', {
-                            style: 'currency',
-                            currency: 'MXN',
-                          })}
-                        </div>
-                      </div>
-                      <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">
-                          Ingresos x Productos
-                        </div>
-                        <div className="font-bold text-lg text-foreground">
-                          {ingresosPorProductosSum.toLocaleString('es-MX', {
-                            style: 'currency',
-                            currency: 'MXN',
-                          })}
-                        </div>
-                      </div>
-                      <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">
-                          Cargos x Venta
-                        </div>
-                        <div className="font-bold text-lg text-foreground">
-                          {cargoVentaSum.toLocaleString('es-MX', {
-                            style: 'currency',
-                            currency: 'MXN',
-                          })}
-                        </div>
-                      </div>
-                      <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">
-                          Costos x Envío
-                        </div>
-                        <div className="font-bold text-lg text-foreground">
-                          {costoEnvioSum.toLocaleString('es-MX', {
-                            style: 'currency',
-                            currency: 'MXN',
-                          })}
+                        
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="relative w-full max-w-[240px]">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Buscar por SKU..."
+                              value={skuSearchTerm}
+                              onChange={(e) => setSkuSearchTerm(e.target.value)}
+                              className="pl-8"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={handleDownloadCSV}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <Download className="mr-2 h-4 w-4" />
+                              CSV
+                            </Button>
+                            <Button
+                              onClick={handleDownloadPDF}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <Download className="mr-2 h-4 w-4" />
+                              PDF
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[70vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    <Table>
-                      <TableHeader className="sticky top-0 bg-background">
-                        <TableRow>
-                          {headers.map((header, index) => {
-                            const id = `select-col-${header.replace(
-                              /[^a-zA-Z0-9]/g,
-                              '-'
-                            )}-${index}`;
-                            return (
-                              <TableHead key={index}>
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    id={id}
-                                    checked={selectedColumns.has(header)}
-                                    onCheckedChange={(checked) => {
-                                      setSelectedColumns((prev) => {
-                                        const next = new Set(prev);
-                                        if (checked === true) {
-                                          next.add(header);
-                                        } else {
-                                          next.delete(header);
-                                        }
-                                        return next;
-                                      });
-                                    }}
-                                  />
-                                  <label
-                                    htmlFor={id}
-                                    className="cursor-pointer"
-                                  >
-                                    {header}
-                                  </label>
-                                </div>
-                              </TableHead>
-                            );
-                          })}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredData.map((row, rowIndex) => {
-                           const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
-                           const shippingCost = shippingCostIndex > -1 ? row[shippingCostIndex] : 0;
-                           const isHighShippingCost = typeof shippingCost === 'number' && shippingCost <= -300;
-                           const estadoIndex = headers.indexOf('ESTADO');
-                           const estadoValue = estadoIndex > -1 ? String(row[estadoIndex] || '') : '';
-                           const isPackage = estadoValue.toLowerCase().startsWith('paquete de');
+                    <div className="pt-4">
+                      <h4 className="text-sm font-medium mb-2">
+                        Resumen de Totales (Filtrado)
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">Gran Total</div>
+                          <div
+                            className={cn(
+                              'font-bold text-lg',
+                              granTotalSum >= 0
+                                ? 'text-green-700'
+                                : 'text-red-700'
+                            )}
+                          >
+                            {granTotalSum.toLocaleString('es-MX', {
+                              style: 'currency',
+                              currency: 'MXN',
+                            })}
+                          </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">Total</div>
+                          <div className="font-bold text-lg text-foreground">
+                            {totalSum.toLocaleString('es-MX', {
+                              style: 'currency',
+                              currency: 'MXN',
+                            })}
+                          </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">
+                            Landed Cost Total
+                          </div>
+                          <div className="font-bold text-lg text-foreground">
+                            {landedCostSum.toLocaleString('es-MX', {
+                              style: 'currency',
+                              currency: 'MXN',
+                            })}
+                          </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">
+                            Ingresos x Productos
+                          </div>
+                          <div className="font-bold text-lg text-foreground">
+                            {ingresosPorProductosSum.toLocaleString('es-MX', {
+                              style: 'currency',
+                              currency: 'MXN',
+                            })}
+                          </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">
+                            Cargos x Venta
+                          </div>
+                          <div className="font-bold text-lg text-foreground">
+                            {cargoVentaSum.toLocaleString('es-MX', {
+                              style: 'currency',
+                              currency: 'MXN',
+                            })}
+                          </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">
+                            Costos x Envío
+                          </div>
+                          <div className="font-bold text-lg text-foreground">
+                            {costoEnvioSum.toLocaleString('es-MX', {
+                              style: 'currency',
+                              currency: 'MXN',
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[70vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-background">
+                          <TableRow>
+                            {headers.map((header, index) => {
+                              const id = `select-col-${header.replace(
+                                /[^a-zA-Z0-9]/g,
+                                '-'
+                              )}-${index}`;
+                              return (
+                                <TableHead key={index}>
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={id}
+                                      checked={selectedColumns.has(header)}
+                                      onCheckedChange={(checked) => {
+                                        setSelectedColumns((prev) => {
+                                          const next = new Set(prev);
+                                          if (checked === true) {
+                                            next.add(header);
+                                          } else {
+                                            next.delete(header);
+                                          }
+                                          return next;
+                                        });
+                                      }}
+                                    />
+                                    <label
+                                      htmlFor={id}
+                                      className="cursor-pointer"
+                                    >
+                                      {header}
+                                    </label>
+                                  </div>
+                                </TableHead>
+                              );
+                            })}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredData.map((row, rowIndex) => {
+                            const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
+                            const shippingCost = shippingCostIndex > -1 ? row[shippingCostIndex] : 0;
+                            const isHighShippingCost = typeof shippingCost === 'number' && shippingCost <= -300;
+                            const estadoIndex = headers.indexOf('ESTADO');
+                            const estadoValue = estadoIndex > -1 ? String(row[estadoIndex] || '') : '';
+                            const isPackage = estadoValue.toLowerCase().startsWith('paquete de');
 
-                          return (
-                            <TableRow key={rowIndex} className={cn(
-                                isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
-                                isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200'
-                            )}>
-                              {row.map((cell, cellIndex) => {
-                                const header = headers[cellIndex];
-                                const isPublicationNumber = header === '# de publicación';
-                                
-                                return (
-                                <TableCell
-                                  key={cellIndex}
-                                  className={cn({
-                                    'text-red-800 font-medium':
-                                      header === 'Gran Total' &&
-                                      typeof cell === 'number' &&
-                                      cell < 0,
-                                    'text-green-800 font-medium':
-                                      header === 'Gran Total' &&
-                                      typeof cell === 'number' &&
-                                      cell >= 0,
-                                  })}
-                                >
-                                  {(() => {
-                                     if (isPublicationNumber && cell) {
+                            return (
+                              <TableRow key={rowIndex} className={cn(
+                                  isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
+                                  isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200'
+                              )}>
+                                {row.map((cell, cellIndex) => {
+                                  const header = headers[cellIndex];
+                                  
+                                  return (
+                                  <TableCell
+                                    key={cellIndex}
+                                    className={cn({
+                                      'text-red-800 font-medium':
+                                        header === 'Gran Total' &&
+                                        typeof cell === 'number' &&
+                                        cell < 0,
+                                      'text-green-800 font-medium':
+                                        header === 'Gran Total' &&
+                                        typeof cell === 'number' &&
+                                        cell >= 0,
+                                    })}
+                                  >
+                                    {(() => {
+                                      if (header === '# de publicación' && cell) {
                                         return (
                                           <span
                                             className="cursor-pointer hover:text-primary hover:font-medium"
@@ -1338,91 +1359,136 @@ export default function ExcelVentasPage() {
                                         );
                                       }
 
-                                     if (header === 'Fila' && typeof cell === 'number') {
-                                      return cell.toFixed(0);
-                                    }
-                                    
-                                    if (
-                                      header === 'Landed Cost Total'
-                                    ) {
-                                      const totalLandedCost =
-                                        parseCurrency(cell) || 0;
-                                      const unidadesHeader = headers.find((h) =>
-                                        /unidades/i.test(h)
-                                      );
-                                      const unidadesIndex = unidadesHeader
-                                        ? headers.indexOf(unidadesHeader)
-                                        : -1;
-                                      const unidades =
-                                        (unidadesIndex > -1
-                                          ? row[unidadesIndex]
-                                          : 1) || 1;
-                                      const landedCostPerUnit =
-                                        unidades > 0
-                                          ? totalLandedCost / unidades
-                                          : 0;
-
-                                      if (
-                                        landedCostPerUnit === 0 ||
-                                        landedCostPerUnit === 1
-                                      ) {
-                                        return (
-                                          <div className="flex items-center justify-between gap-2">
-                                            <span className="text-destructive font-bold">
-                                              {(totalLandedCost ?? 0).toLocaleString(
-                                                'es-MX',
-                                                {
-                                                  minimumFractionDigits: 2,
-                                                  maximumFractionDigits: 2,
-                                                }
-                                              )}
-                                            </span>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-8 w-8"
-                                              onClick={() =>
-                                                handleEditClick(row)
-                                              }
-                                            >
-                                              <Pencil className="h-4 w-4 text-primary" />
-                                            </Button>
-                                          </div>
-                                        );
+                                      if (header === 'Fila' && typeof cell === 'number') {
+                                        return cell.toFixed(0);
                                       }
-                                    }
+                                      
+                                      if (
+                                        header === 'Landed Cost Total'
+                                      ) {
+                                        const totalLandedCost =
+                                          parseCurrency(cell) || 0;
+                                        const unidadesHeader = headers.find((h) =>
+                                          /unidades/i.test(h)
+                                        );
+                                        const unidadesIndex = unidadesHeader
+                                          ? headers.indexOf(unidadesHeader)
+                                          : -1;
+                                        const unidades =
+                                          (unidadesIndex > -1
+                                            ? row[unidadesIndex]
+                                            : 1) || 1;
+                                        const landedCostPerUnit =
+                                          unidades > 0
+                                            ? totalLandedCost / unidades
+                                            : 0;
 
-                                    if (cell instanceof Date) {
-                                      return cell.toLocaleDateString('es-MX', {
-                                        year: 'numeric',
-                                        month: '2-digit',
-                                        day: '2-digit',
-                                      });
-                                    }
+                                        if (
+                                          landedCostPerUnit === 0 ||
+                                          landedCostPerUnit === 1
+                                        ) {
+                                          return (
+                                            <div className="flex items-center justify-between gap-2">
+                                              <span className="text-destructive font-bold">
+                                                {(totalLandedCost ?? 0).toLocaleString(
+                                                  'es-MX',
+                                                  {
+                                                    minimumFractionDigits: 2,
+                                                    maximumFractionDigits: 2,
+                                                  }
+                                                )}
+                                              </span>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() =>
+                                                  handleEditClick(row)
+                                                }
+                                              >
+                                                <Pencil className="h-4 w-4 text-primary" />
+                                              </Button>
+                                            </div>
+                                          );
+                                        }
+                                      }
 
-                                    if (typeof cell === 'number') {
-                                      return cell.toLocaleString('es-MX', {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                      });
-                                    }
-                                    if (typeof cell === 'boolean') {
-                                        return cell ? 'Sí' : 'No';
-                                    }
+                                      if (cell instanceof Date) {
+                                        return cell.toLocaleDateString('es-MX', {
+                                          year: 'numeric',
+                                          month: '2-digit',
+                                          day: '2-digit',
+                                        });
+                                      }
 
-                                    return String(cell ?? '');
-                                  })()}
-                                </TableCell>
-                                )
-                              })}
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+                                      if (typeof cell === 'number') {
+                                        return cell.toLocaleString('es-MX', {
+                                          minimumFractionDigits: 2,
+                                          maximumFractionDigits: 2,
+                                        });
+                                      }
+                                      if (typeof cell === 'boolean') {
+                                          return cell ? 'Sí' : 'No';
+                                      }
+
+                                      return String(cell ?? '');
+                                    })()}
+                                  </TableCell>
+                                  )
+                                })}
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+                {anyCheckboxFilterActive && (filteredPublications.length > 0 || filteredSkus.length > 0) && (
+                  <Card className="mt-6">
+                    <CardHeader>
+                      <CardTitle>Resumen de IDs y SKUs Filtrados</CardTitle>
+                      <CardDescription>
+                        Listas de todos los números de publicación y SKUs únicos que coinciden con los filtros aplicados.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div>
+                          <h4 className="font-semibold mb-2"># de Publicación ({filteredPublications.length})</h4>
+                          <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
+                            {filteredPublications.map(pubId => (
+                              <div
+                                key={pubId}
+                                onClick={() => handleCopyToClipboard(pubId)}
+                                className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
+                                title={`Copiar ${pubId}`}
+                              >
+                                {pubId}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold mb-2">SKUs ({filteredSkus.length})</h4>
+                          <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
+                            {filteredSkus.map(sku => (
+                              <div
+                                key={sku}
+                                onClick={() => handleCopyToClipboard(sku)}
+                                className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
+                                title={`Copiar ${sku}`}
+                              >
+                                {sku}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             )
           )}
 
