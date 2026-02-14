@@ -1037,15 +1037,7 @@ export default function ExcelVentasPage() {
               <CardContent className="flex flex-col items-center justify-center p-12 text-center">
                 <input {...getInputProps()} />
                 <Upload className="w-12 h-12 text-muted-foreground" />
-                {isProcessing ? (
-                  <div className="flex flex-col items-center justify-center mt-4">
-                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                    <p className="mt-4 text-lg font-semibold text-primary">
-                      Procesando archivo... ({progress}%)
-                    </p>
-                    <Progress value={progress} className="w-64 mt-2" />
-                  </div>
-                ) : isDragActive ? (
+                {isDragActive ? (
                   <p className="mt-4 text-lg font-semibold text-primary">
                     Suelta el archivo aquí...
                   </p>
@@ -1085,19 +1077,25 @@ export default function ExcelVentasPage() {
             </Card>
           )}
 
+          {isProcessing && (
+            <Card className="mt-6">
+              <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="mt-4 text-lg font-semibold text-primary">
+                  Procesando archivo... ({progress}%)
+                </p>
+                <Progress value={progress} className="w-full max-w-sm mt-2" />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Por favor espera. Archivos grandes pueden tomar varios
+                  minutos.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {error && (
             <div className="mt-4 text-red-600 font-medium p-4 bg-red-100 border border-red-300 rounded-lg">
               {error}
-            </div>
-          )}
-
-          {isProcessing && !fileName && (
-            <div className="flex flex-col items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              <p className="ml-4 text-lg text-muted-foreground">
-                Analizando datos y calculando totales... ({progress}%)
-              </p>
-              <Progress value={progress} className="w-64 mt-2" />
             </div>
           )}
           
