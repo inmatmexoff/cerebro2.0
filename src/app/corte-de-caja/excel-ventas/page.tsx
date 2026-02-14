@@ -204,7 +204,7 @@ export default function ExcelVentasPage() {
   );
   const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
   const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
-  const [skuSummary, setSkuSummary] = useState<{ sku: string; unidades: number; total: number; }[]>([]);
+  const [skuSummary, setSkuSummary] = useState<{ pubId: string; sku: string; unidades: number; total: number; }[]>([]);
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -598,26 +598,23 @@ export default function ExcelVentasPage() {
         setFilteredPublications(uniquePubs);
         setFilteredSkus(uniqueSkus);
 
-        const summary: { [key: string]: { unidades: number; total: number } } = {};
+        const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
         filteredData.forEach(row => {
+            const pubId = String(row[pubIndex] || '').trim();
             const sku = String(row[skuIndex] || '').trim();
-            if (sku) {
-                if (!summary[sku]) {
-                    summary[sku] = { unidades: 0, total: 0 };
+            if (pubId || sku) {
+                const key = `${pubId}|${sku}`;
+                if (!summary[key]) {
+                    summary[key] = { pubId: pubId || '-', sku: sku || '-', unidades: 0, total: 0 };
                 }
                 const unidades = unidadesIndex > -1 ? (parseInt(String(row[unidadesIndex])) || 0) : 0;
                 const total = granTotalIndex > -1 ? (row[granTotalIndex] as number || 0) : 0;
-                summary[sku].unidades += unidades;
-                summary[sku].total += total;
+                summary[key].unidades += unidades;
+                summary[key].total += total;
             }
         });
 
-        const summaryArray = Object.entries(summary)
-            .map(([sku, data]) => ({
-                sku,
-                unidades: data.unidades,
-                total: data.total,
-            }))
+        const summaryArray = Object.values(summary)
             .sort((a, b) => b.total - a.total); 
 
         setSkuSummary(summaryArray);
@@ -1530,6 +1527,7 @@ export default function ExcelVentasPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead># de Publicación</TableHead>
                                         <TableHead>SKU</TableHead>
                                         <TableHead className="text-right">Unidades</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
@@ -1537,8 +1535,9 @@ export default function ExcelVentasPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {skuSummary.length > 0 ? (
-                                        skuSummary.map(({ sku, unidades, total }) => (
-                                            <TableRow key={sku}>
+                                        skuSummary.map(({ pubId, sku, unidades, total }) => (
+                                            <TableRow key={`${pubId}-${sku}`}>
+                                                <TableCell className="font-medium">{pubId}</TableCell>
                                                 <TableCell className="font-medium">{sku}</TableCell>
                                                 <TableCell className="text-right">{unidades}</TableCell>
                                                 <TableCell className="text-right">{total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
@@ -1546,7 +1545,7 @@ export default function ExcelVentasPage() {
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={3} className="text-center text-muted-foreground">
+                                            <TableCell colSpan={4} className="text-center text-muted-foreground">
                                                 No hay datos de resumen para mostrar.
                                             </TableCell>
                                         </TableRow>
