@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Search, Loader2, ChevronsUpDown } from 'lucide-react';
+import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { supabasePROD } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from '@/components/ui/dropdown-menu';
 
 type SaleRecord = {
   id: number;
@@ -20,6 +30,7 @@ type SaleRecord = {
   sku: string;
   total: number | null;
   total_final: number | null;
+  costo_envio: number | null;
 };
 
 type SortDescriptor = {
@@ -44,6 +55,9 @@ export default function HistorialCortesPage() {
     column: 'fecha_venta',
     direction: 'descending',
   });
+  
+  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive'>('all');
+  const [showHighShippingCost, setShowHighShippingCost] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -70,6 +84,16 @@ export default function HistorialCortesPage() {
         query = query.or(
           `sku.ilike.%${debouncedSearchTerm}%,num_venta.ilike.%${debouncedSearchTerm}%,status.ilike.%${debouncedSearchTerm}%`
         );
+      }
+      
+      if (granTotalFilter === 'negative') {
+        query = query.lt('total_final', 0);
+      } else if (granTotalFilter === 'positive') {
+        query = query.gte('total_final', 0);
+      }
+
+      if (showHighShippingCost) {
+          query = query.lte('costo_envio', -300);
       }
 
       query = query
@@ -98,7 +122,7 @@ export default function HistorialCortesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, debouncedSearchTerm, sortDescriptor, toast]);
+  }, [page, debouncedSearchTerm, sortDescriptor, toast, granTotalFilter, showHighShippingCost]);
 
   useEffect(() => {
     fetchSales();
@@ -143,6 +167,7 @@ export default function HistorialCortesPage() {
     { key: 'sku', label: 'SKU' },
     { key: 'unidades', label: 'Unidades' },
     { key: 'total', label: 'Total' },
+    { key: 'costo_envio', label: 'Costo Envío' },
     { key: 'total_final', label: 'Gran Total' },
   ];
 
@@ -167,21 +192,53 @@ export default function HistorialCortesPage() {
         <main>
           <Card>
             <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div>
                         <CardTitle>Historial de Ventas</CardTitle>
                         <CardDescription>
                             Mostrando {sales.length} de {totalRows} registros.
                         </CardDescription>
                     </div>
-                    <div className="relative w-full max-w-sm">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar por SKU, ID Venta, Estado..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-8"
-                        />
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                        <div className="relative w-full md:w-auto flex-grow">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Buscar por SKU, ID, Estado..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-8 w-full"
+                            />
+                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="shrink-0">
+                                    <Filter className="w-4 h-4 mr-2" />
+                                    Filtros
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>Filtrar Gran Total</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuRadioGroup value={granTotalFilter} onValueChange={(value) => {
+                                    setGranTotalFilter(value as any);
+                                    setPage(1);
+                                }}>
+                                    <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="negative">Solo negativos</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="positive">0 o positivos</DropdownMenuRadioItem>
+                                </DropdownMenuRadioGroup>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuCheckboxItem
+                                    checked={showHighShippingCost}
+                                    onCheckedChange={(checked) => {
+                                        setShowHighShippingCost(checked as boolean);
+                                        setPage(1);
+                                    }}
+                                >
+                                    Costo Envío &lt;= -$300
+                                </DropdownMenuCheckboxItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
             </CardHeader>
@@ -227,6 +284,7 @@ export default function HistorialCortesPage() {
                                         <TableCell>{sale.sku}</TableCell>
                                         <TableCell className="text-right">{sale.unidades ?? '-'}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(sale.total)}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(sale.costo_envio)}</TableCell>
                                         <TableCell className={cn('text-right font-medium', (sale.total_final ?? 0) < 0 ? 'text-red-600' : 'text-green-700')}>
                                             {formatCurrency(sale.total_final)}
                                         </TableCell>
