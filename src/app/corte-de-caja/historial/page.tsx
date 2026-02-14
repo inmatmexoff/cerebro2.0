@@ -18,6 +18,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Label } from '@/components/ui/label';
 
 type SaleRecord = {
   id: number;
@@ -27,8 +29,8 @@ type SaleRecord = {
   unidades: number | null;
   sku: string;
   total: number | null;
-  total_final: number | null;
   costo_envio: number | null;
+  total_final: number | null;
 };
 
 type SortDescriptor = {
@@ -50,6 +52,13 @@ export default function HistorialCortesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [appliedDateFilters, setAppliedDateFilters] = useState<{startDate: Date | null, endDate: Date | null}>({
+    startDate: null,
+    endDate: null
+  });
+
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
     column: 'fecha_venta',
     direction: 'descending',
@@ -57,6 +66,18 @@ export default function HistorialCortesPage() {
   
   const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive'>('all');
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
+  
+  const handleApplyDateFilter = () => {
+    setPage(1);
+    setAppliedDateFilters({ startDate, endDate });
+  };
+
+  const handleClearDateFilter = () => {
+    setPage(1);
+    setStartDate(null);
+    setEndDate(null);
+    setAppliedDateFilters({ startDate: null, endDate: null });
+  };
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -107,6 +128,17 @@ export default function HistorialCortesPage() {
           query = query.lte('costo_envio', -300);
       }
 
+      if (appliedDateFilters.startDate) {
+        const startOfDay = new Date(appliedDateFilters.startDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        query = query.gte('fecha_venta', startOfDay.toISOString());
+      }
+      if (appliedDateFilters.endDate) {
+        const endOfDay = new Date(appliedDateFilters.endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte('fecha_venta', endOfDay.toISOString());
+      }
+
       query = query
         .order(sortDescriptor.column, {
           ascending: sortDescriptor.direction === 'ascending',
@@ -133,7 +165,7 @@ export default function HistorialCortesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, debouncedSearchTerm, sortDescriptor, toast, granTotalFilter, showHighShippingCost]);
+  }, [page, debouncedSearchTerm, sortDescriptor, toast, granTotalFilter, showHighShippingCost, appliedDateFilters]);
 
   useEffect(() => {
     fetchSales();
@@ -182,7 +214,7 @@ export default function HistorialCortesPage() {
     { key: 'total_final', label: 'Gran Total' },
   ];
 
-  const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost;
+  const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost || appliedDateFilters.startDate || appliedDateFilters.endDate;
 
   return (
     <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
@@ -245,8 +277,8 @@ export default function HistorialCortesPage() {
                                 <DropdownMenuCheckboxItem
                                     checked={granTotalFilter === 'negative'}
                                     onCheckedChange={(checked) => {
-                                        setGranTotalFilter(checked ? 'negative' : 'all');
                                         if (checked) setGranTotalFilter('negative');
+                                        else if (granTotalFilter === 'negative') setGranTotalFilter('all');
                                         setPage(1);
                                     }}
                                 >
@@ -256,7 +288,7 @@ export default function HistorialCortesPage() {
                                     checked={granTotalFilter === 'positive'}
                                     onCheckedChange={(checked) => {
                                         if (checked) setGranTotalFilter('positive');
-                                        else setGranTotalFilter('all');
+                                        else if (granTotalFilter === 'positive') setGranTotalFilter('all');
                                         setPage(1);
                                     }}
                                 >
@@ -276,6 +308,32 @@ export default function HistorialCortesPage() {
                                 </DropdownMenuCheckboxItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
+                    </div>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-end gap-4 border-t pt-4 mt-4">
+                    <div className="grid gap-1.5 flex-grow min-w-[180px]">
+                        <Label htmlFor="fecha-inicio">Fecha Inicio</Label>
+                        <DatePicker
+                            id="fecha-inicio"
+                            value={startDate}
+                            onChange={setStartDate}
+                        />
+                    </div>
+                    <div className="grid gap-1.5 flex-grow min-w-[180px]">
+                        <Label htmlFor="fecha-fin">Fecha Fin</Label>
+                        <DatePicker
+                            id="fecha-fin"
+                            value={endDate}
+                            onChange={setEndDate}
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <Button size="sm" onClick={handleApplyDateFilter}>
+                            Aplicar Fechas
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={handleClearDateFilter}>
+                            Limpiar
+                        </Button>
                     </div>
                 </div>
             </CardHeader>
