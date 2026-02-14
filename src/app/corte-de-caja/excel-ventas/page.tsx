@@ -287,7 +287,7 @@ export default function ExcelVentasPage() {
             headerRow[COLUMN_MAPPING.M] || 'Cargo por diferencia de peso (MXN)',
             headerRow[COLUMN_MAPPING.N] || 'Anulaciones y reembolsos (MXN)',
             headerRow[COLUMN_MAPPING.P] || 'Venta por Publicidad',
-            headerRow[COLUMN_MAPPING.R] || 'Nº de publicación',
+            headerRow[COLUMN_MAPPING.R] || '# de publicación',
             headerRow[COLUMN_MAPPING.S] || 'Tienda',
             headerRow[COLUMN_MAPPING.W] || 'Tipo de publicación',
             'Total',
@@ -738,7 +738,7 @@ export default function ExcelVentasPage() {
       anu_reembolsos: headers.indexOf('Anulaciones y reembolsos (MXN)'),
       venta_xpublicidad: headers.indexOf('Venta por Publicidad'),
       sku: headers.indexOf('SKU'),
-      num_publi: headers.indexOf('Nº de publicación'),
+      num_publi: headers.indexOf('# de publicación'),
       tienda: headers.indexOf('Tienda'),
       tip_publi: headers.indexOf('Tipo de publicación'),
       total: headers.indexOf('Total'),
@@ -1081,7 +1081,7 @@ export default function ExcelVentasPage() {
               <Card className="mt-6">
                 <CardHeader>
                   <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
+                    <div className="flex-1">
                       <CardTitle>Vista Previa de Datos</CardTitle>
                       <CardDescription className="pt-4 text-2xl">
                         {isFiltered ? (
@@ -1310,7 +1310,7 @@ export default function ExcelVentasPage() {
                             )}>
                               {row.map((cell, cellIndex) => {
                                 const header = headers[cellIndex];
-                                const isPublicationNumber = header === 'Nº de publicación';
+                                const isPublicationNumber = header === '# de publicación';
                                 
                                 return (
                                 <TableCell
@@ -1327,16 +1327,14 @@ export default function ExcelVentasPage() {
                                   })}
                                 >
                                   {(() => {
-                                    if (isPublicationNumber) {
-                                        return cell ? (
+                                     if (isPublicationNumber && cell) {
+                                        return (
                                           <span
                                             className="cursor-pointer hover:text-primary hover:font-medium"
                                             onClick={() => handleCopyToClipboard(String(cell))}
                                           >
                                             {String(cell)}
                                           </span>
-                                        ) : (
-                                          String(cell ?? '')
                                         );
                                       }
 
