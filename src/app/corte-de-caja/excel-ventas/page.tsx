@@ -56,6 +56,7 @@ import * as z from 'zod';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 
 // Define which columns to extract and in what order
 const COLUMN_MAPPING: { [key: string]: number } = {
@@ -186,6 +187,7 @@ export default function ExcelVentasPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const [progress, setProgress] = React.useState(0);
 
   const [skuSearchTerm, setSkuSearchTerm] = React.useState('');
   const [showOnlyNegative, setShowOnlyNegative] = useState(false);
@@ -242,6 +244,7 @@ export default function ExcelVentasPage() {
       setHeaders([]);
       setData([]);
       setIsProcessing(true);
+      setProgress(0);
 
       const reader = new FileReader();
 
@@ -249,9 +252,7 @@ export default function ExcelVentasPage() {
         try {
           const binaryStr = event.target?.result;
           if (!binaryStr) {
-            setError('No se pudo leer el archivo.');
-            setIsProcessing(false);
-            return;
+            throw new Error('No se pudo leer el archivo.');
           }
           const workbook = XLSX.read(binaryStr, {
             type: 'binary',
@@ -266,15 +267,12 @@ export default function ExcelVentasPage() {
           });
 
           if (json.length < 7) {
-            setError(
+            throw new Error(
               'El archivo no tiene suficientes filas para extraer datos (se requieren al menos 7).'
             );
-            setIsProcessing(false);
-            return;
           }
 
           const headerRow = json[5] || [];
-          // Define the order and labels for the final headers array
           const finalHeaders = [
             'Fila',
             'ID',
@@ -299,8 +297,7 @@ export default function ExcelVentasPage() {
 
           setHeaders(finalHeaders);
           setSelectedColumns(new Set(finalHeaders));
-          setData([]);
-
+          
           const dataRowsWithMeta = json
             .slice(6)
             .map((row, index) => ({ row, excelRowNum: index + 7 }))
@@ -309,11 +306,9 @@ export default function ExcelVentasPage() {
             );
 
           if (dataRowsWithMeta.length === 0) {
-            setError(
+            throw new Error(
               'No se encontraron datos en las columnas y filas especificadas.'
             );
-            setIsProcessing(false);
-            return;
           }
 
           const CHUNK_SIZE = 500;
@@ -422,13 +417,13 @@ export default function ExcelVentasPage() {
             });
 
             allEnrichedData.push(...enrichedChunk);
-            setData(allEnrichedData.slice());
+            const currentProgress = Math.round(((i + CHUNK_SIZE) / dataRowsWithMeta.length) * 100);
+            setProgress(Math.min(currentProgress, 100));
 
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
 
           // --- Aggregation Logics ---
-          // Run these after all rows are fetched and enriched.
           const ingresosIndex = finalHeaders.indexOf('Ingresos por productos (MXN)');
           const cargoVentaIndex = finalHeaders.indexOf('Cargo por venta e impuestos (MXN)');
           const costoEnvioIndex = finalHeaders.indexOf('Costos de envío (MXN)');
@@ -438,7 +433,6 @@ export default function ExcelVentasPage() {
           const estadoIndex = finalHeaders.indexOf('ESTADO');
 
 
-          // ALGORITHM 1: Component cost aggregation (based on empty financial columns)
           if (ingresosIndex > -1 && cargoVentaIndex > -1 && costoEnvioIndex > -1 && landedCostTotalIndex > -1 && totalIndex > -1 && granTotalIndex > -1) {
             const isComponentRow = (row: any[]) => {
                 const ingresos = row[ingresosIndex];
@@ -483,7 +477,6 @@ export default function ExcelVentasPage() {
             }
         }
 
-          // ALGORITHM 2: "Paquete de" logic
           if (estadoIndex !== -1 && landedCostTotalIndex !== -1 && granTotalIndex !== -1 && totalIndex !== -1) {
             for (let i = 0; i < allEnrichedData.length; i++) {
               const row = allEnrichedData[i];
@@ -510,14 +503,17 @@ export default function ExcelVentasPage() {
             }
           }
 
-          // Update state with the final, fully processed data
-          setData(allEnrichedData.slice());
+          setData(allEnrichedData);
 
-        } catch (e) {
-          console.error(e);
-          setError(
-            "Hubo un error al procesar el archivo. Asegúrate de que sea un formato de Excel o CSV válido y de que las tablas 'sku_alterno' y 'sku_costos' son accesibles."
-          );
+        } catch (e: any) {
+            console.error(e);
+            let specificError = "Hubo un error al procesar el archivo. Asegúrate de que sea un formato de Excel o CSV válido y de que las tablas 'sku_alterno' y 'sku_costos' son accesibles.";
+            
+            if (e instanceof RangeError || e.message.toLowerCase().includes('memory')) {
+               specificError = "El archivo es demasiado grande para ser procesado directamente en el navegador y ha causado un error de memoria. Por favor, intenta con un archivo de menos de 20,000 registros a la vez.";
+            }
+  
+            setError(specificError);
         } finally {
           setIsProcessing(false);
         }
@@ -633,6 +629,7 @@ export default function ExcelVentasPage() {
     setData([]);
     setError(null);
     setSelectedColumns(new Set());
+    setProgress(0);
   };
 
   const handleDownloadCSV = () => {
@@ -1041,9 +1038,13 @@ export default function ExcelVentasPage() {
                 <input {...getInputProps()} />
                 <Upload className="w-12 h-12 text-muted-foreground" />
                 {isProcessing ? (
-                  <p className="mt-4 text-lg font-semibold text-primary">
-                    Procesando archivo...
-                  </p>
+                  <div className="flex flex-col items-center justify-center mt-4">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    <p className="mt-4 text-lg font-semibold text-primary">
+                      Procesando archivo... ({progress}%)
+                    </p>
+                    <Progress value={progress} className="w-64 mt-2" />
+                  </div>
                 ) : isDragActive ? (
                   <p className="mt-4 text-lg font-semibold text-primary">
                     Suelta el archivo aquí...
@@ -1090,15 +1091,17 @@ export default function ExcelVentasPage() {
             </div>
           )}
 
-          {isProcessing ? (
-            <div className="flex items-center justify-center h-64">
+          {isProcessing && !fileName && (
+            <div className="flex flex-col items-center justify-center h-64">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
               <p className="ml-4 text-lg text-muted-foreground">
-                Analizando datos y calculando totales...
+                Analizando datos y calculando totales... ({progress}%)
               </p>
+              <Progress value={progress} className="w-64 mt-2" />
             </div>
-          ) : (
-            data.length > 0 && (
+          )}
+          
+          {data.length > 0 && !isProcessing && (
               <>
                 <Card className="mt-6">
                   <CardHeader>
@@ -1490,7 +1493,7 @@ export default function ExcelVentasPage() {
                 )}
               </>
             )
-          )}
+          }
 
           <div className="flex justify-center items-center py-8">
             <Button
