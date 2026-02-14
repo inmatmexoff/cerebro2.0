@@ -194,7 +194,11 @@ export default function HistorialCortesPage() {
                     <div>
                         <CardTitle>Historial de Ventas</CardTitle>
                         <CardDescription>
-                            Mostrando {sales.length} de {totalRows} registros.
+                          {isLoading
+                            ? 'Buscando registros...'
+                            : `${totalRows} ${
+                                totalRows === 1 ? 'registro encontrado' : 'registros encontrados'
+                              }`}
                         </CardDescription>
                     </div>
                     <div className="flex items-center gap-2 w-full md:w-auto">
@@ -221,6 +225,7 @@ export default function HistorialCortesPage() {
                                     checked={granTotalFilter === 'negative'}
                                     onCheckedChange={(checked) => {
                                         setGranTotalFilter(checked ? 'negative' : 'all');
+                                        if (checked) setGranTotalFilter('negative');
                                         setPage(1);
                                     }}
                                 >
@@ -229,7 +234,8 @@ export default function HistorialCortesPage() {
                                 <DropdownMenuCheckboxItem
                                     checked={granTotalFilter === 'positive'}
                                     onCheckedChange={(checked) => {
-                                        setGranTotalFilter(checked ? 'positive' : 'all');
+                                        if (checked) setGranTotalFilter('positive');
+                                        else setGranTotalFilter('all');
                                         setPage(1);
                                     }}
                                 >
