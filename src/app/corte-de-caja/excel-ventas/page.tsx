@@ -512,6 +512,8 @@ export default function ExcelVentasPage() {
     },
     [toast]
   );
+  
+  const isFiltered = skuSearchTerm || showOnlyNegative || showOnlyPositive || showHighShippingCost;
 
   const filteredData = React.useMemo(() => {
     const granTotalIndex = headers.indexOf('Gran Total');
@@ -1063,9 +1065,23 @@ export default function ExcelVentasPage() {
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                       <CardTitle>Vista Previa de Datos</CardTitle>
-                      <CardDescription>
-                        Mostrando {filteredData.length} de {data.length}{' '}
-                        registros.
+                       <CardDescription>
+                        {isFiltered ? (
+                          <>
+                            Mostrando{' '}
+                            <span className="font-bold text-lg text-foreground">
+                              {filteredData.length}
+                            </span>{' '}
+                            de {data.length} registros.
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-bold text-lg text-foreground">
+                              {data.length}
+                            </span>{' '}
+                            {data.length === 1 ? 'registro' : 'registros'} en total.
+                          </>
+                        )}
                       </CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
