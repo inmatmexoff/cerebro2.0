@@ -314,6 +314,7 @@ export default function ExcelVentasPage() {
           const CHUNK_SIZE = 500;
           const allEnrichedData: any[][] = [];
 
+          // Main loop for fetching and enriching data (0% -> 90%)
           for (let i = 0; i < dataRowsWithMeta.length; i += CHUNK_SIZE) {
             const chunk = dataRowsWithMeta.slice(i, i + CHUNK_SIZE);
             const skusInChunk = [
@@ -417,13 +418,16 @@ export default function ExcelVentasPage() {
             });
 
             allEnrichedData.push(...enrichedChunk);
-            const currentProgress = Math.round(((i + CHUNK_SIZE) / dataRowsWithMeta.length) * 100);
-            setProgress(Math.min(currentProgress, 100));
+            const loopProgress = Math.round(((i + CHUNK_SIZE) / dataRowsWithMeta.length) * 90);
+            setProgress(Math.min(loopProgress, 90));
 
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
 
-          // --- Aggregation Logics ---
+          // --- Aggregation Logics (90% -> 99%) ---
+          setProgress(92);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
           const ingresosIndex = finalHeaders.indexOf('Ingresos por productos (MXN)');
           const cargoVentaIndex = finalHeaders.indexOf('Cargo por venta e impuestos (MXN)');
           const costoEnvioIndex = finalHeaders.indexOf('Costos de envío (MXN)');
@@ -476,6 +480,9 @@ export default function ExcelVentasPage() {
                 }
             }
         }
+          
+          setProgress(96);
+          await new Promise((resolve) => setTimeout(resolve, 0));
 
           if (estadoIndex !== -1 && landedCostTotalIndex !== -1 && granTotalIndex !== -1 && totalIndex !== -1) {
             for (let i = 0; i < allEnrichedData.length; i++) {
@@ -503,7 +510,12 @@ export default function ExcelVentasPage() {
             }
           }
 
+          // Final step (99% -> 100%)
+          setProgress(99);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
           setData(allEnrichedData);
+          setProgress(100);
 
         } catch (e: any) {
             console.error(e);
