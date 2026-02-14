@@ -210,6 +210,23 @@ export default function ExcelVentasPage() {
     },
   });
 
+  const handleCopyToClipboard = (text: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: 'Copiado',
+        description: `"${text}" se ha copiado al portapapeles.`,
+      });
+    }).catch(err => {
+      console.error('Error al copiar al portapapeles:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo copiar el texto.',
+      });
+    });
+  };
+
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       const file = acceptedFiles[0];
@@ -455,8 +472,9 @@ export default function ExcelVentasPage() {
                     }
 
                     if (componentCostSum > 0) {
+                        const originalParentTotal = parentRow[totalIndex] || 0;
                         parentRow[landedCostTotalIndex] = componentCostSum;
-                        const newGranTotal = parentTotalValue - componentCostSum;
+                        const newGranTotal = originalParentTotal - componentCostSum;
                         parentRow[granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
                     }
                 }
@@ -1296,27 +1314,37 @@ export default function ExcelVentasPage() {
                                 isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                 isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200'
                             )}>
-                              {row.map((cell, cellIndex) => (
+                              {row.map((cell, cellIndex) => {
+                                const header = headers[cellIndex];
+                                const isPublicationNumber = header === 'Nº de publicación';
+                                
+                                return (
                                 <TableCell
                                   key={cellIndex}
                                   className={cn({
                                     'text-red-800 font-medium':
-                                      headers[cellIndex] === 'Gran Total' &&
+                                      header === 'Gran Total' &&
                                       typeof cell === 'number' &&
                                       cell < 0,
                                     'text-green-800 font-medium':
-                                      headers[cellIndex] === 'Gran Total' &&
+                                      header === 'Gran Total' &&
                                       typeof cell === 'number' &&
                                       cell >= 0,
+                                    'cursor-pointer hover:text-primary hover:font-medium': isPublicationNumber && cell,
                                   })}
+                                  onClick={
+                                    isPublicationNumber && cell
+                                    ? () => handleCopyToClipboard(String(cell))
+                                    : undefined
+                                  }
                                 >
                                   {(() => {
-                                     if (headers[cellIndex] === 'Fila' && typeof cell === 'number') {
+                                     if (header === 'Fila' && typeof cell === 'number') {
                                       return cell.toFixed(0);
                                     }
                                     
                                     if (
-                                      headers[cellIndex] === 'Landed Cost Total'
+                                      header === 'Landed Cost Total'
                                     ) {
                                       const totalLandedCost =
                                         parseCurrency(cell) || 0;
@@ -1386,7 +1414,8 @@ export default function ExcelVentasPage() {
                                     return String(cell ?? '');
                                   })()}
                                 </TableCell>
-                              ))}
+                                )
+                              })}
                             </TableRow>
                           )
                         })}
