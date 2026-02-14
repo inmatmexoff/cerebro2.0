@@ -204,6 +204,8 @@ export default function ExcelVentasPage() {
   );
   const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
   const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
+  const [skuSummary, setSkuSummary] = useState<{ sku: string; unidades: number; total: number; }[]>([]);
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -586,6 +588,8 @@ export default function ExcelVentasPage() {
     if (anyCheckboxFilterActive && filteredData.length > 0) {
       const pubIndex = headers.indexOf('# de publicación');
       const skuIndex = headers.indexOf('SKU');
+      const unidadesIndex = headers.indexOf('Unidades');
+      const granTotalIndex = headers.indexOf('Gran Total');
 
       if (pubIndex > -1 && skuIndex > -1) {
         const uniquePubs = [...new Set(filteredData.map(row => String(row[pubIndex] || '')).filter(Boolean))];
@@ -593,10 +597,35 @@ export default function ExcelVentasPage() {
         
         setFilteredPublications(uniquePubs);
         setFilteredSkus(uniqueSkus);
+
+        const summary: { [key: string]: { unidades: number; total: number } } = {};
+        filteredData.forEach(row => {
+            const sku = String(row[skuIndex] || '').trim();
+            if (sku) {
+                if (!summary[sku]) {
+                    summary[sku] = { unidades: 0, total: 0 };
+                }
+                const unidades = unidadesIndex > -1 ? (parseInt(String(row[unidadesIndex])) || 0) : 0;
+                const total = granTotalIndex > -1 ? (row[granTotalIndex] as number || 0) : 0;
+                summary[sku].unidades += unidades;
+                summary[sku].total += total;
+            }
+        });
+
+        const summaryArray = Object.entries(summary)
+            .map(([sku, data]) => ({
+                sku,
+                unidades: data.unidades,
+                total: data.total,
+            }))
+            .sort((a, b) => b.total - a.total); 
+
+        setSkuSummary(summaryArray);
       }
     } else {
       setFilteredPublications([]);
       setFilteredSkus([]);
+      setSkuSummary([]);
     }
   }, [filteredData, anyCheckboxFilterActive, headers]);
 
@@ -1086,22 +1115,19 @@ export default function ExcelVentasPage() {
                   </Button>
                 </div>
               </CardHeader>
-            </Card>
-          )}
-
-          {isProcessing && (
-            <Card className="mt-6">
-              <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                <p className="mt-4 text-lg font-semibold text-primary">
-                  Procesando archivo... ({progress}%)
-                </p>
-                <Progress value={progress} className="w-full max-w-sm mt-2" />
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Por favor espera. Archivos grandes pueden tomar varios
-                  minutos.
-                </p>
+              {isProcessing && (
+                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                  <p className="mt-4 text-lg font-semibold text-primary">
+                    Procesando archivo... ({progress}%)
+                  </p>
+                  <Progress value={progress} className="w-full max-w-sm mt-2" />
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Por favor espera. Archivos grandes pueden tomar varios
+                    minutos.
+                  </p>
               </CardContent>
+              )}
             </Card>
           )}
 
@@ -1116,28 +1142,28 @@ export default function ExcelVentasPage() {
                 <Card className="mt-6">
                   <CardHeader>
                     <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <CardTitle>Vista Previa de Datos</CardTitle>
-                        <CardDescription className="pt-4 text-2xl">
-                          {isFiltered ? (
-                            <>
-                              Mostrando{' '}
-                              <span className="font-bold text-foreground">
-                                {filteredData.length}
-                              </span>{' '}
-                              de {data.length} registros.
-                            </>
-                          ) : (
-                            <>
-                              <span className="font-bold text-foreground">
-                                {data.length}
-                              </span>
-                              {data.length === 1 ? ' registro' : ' registros'} en
-                              total.
-                            </>
-                          )}
-                        </CardDescription>
-                      </div>
+                        <div className="flex-1">
+                          <CardTitle>Vista Previa de Datos</CardTitle>
+                          <CardDescription className="pt-4 text-2xl">
+                            {isFiltered ? (
+                              <>
+                                Mostrando{' '}
+                                <span className="font-bold text-foreground">
+                                  {filteredData.length}
+                                </span>{' '}
+                                de {data.length} registros.
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-bold text-foreground">
+                                  {data.length}
+                                </span>
+                                {data.length === 1 ? ' registro' : ' registros'} en
+                                total.
+                              </>
+                            )}
+                          </CardDescription>
+                        </div>
 
                       <div className="flex flex-wrap justify-end items-start gap-x-6 gap-y-4">
                         <div className="flex flex-col items-start gap-1.5">
@@ -1498,6 +1524,37 @@ export default function ExcelVentasPage() {
                           </div>
                         </div>
                       </div>
+                       <div className="mt-6 pt-6 border-t">
+                        <h4 className="font-semibold mb-4">Resumen por SKU</h4>
+                        <div className="border rounded-md max-h-72 overflow-y-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>SKU</TableHead>
+                                        <TableHead className="text-right">Unidades</TableHead>
+                                        <TableHead className="text-right">Total</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {skuSummary.length > 0 ? (
+                                        skuSummary.map(({ sku, unidades, total }) => (
+                                            <TableRow key={sku}>
+                                                <TableCell className="font-medium">{sku}</TableCell>
+                                                <TableCell className="text-right">{unidades}</TableCell>
+                                                <TableCell className="text-right">{total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={3} className="text-center text-muted-foreground">
+                                                No hay datos de resumen para mostrar.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
                     </CardContent>
                   </Card>
                 )}
