@@ -1083,7 +1083,7 @@ export default function ExcelVentasPage() {
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <CardTitle>Vista Previa de Datos</CardTitle>
-                      <CardDescription className="pt-2 text-lg">
+                      <CardDescription className="pt-4 text-2xl">
                         {isFiltered ? (
                           <>
                             Mostrando{' '}
