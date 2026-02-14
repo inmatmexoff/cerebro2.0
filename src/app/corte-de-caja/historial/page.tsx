@@ -46,6 +46,7 @@ export default function HistorialCortesPage() {
 
   const [page, setPage] = useState(1);
   const [totalRows, setTotalRows] = useState(0);
+  const [grandTotal, setGrandTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
@@ -67,6 +68,18 @@ export default function HistorialCortesPage() {
       clearTimeout(handler);
     };
   }, [searchTerm]);
+
+  useEffect(() => {
+    const getGrandTotal = async () => {
+        const { count, error } = await supabasePROD
+            .from('ml_sales')
+            .select('id', { count: 'exact', head: true });
+        if (!error && count !== null) {
+            setGrandTotal(count);
+        }
+    };
+    getGrandTotal();
+  }, []);
 
   const fetchSales = useCallback(async () => {
     setIsLoading(true);
@@ -169,6 +182,8 @@ export default function HistorialCortesPage() {
     { key: 'total_final', label: 'Gran Total' },
   ];
 
+  const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost;
+
   return (
     <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -194,11 +209,17 @@ export default function HistorialCortesPage() {
                     <div>
                         <CardTitle>Historial de Ventas</CardTitle>
                         <CardDescription>
-                          {isLoading
+                            {isLoading
                             ? 'Buscando registros...'
-                            : `${totalRows} ${
-                                totalRows === 1 ? 'registro encontrado' : 'registros encontrados'
-                              }`}
+                            : isFiltered ? (
+                                <>
+                                    Mostrando <span className="font-bold text-lg text-foreground">{totalRows}</span> de {grandTotal} registros.
+                                </>
+                            ) : (
+                                <>
+                                     <span className="font-bold text-lg text-foreground">{totalRows}</span> {totalRows === 1 ? 'registro en total' : 'registros en total.'}
+                                </>
+                            )}
                         </CardDescription>
                     </div>
                     <div className="flex items-center gap-2 w-full md:w-auto">
