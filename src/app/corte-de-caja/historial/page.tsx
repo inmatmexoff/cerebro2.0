@@ -21,16 +21,26 @@ import {
 import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 
+// Expanded SaleRecord to include more columns
 type SaleRecord = {
-  id: number;
-  num_venta: string;
-  fecha_venta: string;
-  status: string;
-  unidades: number | null;
-  sku: string;
-  total: number | null;
-  costo_envio: number | null;
-  total_final: number | null;
+    id: number;
+    num_venta: string;
+    fecha_venta: string;
+    status: string;
+    unidades: number | null;
+    ing_xunidad: number | null;
+    cargo_venta: number | null;
+    ing_xenvio: number | null;
+    costo_envio: number | null;
+    cargo_difpeso: number | null;
+    anu_reembolsos: number | null;
+    total: number | null;
+    venta_xpublicidad: boolean;
+    sku: string;
+    num_publi: string;
+    tienda: string;
+    tip_publi: string;
+    total_final: number | null;
 };
 
 type SortDescriptor = {
@@ -79,6 +89,23 @@ export default function HistorialCortesPage() {
     setAppliedDateFilters({ startDate: null, endDate: null });
   };
 
+  const handleCopyToClipboard = (text: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: 'Copiado',
+        description: `"${text}" se ha copiado al portapapeles.`,
+      });
+    }).catch(err => {
+      console.error('Error al copiar al portapapeles:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo copiar el texto.',
+      });
+    });
+  };
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -114,7 +141,7 @@ export default function HistorialCortesPage() {
 
       if (debouncedSearchTerm) {
         query = query.or(
-          `sku.ilike.%${debouncedSearchTerm}%,num_venta.ilike.%${debouncedSearchTerm}%,status.ilike.%${debouncedSearchTerm}%`
+          `sku.ilike.%${debouncedSearchTerm}%,num_venta.ilike.%${debouncedSearchTerm}%,status.ilike.%${debouncedSearchTerm}%,num_publi.ilike.%${debouncedSearchTerm}%`
         );
       }
       
@@ -208,11 +235,24 @@ export default function HistorialCortesPage() {
     { key: 'fecha_venta', label: 'Fecha' },
     { key: 'status', label: 'Estado' },
     { key: 'sku', label: 'SKU' },
+    { key: 'num_publi', label: '# de Publicación' },
     { key: 'unidades', label: 'Unidades' },
-    { key: 'total', label: 'Total' },
+    { key: 'ing_xunidad', label: 'Ingresos x Prod.' },
+    { key: 'cargo_venta', label: 'Cargo x Venta' },
     { key: 'costo_envio', label: 'Costo Envío' },
+    { key: 'ing_xenvio', label: 'Ingreso x Envío' },
+    { key: 'cargo_difpeso', label: 'Cargo Dif. Peso' },
+    { key: 'anu_reembolsos', label: 'Anulaciones' },
+    { key: 'venta_xpublicidad', label: 'Venta x Pub.' },
+    { key: 'tienda', label: 'Tienda' },
+    { key: 'tip_publi', label: 'Tipo Pub.' },
+    { key: 'total', label: 'Total' },
     { key: 'total_final', label: 'Gran Total' },
   ];
+
+  const currencyColumns = ['ing_xunidad', 'cargo_venta', 'costo_envio', 'ing_xenvio', 'cargo_difpeso', 'anu_reembolsos', 'total', 'total_final'];
+  const numericColumns = ['unidades', ...currencyColumns];
+
 
   const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost || appliedDateFilters.startDate || appliedDateFilters.endDate;
 
@@ -258,7 +298,7 @@ export default function HistorialCortesPage() {
                         <div className="relative w-full md:w-auto flex-grow">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Buscar por SKU, ID, Estado..."
+                                placeholder="Buscar por SKU, ID, Publicación..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-8 w-full"
@@ -277,8 +317,7 @@ export default function HistorialCortesPage() {
                                 <DropdownMenuCheckboxItem
                                     checked={granTotalFilter === 'negative'}
                                     onCheckedChange={(checked) => {
-                                        if (checked) setGranTotalFilter('negative');
-                                        else if (granTotalFilter === 'negative') setGranTotalFilter('all');
+                                        setGranTotalFilter(checked ? 'negative' : 'all');
                                         setPage(1);
                                     }}
                                 >
@@ -287,8 +326,7 @@ export default function HistorialCortesPage() {
                                 <DropdownMenuCheckboxItem
                                     checked={granTotalFilter === 'positive'}
                                     onCheckedChange={(checked) => {
-                                        if (checked) setGranTotalFilter('positive');
-                                        else if (granTotalFilter === 'positive') setGranTotalFilter('all');
+                                        setGranTotalFilter(checked ? 'positive' : 'all');
                                         setPage(1);
                                     }}
                                 >
@@ -373,17 +411,42 @@ export default function HistorialCortesPage() {
                             ) : sales.length > 0 ? (
                                 sales.map((sale) => (
                                     <TableRow key={sale.id}>
-                                        <TableCell>{sale.num_venta}</TableCell>
-                                        <TableCell>{formatDate(sale.fecha_venta)}</TableCell>
-                                        <TableCell>{sale.status}</TableCell>
-                                        <TableCell>{sale.sku}</TableCell>
-                                        <TableCell className="text-right">{sale.unidades ?? '-'}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(sale.total)}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(sale.costo_envio)}</TableCell>
-                                        <TableCell className={cn('text-right font-medium', (sale.total_final ?? 0) < 0 ? 'text-red-600' : 'text-green-700')}>
-                                            {formatCurrency(sale.total_final)}
-                                        </TableCell>
-                                    </TableRow>
+                                    {headers.map((header) => {
+                                        const cellValue = sale[header.key as keyof SaleRecord];
+                                        let formattedValue: React.ReactNode;
+
+                                        if (header.key === 'fecha_venta') {
+                                            formattedValue = formatDate(cellValue as string | null);
+                                        } else if (currencyColumns.includes(header.key)) {
+                                            formattedValue = formatCurrency(cellValue as number | null);
+                                        } else if (header.key === 'venta_xpublicidad') {
+                                            formattedValue = (cellValue as boolean) ? 'Sí' : 'No';
+                                        } else if (header.key === 'num_publi' && cellValue) {
+                                            formattedValue = (
+                                                <span
+                                                    className="cursor-pointer hover:text-primary hover:font-medium"
+                                                    onClick={() => handleCopyToClipboard(String(cellValue))}
+                                                >
+                                                    {String(cellValue)}
+                                                </span>
+                                            );
+                                        } else if (cellValue === null || cellValue === undefined) {
+                                            formattedValue = '-';
+                                        } else {
+                                            formattedValue = String(cellValue);
+                                        }
+
+                                        return (
+                                            <TableCell key={header.key} className={cn({
+                                                'text-right': numericColumns.includes(header.key),
+                                                'font-medium text-red-600': header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) < 0,
+                                                'font-medium text-green-700': header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) >= 0,
+                                            })}>
+                                                {formattedValue}
+                                            </TableCell>
+                                        );
+                                    })}
+                                </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
