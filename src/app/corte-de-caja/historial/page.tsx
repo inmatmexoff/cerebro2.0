@@ -17,8 +17,6 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 
 type SaleRecord = {
@@ -219,14 +217,26 @@ export default function HistorialCortesPage() {
                             <DropdownMenuContent align="end" className="w-56">
                                 <DropdownMenuLabel>Filtrar Gran Total</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuRadioGroup value={granTotalFilter} onValueChange={(value) => {
-                                    setGranTotalFilter(value as any);
-                                    setPage(1);
-                                }}>
-                                    <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="negative">Solo negativos</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="positive">0 o positivos</DropdownMenuRadioItem>
-                                </DropdownMenuRadioGroup>
+                                <DropdownMenuCheckboxItem
+                                    checked={granTotalFilter === 'negative'}
+                                    onCheckedChange={(checked) => {
+                                        setGranTotalFilter(checked ? 'negative' : 'all');
+                                        setPage(1);
+                                    }}
+                                >
+                                    Solo negativos
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem
+                                    checked={granTotalFilter === 'positive'}
+                                    onCheckedChange={(checked) => {
+                                        setGranTotalFilter(checked ? 'positive' : 'all');
+                                        setPage(1);
+                                    }}
+                                >
+                                    0 o positivos
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuLabel>Otros Filtros</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuCheckboxItem
                                     checked={showHighShippingCost}
