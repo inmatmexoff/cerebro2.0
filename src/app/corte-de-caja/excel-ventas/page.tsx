@@ -1080,10 +1080,10 @@ export default function ExcelVentasPage() {
             data.length > 0 && (
               <Card className="mt-6">
                 <CardHeader>
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <CardTitle>Vista Previa de Datos</CardTitle>
-                       <CardDescription>
+                      <CardDescription>
                         {isFiltered ? (
                           <>
                             Mostrando{' '}
@@ -1097,13 +1097,15 @@ export default function ExcelVentasPage() {
                             <span className="font-bold text-lg text-foreground">
                               {data.length}
                             </span>{' '}
-                            {data.length === 1 ? 'registro' : 'registros'} en total.
+                            {data.length === 1 ? 'registro' : 'registros'} en
+                            total.
                           </>
                         )}
                       </CardDescription>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
-                      <div className="flex items-center flex-wrap gap-x-4 gap-y-2">
+
+                    <div className="flex flex-wrap justify-end items-start gap-x-6 gap-y-4">
+                      <div className="flex flex-col items-start gap-1.5">
                         <div className="flex items-center space-x-2">
                           <Checkbox
                             id="show-negative"
@@ -1113,10 +1115,7 @@ export default function ExcelVentasPage() {
                               if (checked) setShowOnlyPositive(false);
                             }}
                           />
-                          <label
-                            htmlFor="show-negative"
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
+                          <label htmlFor="show-negative" className="text-sm font-medium">
                             Mostrar solo negativos
                           </label>
                         </div>
@@ -1129,61 +1128,56 @@ export default function ExcelVentasPage() {
                               if (checked) setShowOnlyNegative(false);
                             }}
                           />
-                          <label
-                            htmlFor="show-positive"
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
+                          <label htmlFor="show-positive" className="text-sm font-medium">
                             Mostrar 0 o positivos
                           </label>
                         </div>
                         <div className="flex items-center space-x-2">
-                           <Checkbox
+                          <Checkbox
                             id="show-high-shipping"
                             checked={showHighShippingCost}
-                            onCheckedChange={(checked) => {
-                              setShowHighShippingCost(checked as boolean);
-                            }}
+                            onCheckedChange={(checked) =>
+                              setShowHighShippingCost(checked as boolean)
+                            }
                           />
-                          <label
-                            htmlFor="show-high-shipping"
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
+                          <label htmlFor="show-high-shipping" className="text-sm font-medium">
                             Costo Envío &lt;= -$300
                           </label>
                         </div>
                       </div>
-                      <div className="relative w-full sm:max-w-xs">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Buscar por SKU..."
-                          value={skuSearchTerm}
-                          onChange={(e) => setSkuSearchTerm(e.target.value)}
-                          className="pl-8"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          onClick={handleDownloadCSV}
-                          variant="outline"
-                          size="sm"
-                          className="w-full sm:w-auto"
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          CSV
-                        </Button>
-                        <Button
-                          onClick={handleDownloadPDF}
-                          variant="outline"
-                          size="sm"
-                          className="w-full sm:w-auto"
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          PDF
-                        </Button>
+                      
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="relative w-full max-w-[240px]">
+                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar por SKU..."
+                            value={skuSearchTerm}
+                            onChange={(e) => setSkuSearchTerm(e.target.value)}
+                            className="pl-8"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <Button
+                            onClick={handleDownloadCSV}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Download className="mr-2 h-4 w-4" />
+                            CSV
+                          </Button>
+                          <Button
+                            onClick={handleDownloadPDF}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Download className="mr-2 h-4 w-4" />
+                            PDF
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div className="pt-4 border-t mt-4">
+                  <div className="pt-4">
                     <h4 className="text-sm font-medium mb-2">
                       Resumen de Totales (Filtrado)
                     </h4>
@@ -1261,7 +1255,7 @@ export default function ExcelVentasPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[60vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                  <div className="h-[70vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     <Table>
                       <TableHeader className="sticky top-0 bg-background">
                         <TableRow>
