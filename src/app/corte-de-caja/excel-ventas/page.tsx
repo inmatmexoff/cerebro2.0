@@ -204,15 +204,7 @@ export default function ExcelVentasPage() {
   );
   const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
   const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
-  const [skuSummary, setSkuSummary] = useState<{ 
-    pubId: string; 
-    sku: string; 
-    unidades: number; 
-    total: number;
-    perdidaPorSku: number;
-    perdidaTotal: number;
-    porcentajePerdida: number;
-  }[]>([]);
+  const [skuSummary, setSkuSummary] = useState<any[]>([]);
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -642,11 +634,41 @@ export default function ExcelVentasPage() {
                   };
               })
               .filter(item => item.perdidaTotal < 0);
+            
+            // Group by publication ID
+            const groupedByPubId: { [key: string]: typeof enrichedSummary } = {};
+            enrichedSummary.forEach(item => {
+                if (!groupedByPubId[item.pubId]) {
+                    groupedByPubId[item.pubId] = [];
+                }
+                groupedByPubId[item.pubId].push(item);
+            });
+
+            // Sort groups by total loss
+            const sortedGroups = Object.values(groupedByPubId).sort((a, b) => {
+                const totalLossA = a.reduce((sum, item) => sum + item.perdidaTotal, 0);
+                const totalLossB = b.reduce((sum, item) => sum + item.perdidaTotal, 0);
+                return totalLossA - totalLossB; // Ascending sort for negative numbers
+            });
 
 
-            const summaryArray = enrichedSummary.sort((a, b) => a.perdidaTotal - b.perdidaTotal); 
+            // Flatten the groups for rendering
+            const summaryArrayForRender: any[] = [];
+            sortedGroups.forEach((group, groupIndex) => {
+                // Sort items within the group if needed, e.g., by SKU
+                const sortedGroupItems = group.sort((a, b) => a.sku.localeCompare(b.sku));
+                
+                sortedGroupItems.forEach((item, itemIndex) => {
+                    summaryArrayForRender.push({
+                        ...item,
+                        isFirstInGroup: itemIndex === 0,
+                        groupSize: group.length,
+                        groupIndex: groupIndex + 1,
+                    });
+                });
+            });
 
-            setSkuSummary(summaryArray);
+            setSkuSummary(summaryArrayForRender);
         }
     } else {
         setFilteredPublications([]);
@@ -1138,19 +1160,21 @@ export default function ExcelVentasPage() {
                 </div>
               </CardHeader>
              {isProcessing && (
-                <CardContent>
-                  <div className="flex flex-col items-center justify-center p-12 text-center">
-                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                    <p className="mt-4 text-lg font-semibold text-primary">
-                      Procesando archivo... ({progress}%)
-                    </p>
-                    <Progress value={progress} className="w-full max-w-sm mt-2" />
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Por favor espera. Archivos grandes pueden tomar varios
-                      minutos.
-                    </p>
-                </div>
-              </CardContent>
+                 <Card>
+                    <CardContent className="p-6">
+                        <div className="flex flex-col items-center justify-center text-center">
+                            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                            <p className="mt-4 text-lg font-semibold text-primary">
+                            Procesando archivo... ({progress}%)
+                            </p>
+                            <Progress value={progress} className="w-full max-w-sm mt-2" />
+                            <p className="mt-2 text-sm text-muted-foreground">
+                            Por favor espera. Archivos grandes pueden tomar varios
+                            minutos.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
               )}
             </Card>
           )}
@@ -1566,16 +1590,23 @@ export default function ExcelVentasPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {skuSummary.length > 0 ? (
-                                        skuSummary.map(({ pubId, sku, unidades, total, perdidaPorSku, perdidaTotal, porcentajePerdida }, index) => (
-                                            <TableRow key={`${pubId}-${sku}`}>
-                                                <TableCell>{index + 1}</TableCell>
-                                                <TableCell className="font-medium">{pubId}</TableCell>
-                                                <TableCell className="font-medium">{sku}</TableCell>
-                                                <TableCell className="text-right">{unidades}</TableCell>
-                                                <TableCell className="text-right">{total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                <TableCell className="text-right">{perdidaPorSku.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                <TableCell className="text-right">{perdidaTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                <TableCell className="text-right">{porcentajePerdida.toFixed(2)}%</TableCell>
+                                        skuSummary.map((item) => (
+                                            <TableRow key={`${item.pubId}-${item.sku}`}>
+                                                {item.isFirstInGroup ? (
+                                                    <TableCell rowSpan={item.groupSize}>{item.groupIndex}</TableCell>
+                                                ) : null}
+                                                {item.isFirstInGroup ? (
+                                                    <TableCell rowSpan={item.groupSize} className="font-medium">
+                                                        {item.pubId}
+                                                    </TableCell>
+                                                ) : null}
+
+                                                <TableCell className="font-medium">{item.sku}</TableCell>
+                                                <TableCell className="text-right">{item.unidades}</TableCell>
+                                                <TableCell className="text-right">{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                <TableCell className="text-right">{item.perdidaPorSku.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                <TableCell className="text-right">{item.perdidaTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                <TableCell className="text-right">{item.porcentajePerdida.toFixed(2)}%</TableCell>
                                             </TableRow>
                                         ))
                                     ) : (
