@@ -208,6 +208,7 @@ export default function ExcelVentasPage() {
   const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
   const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
   const [skuSummary, setSkuSummary] = useState<any[]>([]);
+  const [colorSummary, setColorSummary] = useState<any[]>([]);
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -608,8 +609,10 @@ export default function ExcelVentasPage() {
         const skuIndex = headers.indexOf('SKU');
         const unidadesIndex = headers.indexOf('Unidades');
         const granTotalIndex = headers.indexOf('Gran Total');
+        const markupIndex = headers.indexOf('Markup (%)');
 
-        if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && granTotalIndex > -1) {
+
+        if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && granTotalIndex > -1 && markupIndex > -1) {
             const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
             filteredData.forEach(row => {
                 const pubId = String(row[pubIndex] || '').trim();
@@ -682,13 +685,48 @@ export default function ExcelVentasPage() {
                     });
                 });
             });
-
             setSkuSummary(summaryArrayForRender);
+
+
+            const summaryByColor = {
+                darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+                lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+                orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+                yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+                red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+            };
+            
+            filteredData.forEach(row => {
+                const markupValue = row[markupIndex];
+                let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
+        
+                if (typeof markupValue === 'number') {
+                    if (markupValue >= 30) category = summaryByColor.darkGreen;
+                    else if (markupValue >= 20) category = summaryByColor.lightGreen;
+                    else if (markupValue >= 10) category = summaryByColor.orange;
+                    else if (markupValue >= 5) category = summaryByColor.yellow;
+                    else category = summaryByColor.red;
+                } else {
+                    category = summaryByColor.red;
+                }
+        
+                const pubId = String(row[pubIndex] || '').trim();
+                const sku = String(row[skuIndex] || '').trim();
+                const unidades = parseInt(String(row[unidadesIndex]), 10) || 0;
+                const total = row[granTotalIndex] as number || 0;
+        
+                if (pubId) category.publications.add(pubId);
+                if (sku) category.skus.add(sku);
+                category.unidades += unidades;
+                category.total += total;
+            });
+            setColorSummary(Object.values(summaryByColor));
         }
     } else {
         setFilteredPublications([]);
         setFilteredSkus([]);
         setSkuSummary([]);
+        setColorSummary([]);
     }
 }, [filteredData, anyCheckboxFilterActive, headers]);
 
@@ -729,6 +767,8 @@ export default function ExcelVentasPage() {
         else if (markupValue >= 10) counters.orange++;
         else if (markupValue >= 5) counters.yellow++;
         else counters.red++;
+      } else {
+        counters.red++;
       }
     });
 
@@ -1213,18 +1253,18 @@ export default function ExcelVentasPage() {
                 </div>
               </CardHeader>
               {isProcessing && (
-                <CardContent>
-                  <div className="flex flex-col items-center justify-center text-center p-6">
-                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                    <p className="mt-4 text-lg font-semibold text-primary">
-                      Procesando archivo... ({progress}%)
-                    </p>
-                    <Progress value={progress} className="w-full max-w-sm mt-2" />
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Por favor espera. Archivos grandes pueden tomar varios
-                      minutos.
-                    </p>
-                  </div>
+                 <CardContent>
+                    <div className="flex flex-col items-center justify-center text-center p-6">
+                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                        <p className="mt-4 text-lg font-semibold text-primary">
+                        Procesando archivo... ({progress}%)
+                        </p>
+                        <Progress value={progress} className="w-full max-w-sm mt-2" />
+                        <p className="mt-2 text-sm text-muted-foreground">
+                        Por favor espera. Archivos grandes pueden tomar varios
+                        minutos.
+                        </p>
+                    </div>
                 </CardContent>
               )}
             </Card>
@@ -1640,7 +1680,7 @@ export default function ExcelVentasPage() {
                     <CardHeader>
                       <CardTitle>Resumen de IDs y SKUs Filtrados</CardTitle>
                       <CardDescription>
-                        Listas de todos los números de publicación y SKUs únicos que coinciden con los filtros aplicados.
+                        Listas de todos los números de publicación y SKUs únicos que coinciden con los filtros aplicados y que resultaron en pérdida.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1726,6 +1766,47 @@ export default function ExcelVentasPage() {
                     </div>
                     </CardContent>
                   </Card>
+                )}
+                 {anyCheckboxFilterActive && skuSummary.length > 0 && (
+                    <Card className="mt-6">
+                        <CardHeader>
+                        <CardTitle>Resumen por Rentabilidad</CardTitle>
+                        <CardDescription>
+                            Agrupación de datos por color de rentabilidad para los registros filtrados.
+                        </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                        <Table>
+                            <TableHeader>
+                            <TableRow>
+                                <TableHead>Color</TableHead>
+                                <TableHead># de Publicación</TableHead>
+                                <TableHead>SKU's</TableHead>
+                                <TableHead className="text-right">Unidades</TableHead>
+                                <TableHead className="text-right">Total</TableHead>
+                            </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                            {colorSummary.map((item, index) => (
+                                <TableRow key={index}>
+                                <TableCell>
+                                    <div className="flex items-center gap-2 font-medium">
+                                    <div className={cn("w-4 h-4 rounded-full border", item.colorClass)}></div>
+                                    <span>{item.label}</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell>{item.publications.size}</TableCell>
+                                <TableCell>{item.skus.size}</TableCell>
+                                <TableCell className="text-right">{item.unidades.toLocaleString()}</TableCell>
+                                <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>
+                                    {item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                                </TableCell>
+                                </TableRow>
+                            ))}
+                            </TableBody>
+                        </Table>
+                        </CardContent>
+                    </Card>
                 )}
               </>
             )
