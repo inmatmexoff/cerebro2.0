@@ -211,6 +211,7 @@ export default function ExcelVentasPage() {
   const [skuSummary, setSkuSummary] = useState<any[]>([]);
   const [colorSummary, setColorSummary] = useState<any[]>([]);
   const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red'>('all');
+  const [activeTab, setActiveTab] = useState<'sku' | 'color'>('color');
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -240,14 +241,15 @@ export default function ExcelVentasPage() {
   };
 
   const handleMarkupFilterClick = (filter: 'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red') => {
-    setMarkupFilter(prev => {
-        const newFilter = prev === filter ? 'all' : filter;
-        if (newFilter !== 'all') {
-            setShowOnlyNegative(false);
-            setShowOnlyPositive(false);
-        }
-        return newFilter;
-    });
+    const newFilter = markupFilter === filter ? 'all' : filter;
+    if (newFilter !== 'all') {
+        setShowOnlyNegative(false);
+        setShowOnlyPositive(false);
+        setActiveTab('sku');
+    } else {
+        setActiveTab('color');
+    }
+    setMarkupFilter(newFilter);
   };
 
   const onDrop = useCallback(
@@ -577,8 +579,9 @@ export default function ExcelVentasPage() {
   
   const isFiltered = skuSearchTerm || showOnlyNegative || showOnlyPositive || showHighShippingCost || markupFilter !== 'all';
 
+  const granTotalIndex = headers.indexOf('Gran Total');
+
   const filteredData = React.useMemo(() => {
-    const granTotalIndex = headers.indexOf('Gran Total');
     const skuIndex = headers.indexOf('SKU');
     const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
     const markupIndex = headers.indexOf('Markup (%)');
@@ -641,6 +644,7 @@ export default function ExcelVentasPage() {
     showHighShippingCost,
     headers,
     markupFilter,
+    granTotalIndex,
   ]);
 
   React.useEffect(() => {
@@ -648,7 +652,6 @@ export default function ExcelVentasPage() {
         const pubIndex = headers.indexOf('# de publicación');
         const skuIndex = headers.indexOf('SKU');
         const unidadesIndex = headers.indexOf('Unidades');
-        const granTotalIndex = headers.indexOf('Gran Total');
         const markupIndex = headers.indexOf('Markup (%)');
 
 
@@ -671,24 +674,19 @@ export default function ExcelVentasPage() {
 
             const summaryValues = Object.values(summary);
 
-            const totalGlobalLoss = summaryValues.reduce((acc, item) => {
-              return item.total < 0 ? acc + item.total : acc;
-            }, 0);
+            const totalOfGranTotal = filteredData.reduce((sum, row) => sum + (row[granTotalIndex] as number || 0), 0);
 
             const enrichedSummary = summaryValues
               .map(item => {
-                  const perdidaTotal = item.total < 0 ? item.total : 0;
-                  const perdidaPorSku = (item.unidades > 0 && perdidaTotal < 0) ? perdidaTotal / item.unidades : 0;
-                  const porcentajePerdida = (totalGlobalLoss < 0 && perdidaTotal < 0) ? (perdidaTotal / totalGlobalLoss) * 100 : 0;
+                  const totalPorUnidad = (item.unidades > 0) ? item.total / item.unidades : 0;
+                  const porcentajeDelTotal = (totalOfGranTotal !== 0) ? (item.total / totalOfGranTotal) * 100 : 0;
                   
                   return {
                       ...item,
-                      perdidaPorSku,
-                      perdidaTotal,
-                      porcentajePerdida
+                      totalPorUnidad,
+                      porcentajeDelTotal
                   };
-              })
-              .filter(item => item.perdidaTotal < 0);
+              });
             
             const groupedByPubId: { [key: string]: typeof enrichedSummary } = {};
             enrichedSummary.forEach(item => {
@@ -699,7 +697,7 @@ export default function ExcelVentasPage() {
                 }
                 groupedByPubId[pubId].push(item);
             });
-
+            
             const uniquePubsFromSummary = Object.values(groupedByPubId).flat().filter((v,i,a) => a.findIndex(t=>(t.pubId === v.pubId)) === i).map(i => i.pubId).sort();
             const uniqueSkusFromSummary = [...new Set(enrichedSummary.map(item => item.sku))].sort();
 
@@ -707,9 +705,9 @@ export default function ExcelVentasPage() {
             setFilteredSkus(uniqueSkusFromSummary);
 
             const sortedGroups = Object.values(groupedByPubId).sort((a, b) => {
-                const totalLossA = a.reduce((sum, item) => sum + item.perdidaTotal, 0);
-                const totalLossB = b.reduce((sum, item) => sum + item.perdidaTotal, 0);
-                return totalLossA - totalLossB;
+                const totalA = a.reduce((sum, item) => sum + item.total, 0);
+                const totalB = b.reduce((sum, item) => sum + item.total, 0);
+                return totalA - totalB;
             });
 
             const summaryArrayForRender: any[] = [];
@@ -768,7 +766,7 @@ export default function ExcelVentasPage() {
         setSkuSummary([]);
         setColorSummary([]);
     }
-}, [filteredData, headers]);
+}, [filteredData, headers, granTotalIndex]);
 
   const createSumCalculator = (columnName: string) => {
     return React.useMemo(() => {
@@ -1727,7 +1725,12 @@ export default function ExcelVentasPage() {
                 </Card>
                 
                 {(filteredData.length > 0) && (
-                  <Tabs defaultValue="sku" className="mt-6">
+                  <Tabs 
+                    defaultValue="color" 
+                    value={activeTab} 
+                    onValueChange={(value) => setActiveTab(value as 'sku' | 'color')} 
+                    className="mt-6"
+                  >
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="sku">Resumen por SKU</TabsTrigger>
                         <TabsTrigger value="color">Resumen por Rentabilidad</TabsTrigger>
@@ -1738,7 +1741,7 @@ export default function ExcelVentasPage() {
                                 <CardHeader>
                                     <CardTitle>Resumen de IDs y SKUs Filtrados</CardTitle>
                                     <CardDescription>
-                                        Listas de todos los números de publicación y SKUs únicos que coinciden con los filtros aplicados y que resultaron en pérdida.
+                                        Listas de todos los números de publicación y SKUs únicos que coinciden con los filtros aplicados.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
@@ -1784,9 +1787,8 @@ export default function ExcelVentasPage() {
                                                     <TableHead># de Publicación</TableHead>
                                                     <TableHead>SKU</TableHead>
                                                     <TableHead className="text-right">Unidades</TableHead>
+                                                    <TableHead className="text-right">Total x Unidad</TableHead>
                                                     <TableHead className="text-right">Total</TableHead>
-                                                    <TableHead className="text-right">Perdida x SKU</TableHead>
-                                                    <TableHead className="text-right">Perdida Total</TableHead>
                                                     <TableHead className="text-right">% del Total</TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -1804,10 +1806,9 @@ export default function ExcelVentasPage() {
 
                                                         <TableCell className="font-medium">{item.sku}</TableCell>
                                                         <TableCell className="text-right">{item.unidades}</TableCell>
+                                                        <TableCell className="text-right">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
                                                         <TableCell className="text-right">{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                        <TableCell className="text-right">{item.perdidaPorSku.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                        <TableCell className="text-right">{item.perdidaTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                        <TableCell className="text-right">{item.porcentajePerdida.toFixed(2)}%</TableCell>
+                                                        <TableCell className="text-right">{item.porcentajeDelTotal.toFixed(2)}%</TableCell>
                                                     </TableRow>
                                                 ))}
                                             </TableBody>
