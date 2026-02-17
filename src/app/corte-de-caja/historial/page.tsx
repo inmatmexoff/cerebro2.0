@@ -38,6 +38,7 @@ type SaleRecord = {
     cargo_difpeso: number | null;
     anu_reembolsos: number | null;
     total: number | null;
+    landed_cost: number | null;
     venta_xpublicidad: boolean;
     sku: string;
     num_publi: string;
@@ -444,11 +445,12 @@ export default function HistorialCortesPage() {
     { key: 'tienda', label: 'Tienda' },
     { key: 'tip_publi', label: 'Tipo Pub.' },
     { key: 'total', label: 'Total' },
+    { key: 'landed_cost', label: 'Landed Cost Total' },
     { key: 'total_final', label: 'Gran Total' },
     { key: 'markup', label: 'Markup (%)' },
   ];
 
-  const currencyColumns = ['ing_xunidad', 'cargo_venta', 'costo_envio', 'ing_xenvio', 'cargo_difpeso', 'anu_reembolsos', 'total', 'total_final'];
+  const currencyColumns = ['ing_xunidad', 'cargo_venta', 'costo_envio', 'ing_xenvio', 'cargo_difpeso', 'anu_reembolsos', 'total', 'landed_cost', 'total_final'];
   const numericColumns = ['unidades', ...currencyColumns, 'markup'];
 
 
