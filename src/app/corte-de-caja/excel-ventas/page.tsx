@@ -647,134 +647,6 @@ export default function ExcelVentasPage() {
     granTotalIndex,
   ]);
 
-  React.useEffect(() => {
-    if (!isFiltered) {
-        setSkuSummary([]);
-        setFilteredPublications([]);
-        setFilteredSkus([]);
-    }
-
-    if (filteredData.length > 0) {
-        const pubIndex = headers.indexOf('# de publicación');
-        const skuIndex = headers.indexOf('SKU');
-        const unidadesIndex = headers.indexOf('Unidades');
-        const markupIndex = headers.indexOf('Markup (%)');
-
-
-        if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && granTotalIndex > -1 && markupIndex > -1) {
-            const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
-            filteredData.forEach(row => {
-                const pubId = String(row[pubIndex] || '').trim();
-                const sku = String(row[skuIndex] || '').trim();
-                if (pubId || sku) {
-                    const key = `${pubId}|${sku}`;
-                    if (!summary[key]) {
-                        summary[key] = { pubId: pubId || '-', sku: sku || '-', unidades: 0, total: 0 };
-                    }
-                    const unidades = parseInt(String(row[unidadesIndex])) || 0;
-                    const total = row[granTotalIndex] as number || 0;
-                    summary[key].unidades += unidades;
-                    summary[key].total += total;
-                }
-            });
-
-            const summaryValues = Object.values(summary);
-
-            const totalOfGranTotal = filteredData.reduce((sum, row) => sum + (row[granTotalIndex] as number || 0), 0);
-            const totalLoss = filteredData.filter(row => row[granTotalIndex] < 0).reduce((sum, row) => sum + (row[granTotalIndex] as number), 0);
-
-            const enrichedSummary = summaryValues
-              .map(item => {
-                  const totalPorUnidad = (item.unidades > 0) ? item.total / item.unidades : 0;
-                  const porcentajeDelTotal = (totalLoss !== 0 && item.total < 0) ? (item.total / totalLoss) * 100 : 0;
-                  
-                  return {
-                      ...item,
-                      totalPorUnidad,
-                      porcentajeDelTotal
-                  };
-              }).sort((a,b) => a.total - b.total);
-            
-            const groupedByPubId: { [key: string]: typeof enrichedSummary } = {};
-            enrichedSummary.forEach(item => {
-                const pubId = item.pubId;
-                if (!pubId || pubId === '-') return;
-                if (!groupedByPubId[pubId]) {
-                    groupedByPubId[pubId] = [];
-                }
-                groupedByPubId[pubId].push(item);
-            });
-            
-            const uniquePubsFromSummary = Object.values(groupedByPubId).flat().filter((v,i,a) => a.findIndex(t=>(t.pubId === v.pubId)) === i).map(i => i.pubId).sort();
-            const uniqueSkusFromSummary = [...new Set(enrichedSummary.map(item => item.sku))].sort();
-
-            setFilteredPublications(uniquePubsFromSummary);
-            setFilteredSkus(uniqueSkusFromSummary);
-
-            const sortedGroups = Object.values(groupedByPubId).sort((a, b) => {
-                const totalA = a.reduce((sum, item) => sum + item.total, 0);
-                const totalB = b.reduce((sum, item) => sum + item.total, 0);
-                return totalA - totalB;
-            });
-
-            const summaryArrayForRender: any[] = [];
-            sortedGroups.forEach((group, groupIndex) => {
-                const sortedGroupItems = group.sort((a, b) => a.sku.localeCompare(b.sku));
-                
-                sortedGroupItems.forEach((item, itemIndex) => {
-                    summaryArrayForRender.push({
-                        ...item,
-                        isFirstInGroup: itemIndex === 0,
-                        groupSize: group.length,
-                        groupIndex: groupIndex + 1,
-                    });
-                });
-            });
-            setSkuSummary(summaryArrayForRender);
-
-
-            const summaryByColor = {
-                darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-                lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-                orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-                yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-                red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-            };
-            
-            filteredData.forEach(row => {
-                const markupValue = row[markupIndex];
-                let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
-        
-                if (typeof markupValue === 'number') {
-                    if (markupValue >= 30) category = summaryByColor.darkGreen;
-                    else if (markupValue >= 20) category = summaryByColor.lightGreen;
-                    else if (markupValue >= 10) category = summaryByColor.orange;
-                    else if (markupValue >= 5) category = summaryByColor.yellow;
-                    else category = summaryByColor.red;
-                } else {
-                    category = summaryByColor.red;
-                }
-        
-                const pubId = String(row[pubIndex] || '').trim();
-                const sku = String(row[skuIndex] || '').trim();
-                const unidades = parseInt(String(row[unidadesIndex]), 10) || 0;
-                const total = row[granTotalIndex] as number || 0;
-        
-                if (pubId) category.publications.add(pubId);
-                if (sku) category.skus.add(sku);
-                category.unidades += unidades;
-                category.total += total;
-            });
-            setColorSummary(Object.values(summaryByColor));
-        }
-    } else {
-        setFilteredPublications([]);
-        setFilteredSkus([]);
-        setSkuSummary([]);
-        setColorSummary([]);
-    }
-}, [filteredData, headers, granTotalIndex, isFiltered]);
-
   const createSumCalculator = (columnName: string) => {
     return React.useMemo(() => {
       const index = headers.indexOf(columnName);
@@ -787,6 +659,148 @@ export default function ExcelVentasPage() {
   };
 
   const granTotalSum = createSumCalculator('Gran Total');
+
+  React.useEffect(() => {
+    if (data.length === 0) {
+        setSkuSummary([]);
+        setFilteredPublications([]);
+        setFilteredSkus([]);
+        setColorSummary([]);
+        return;
+    }
+
+    const pubIndex = headers.indexOf('# de publicación');
+    const skuIndex = headers.indexOf('SKU');
+    const unidadesIndex = headers.indexOf('Unidades');
+    const markupIndex = headers.indexOf('Markup (%)');
+
+    if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && granTotalIndex > -1 && markupIndex > -1) {
+        const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
+        const dataToSummarize = markupFilter === 'all' ? filteredData : filteredData.filter(row => {
+          const markupValue = row[markupIndex];
+           if (typeof markupValue !== 'number') return markupFilter === 'red';
+           switch (markupFilter) {
+                case 'darkGreen': return markupValue >= 30;
+                case 'lightGreen': return markupValue >= 20 && markupValue < 30;
+                case 'orange': return markupValue >= 10 && markupValue < 20;
+                case 'yellow': return markupValue >= 5 && markupValue < 10;
+                case 'red': return markupValue < 5;
+                default: return false;
+            }
+        });
+
+        dataToSummarize.forEach(row => {
+            const pubId = String(row[pubIndex] || '').trim();
+            const sku = String(row[skuIndex] || '').trim();
+            if (pubId || sku) {
+                const key = `${pubId}|${sku}`;
+                if (!summary[key]) {
+                    summary[key] = { pubId: pubId || '-', sku: sku || '-', unidades: 0, total: 0 };
+                }
+                const unidades = parseInt(String(row[unidadesIndex])) || 0;
+                const total = row[granTotalIndex] as number || 0;
+                summary[key].unidades += unidades;
+                summary[key].total += total;
+            }
+        });
+
+        const summaryValues = Object.values(summary);
+        
+        const totalOfGranTotal = dataToSummarize.reduce((sum, row) => sum + (row[granTotalIndex] as number || 0), 0);
+
+        const enrichedSummary = summaryValues
+          .map(item => {
+              const totalPorUnidad = (item.unidades > 0) ? item.total / item.unidades : 0;
+              const porcentajeDelTotal = (totalOfGranTotal !== 0) ? (item.total / totalOfGranTotal) * 100 : 0;
+              
+              return {
+                  ...item,
+                  totalPorUnidad,
+                  porcentajeDelTotal
+              };
+          }).sort((a,b) => a.total - b.total);
+        
+        const groupedByPubId: { [key: string]: typeof enrichedSummary } = {};
+        enrichedSummary.forEach(item => {
+            const pubId = item.pubId;
+            if (!pubId || pubId === '-') return;
+            if (!groupedByPubId[pubId]) {
+                groupedByPubId[pubId] = [];
+            }
+            groupedByPubId[pubId].push(item);
+        });
+        
+        const uniquePubsFromSummary = Object.values(groupedByPubId).flat().filter((v,i,a) => a.findIndex(t=>(t.pubId === v.pubId)) === i).map(i => i.pubId).sort();
+        const uniqueSkusFromSummary = [...new Set(enrichedSummary.map(item => item.sku))].sort();
+
+        setFilteredPublications(uniquePubsFromSummary);
+        setFilteredSkus(uniqueSkusFromSummary);
+
+        const sortedGroups = Object.values(groupedByPubId).sort((a, b) => {
+            const totalA = a.reduce((sum, item) => sum + item.total, 0);
+            const totalB = b.reduce((sum, item) => sum + item.total, 0);
+            return totalA - totalB;
+        });
+
+        const summaryArrayForRender: any[] = [];
+        sortedGroups.forEach((group, groupIndex) => {
+            const sortedGroupItems = group.sort((a, b) => a.sku.localeCompare(b.sku));
+            
+            sortedGroupItems.forEach((item, itemIndex) => {
+                summaryArrayForRender.push({
+                    ...item,
+                    isFirstInGroup: itemIndex === 0,
+                    groupSize: group.length,
+                    groupIndex: groupIndex + 1,
+                });
+            });
+        });
+        setSkuSummary(summaryArrayForRender);
+
+
+        const summaryByColor = {
+            darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+            lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+            orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+            yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+            red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+        };
+        
+        filteredData.forEach(row => {
+            const markupValue = row[markupIndex];
+            let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
+    
+            if (typeof markupValue === 'number') {
+                if (markupValue >= 30) category = summaryByColor.darkGreen;
+                else if (markupValue >= 20) category = summaryByColor.lightGreen;
+                else if (markupValue >= 10) category = summaryByColor.orange;
+                else if (markupValue >= 5) category = summaryByColor.yellow;
+                else category = summaryByColor.red;
+            } else {
+                category = summaryByColor.red;
+            }
+    
+            const pubId = String(row[pubIndex] || '').trim();
+            const sku = String(row[skuIndex] || '').trim();
+            const unidades = parseInt(String(row[unidadesIndex]), 10) || 0;
+            const total = row[granTotalIndex] as number || 0;
+    
+            if (pubId) category.publications.add(pubId);
+            if (sku) category.skus.add(sku);
+            category.unidades += unidades;
+            category.total += total;
+        });
+
+        const summaryWithPercentage = Object.values(summaryByColor).map(cat => ({
+            ...cat,
+            percentageOfTotal: granTotalSum !== 0 ? (cat.total / granTotalSum) * 100 : 0
+        }));
+
+        setColorSummary(summaryWithPercentage);
+    }
+}, [filteredData, headers, granTotalIndex, data.length, markupFilter, granTotalSum]);
+
+  
   const landedCostSum = createSumCalculator('Landed Cost Total');
   const ingresosPorProductosSum = createSumCalculator(
     'Ingresos por productos (MXN)'
@@ -1771,7 +1785,7 @@ export default function ExcelVentasPage() {
                   </CardContent>
                 </Card>
                 
-                {(data.length > 0) && (
+                {data.length > 0 && (
                   <Tabs 
                     defaultValue="color" 
                     value={activeTab} 
@@ -1855,7 +1869,7 @@ export default function ExcelVentasPage() {
                                                         <TableCell className="text-right">{item.unidades}</TableCell>
                                                         <TableCell className="text-right">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
                                                         <TableCell className="text-right">{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                        <TableCell className="text-right">{item.porcentajeDelTotal.toFixed(2)}%</TableCell>
+                                                        <TableCell className="text-right font-mono">{item.porcentajeDelTotal.toFixed(2)}%</TableCell>
                                                     </TableRow>
                                                 ))}
                                             </TableBody>
@@ -1886,6 +1900,7 @@ export default function ExcelVentasPage() {
                                         <TableHead>SKU's</TableHead>
                                         <TableHead className="text-right">Unidades</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
+                                        <TableHead className="text-right">% del Total</TableHead>
                                     </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -1902,6 +1917,9 @@ export default function ExcelVentasPage() {
                                         <TableCell className="text-right">{item.unidades.toLocaleString()}</TableCell>
                                         <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>
                                             {item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                                        </TableCell>
+                                        <TableCell className="text-right font-semibold">
+                                            {item.percentageOfTotal.toFixed(2)}%
                                         </TableCell>
                                         </TableRow>
                                     ))}
