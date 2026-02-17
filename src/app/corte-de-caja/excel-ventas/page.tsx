@@ -295,6 +295,7 @@ export default function ExcelVentasPage() {
             'Total',
             'Landed Cost Total',
             'Gran Total',
+            'Markup (%)',
           ];
 
           setHeaders(finalHeaders);
@@ -396,6 +397,8 @@ export default function ExcelVentasPage() {
                 granTotal = 0;
               }
 
+              const markup = totalLandedCost > 0 ? (granTotal / totalLandedCost) * 100 : 0;
+
               return [
                 excelRowNum,
                 row[COLUMN_MAPPING.A] || '',
@@ -416,6 +419,7 @@ export default function ExcelVentasPage() {
                 totalFromExcel,
                 totalLandedCost,
                 parseFloat(granTotal.toFixed(2)),
+                markup,
               ];
             });
 
@@ -437,6 +441,7 @@ export default function ExcelVentasPage() {
           const totalIndex = finalHeaders.indexOf('Total');
           const granTotalIndex = finalHeaders.indexOf('Gran Total');
           const estadoIndex = finalHeaders.indexOf('ESTADO');
+          const markupIndex = finalHeaders.indexOf('Markup (%)');
 
 
           if (ingresosIndex > -1 && cargoVentaIndex > -1 && costoEnvioIndex > -1 && landedCostTotalIndex > -1 && totalIndex > -1 && granTotalIndex > -1) {
@@ -478,6 +483,10 @@ export default function ExcelVentasPage() {
                         parentRow[landedCostTotalIndex] = componentCostSum;
                         const newGranTotal = originalParentTotal - componentCostSum;
                         parentRow[granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
+                        if (markupIndex > -1) {
+                            const newMarkup = componentCostSum > 0 ? (newGranTotal / componentCostSum) * 100 : 0;
+                            parentRow[markupIndex] = newMarkup;
+                        }
                     }
                 }
             }
@@ -507,6 +516,11 @@ export default function ExcelVentasPage() {
                   const totalFromExcel = allEnrichedData[i][totalIndex] || 0;
                   const newGranTotal = totalFromExcel - summedLandedCost;
                   allEnrichedData[i][granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
+
+                  if (markupIndex > -1) {
+                      const newMarkup = summedLandedCost > 0 ? (newGranTotal / summedLandedCost) * 100 : 0;
+                      allEnrichedData[i][markupIndex] = newMarkup;
+                  }
                 }
               }
             }
@@ -851,6 +865,7 @@ export default function ExcelVentasPage() {
       cargo_venta: headers.indexOf('Cargo por venta e impuestos (MXN)'),
       costo_envio: headers.indexOf('Costos de envío (MXN)'),
       total_final: headers.indexOf('Gran Total'),
+      markup: headers.indexOf('Markup (%)'),
     };
 
     const CHUNK_SIZE = 500;
@@ -917,6 +932,7 @@ export default function ExcelVentasPage() {
               tienda: String(row[newIndices.tienda] || ''),
               tip_publi: String(row[newIndices.tip_publi] || ''),
               total_final: parseCurrency(row[newIndices.total_final]),
+              markup: parseCurrency(row[newIndices.markup]),
             };
           })
           .filter((record) => record.num_venta);
@@ -927,6 +943,15 @@ export default function ExcelVentasPage() {
             .insert(recordsToInsert);
 
           if (insertError) {
+            if (
+              insertError.message.includes(
+                'column "markup" of relation "ml_sales" does not exist'
+              )
+            ) {
+              throw new Error(
+                "La columna 'markup' no existe en la tabla 'ml_sales'. Por favor, añádela antes de guardar."
+              );
+            }
             if (
               insertError.message.includes(
                 'column "total_final" of relation "ml_sales" does not exist'
@@ -1046,6 +1071,7 @@ export default function ExcelVentasPage() {
         const totalIndex = headers.indexOf('Total');
         const landedCostIndex = headers.indexOf('Landed Cost Total');
         const granTotalIndex = headers.indexOf('Gran Total');
+        const markupIndex = headers.indexOf('Markup (%)');
         const unidadesHeader = headers.find((h) => /unidades/i.test(h));
         const unidadesIndex = unidadesHeader
           ? headers.indexOf(unidadesHeader)
@@ -1070,6 +1096,11 @@ export default function ExcelVentasPage() {
 
         row[landedCostIndex] = newTotalLandedCost;
         row[granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
+
+        if (markupIndex > -1) {
+            const newMarkup = newTotalLandedCost > 0 ? (newGranTotal / newTotalLandedCost) * 100 : 0;
+            row[markupIndex] = newMarkup;
+        }
 
         return newData;
       });
@@ -1157,21 +1188,19 @@ export default function ExcelVentasPage() {
                 </div>
               </CardHeader>
              {isProcessing && (
-                 <Card>
-                    <CardContent className="p-6">
-                        <div className="flex flex-col items-center justify-center text-center">
-                            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                            <p className="mt-4 text-lg font-semibold text-primary">
-                            Procesando archivo... ({progress}%)
-                            </p>
-                            <Progress value={progress} className="w-full max-w-sm mt-2" />
-                            <p className="mt-2 text-sm text-muted-foreground">
-                            Por favor espera. Archivos grandes pueden tomar varios
-                            minutos.
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
+                <CardContent className="p-6">
+                    <div className="flex flex-col items-center justify-center text-center">
+                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                        <p className="mt-4 text-lg font-semibold text-primary">
+                        Procesando archivo... ({progress}%)
+                        </p>
+                        <Progress value={progress} className="w-full max-w-sm mt-2" />
+                        <p className="mt-2 text-sm text-muted-foreground">
+                        Por favor espera. Archivos grandes pueden tomar varios
+                        minutos.
+                        </p>
+                    </div>
+                </CardContent>
               )}
             </Card>
           )}
@@ -1408,11 +1437,15 @@ export default function ExcelVentasPage() {
                             const estadoIndex = headers.indexOf('ESTADO');
                             const estadoValue = estadoIndex > -1 ? String(row[estadoIndex] || '') : '';
                             const isPackage = estadoValue.toLowerCase().startsWith('paquete de');
+                            const markupIndex = headers.indexOf('Markup (%)');
+                            const markupValue = markupIndex > -1 ? row[markupIndex] : 0;
+                            const isHighMarkup = typeof markupValue === 'number' && markupValue > 30;
 
                             return (
                               <TableRow key={rowIndex} className={cn(
                                   isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
-                                  isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200'
+                                  isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200',
+                                  isHighMarkup && 'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200'
                               )}>
                                 {row.map((cell, cellIndex) => {
                                   const header = headers[cellIndex];
@@ -1495,6 +1528,9 @@ export default function ExcelVentasPage() {
                                             </div>
                                           );
                                         }
+                                      }
+                                      if (header === 'Markup (%)' && typeof cell === 'number') {
+                                          return `${cell.toFixed(2)}%`;
                                       }
 
                                       if (cell instanceof Date) {

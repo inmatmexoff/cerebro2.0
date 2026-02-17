@@ -41,6 +41,7 @@ type SaleRecord = {
     tienda: string;
     tip_publi: string;
     total_final: number | null;
+    markup: number | null;
 };
 
 type SortDescriptor = {
@@ -248,10 +249,11 @@ export default function HistorialCortesPage() {
     { key: 'tip_publi', label: 'Tipo Pub.' },
     { key: 'total', label: 'Total' },
     { key: 'total_final', label: 'Gran Total' },
+    { key: 'markup', label: 'Markup (%)' },
   ];
 
   const currencyColumns = ['ing_xunidad', 'cargo_venta', 'costo_envio', 'ing_xenvio', 'cargo_difpeso', 'anu_reembolsos', 'total', 'total_final'];
-  const numericColumns = ['unidades', ...currencyColumns];
+  const numericColumns = ['unidades', ...currencyColumns, 'markup'];
 
 
   const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost || appliedDateFilters.startDate || appliedDateFilters.endDate;
@@ -410,13 +412,24 @@ export default function HistorialCortesPage() {
                                 </TableRow>
                             ) : sales.length > 0 ? (
                                 sales.map((sale) => (
-                                    <TableRow key={sale.id}>
+                                    <TableRow 
+                                        key={sale.id}
+                                        className={cn({
+                                            'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': sale.markup !== null && sale.markup > 30,
+                                        })}
+                                    >
                                     {headers.map((header) => {
                                         const cellValue = sale[header.key as keyof SaleRecord];
                                         let formattedValue: React.ReactNode;
 
                                         if (header.key === 'fecha_venta') {
                                             formattedValue = formatDate(cellValue as string | null);
+                                        } else if (header.key === 'markup') {
+                                            if (typeof cellValue === 'number') {
+                                                formattedValue = `${cellValue.toFixed(2)}%`;
+                                            } else {
+                                                formattedValue = '-';
+                                            }
                                         } else if (currencyColumns.includes(header.key)) {
                                             formattedValue = formatCurrency(cellValue as number | null);
                                         } else if (header.key === 'venta_xpublicidad') {
