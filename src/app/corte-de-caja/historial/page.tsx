@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter } from 'lucide-react';
+import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter, PackageSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table as ShadcnTable, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabasePROD } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,7 @@ import {
 import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 // Expanded SaleRecord to include more columns
@@ -81,6 +82,13 @@ export default function HistorialCortesPage() {
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   
+  const [activeTab, setActiveTab] = useState<'sku' | 'color'>('color');
+  const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red'>('all');
+  const [skuSummary, setSkuSummary] = useState<any[]>([]);
+  const [colorSummary, setColorSummary] = useState<any[]>([]);
+  const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
+  const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
+
   const handleApplyDateFilter = () => {
     setPage(1);
     setAppliedDateFilters({ startDate, endDate });
@@ -109,6 +117,19 @@ export default function HistorialCortesPage() {
       });
     });
   };
+  
+  const handleMarkupFilterClick = (filter: 'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red') => {
+    const newFilter = markupFilter === filter ? 'all' : filter;
+    if (newFilter !== 'all') {
+        setGranTotalFilter('all');
+        setShowHighShippingCost(false);
+        setActiveTab('sku');
+    } else {
+        setActiveTab('color');
+    }
+    setMarkupFilter(newFilter);
+    setPage(1);
+  };
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -133,48 +154,17 @@ export default function HistorialCortesPage() {
     getGrandTotal();
   }, []);
 
-  const colorCounters = React.useMemo(() => {
-    const counters = { darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
-    if (sales.length === 0) return counters;
-
-    sales.forEach(sale => {
-      const markupValue = sale.markup;
-      if (typeof markupValue === 'number') {
-        if (markupValue >= 30) counters.darkGreen++;
-        else if (markupValue >= 20) counters.lightGreen++;
-        else if (markupValue >= 10) counters.orange++;
-        else if (markupValue >= 5) counters.yellow++;
-        else counters.red++;
-      }
-    });
-
-    return counters;
-  }, [sales]);
-
   const fetchSales = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const from = (page - 1) * ROWS_PER_PAGE;
-      const to = from + ROWS_PER_PAGE - 1;
-
       let query = supabasePROD.from('ml_sales').select('*', { count: 'exact' });
 
       if (debouncedSearchTerm) {
         query = query.or(
           `sku.ilike.%${debouncedSearchTerm}%,num_venta.ilike.%${debouncedSearchTerm}%,status.ilike.%${debouncedSearchTerm}%,num_publi.ilike.%${debouncedSearchTerm}%`
         );
-      }
-      
-      if (granTotalFilter === 'negative') {
-        query = query.lt('total_final', 0);
-      } else if (granTotalFilter === 'positive') {
-        query = query.gte('total_final', 0);
-      }
-
-      if (showHighShippingCost) {
-          query = query.lte('costo_envio', -300);
       }
 
       if (appliedDateFilters.startDate) {
@@ -187,15 +177,9 @@ export default function HistorialCortesPage() {
         endOfDay.setHours(23, 59, 59, 999);
         query = query.lte('fecha_venta', endOfDay.toISOString());
       }
-
-      query = query
-        .order(sortDescriptor.column, {
-          ascending: sortDescriptor.direction === 'ascending',
-        })
-        .range(from, to);
-
+      
       const { data, error, count } = await query;
-
+      
       if (error) {
         throw error;
       }
@@ -214,13 +198,205 @@ export default function HistorialCortesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, debouncedSearchTerm, sortDescriptor, toast, granTotalFilter, showHighShippingCost, appliedDateFilters]);
+  }, [debouncedSearchTerm, appliedDateFilters, toast]);
 
   useEffect(() => {
     fetchSales();
   }, [fetchSales]);
 
-  const totalPages = Math.ceil(totalRows / ROWS_PER_PAGE);
+  const filteredItems = React.useMemo(() => {
+    return sales.filter((sale) => {
+        let granTotalMatch = true;
+        if (granTotalFilter === 'negative') {
+            granTotalMatch = (sale.total_final ?? 0) < 0;
+        } else if (granTotalFilter === 'positive') {
+            granTotalMatch = (sale.total_final ?? 0) >= 0;
+        }
+
+        const highShippingCostMatch = !showHighShippingCost || (sale.costo_envio ?? 0) <= -300;
+        
+        let markupMatch = true;
+        if (markupFilter !== 'all') {
+            const markupValue = sale.markup;
+            if (typeof markupValue === 'number') {
+                switch (markupFilter) {
+                    case 'darkGreen': markupMatch = markupValue >= 30; break;
+                    case 'lightGreen': markupMatch = markupValue >= 20 && markupValue < 30; break;
+                    case 'orange': markupMatch = markupValue >= 10 && markupValue < 20; break;
+                    case 'yellow': markupMatch = markupValue >= 5 && markupValue < 10; break;
+                    case 'red': markupMatch = markupValue < 5; break;
+                }
+            } else {
+                markupMatch = markupFilter === 'red';
+            }
+        }
+
+        return granTotalMatch && highShippingCostMatch && markupMatch;
+    });
+  }, [sales, granTotalFilter, showHighShippingCost, markupFilter]);
+
+  const sortedItems = React.useMemo(() => {
+    return [...filteredItems].sort((a, b) => {
+        const first = a[sortDescriptor.column as keyof SaleRecord];
+        const second = b[sortDescriptor.column as keyof SaleRecord];
+
+        if (first === null) return 1;
+        if (second === null) return -1;
+
+        const cmp = first < second ? -1 : first > second ? 1 : 0;
+        return sortDescriptor.direction === 'descending' ? -cmp : cmp;
+    });
+  }, [filteredItems, sortDescriptor]);
+  
+  const paginatedItems = React.useMemo(() => {
+    const start = (page - 1) * ROWS_PER_PAGE;
+    const end = start + ROWS_PER_PAGE;
+    return sortedItems.slice(start, end);
+  }, [page, sortedItems]);
+
+  const totalPages = Math.ceil(sortedItems.length / ROWS_PER_PAGE);
+
+  const colorCounters = React.useMemo(() => {
+    const counters = { darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
+    filteredItems.forEach(sale => {
+      const markupValue = sale.markup;
+      if (typeof markupValue === 'number') {
+        if (markupValue >= 30) counters.darkGreen++;
+        else if (markupValue >= 20) counters.lightGreen++;
+        else if (markupValue >= 10) counters.orange++;
+        else if (markupValue >= 5) counters.yellow++;
+        else counters.red++;
+      } else {
+          counters.red++;
+      }
+    });
+
+    return counters;
+  }, [filteredItems]);
+  
+  const granTotalSum = React.useMemo(() => {
+    return filteredItems.reduce((sum, row) => sum + (row.total_final || 0), 0);
+  }, [filteredItems]);
+
+  useEffect(() => {
+    if (filteredItems.length === 0) {
+        setSkuSummary([]);
+        setFilteredPublications([]);
+        setFilteredSkus([]);
+        setColorSummary([]);
+        return;
+    }
+    
+    const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
+    const dataToSummarize = filteredItems;
+
+    dataToSummarize.forEach(row => {
+        const pubId = String(row.num_publi || '').trim();
+        const sku = String(row.sku || '').trim();
+        if ((pubId || sku) && (row.total_final || 0) < 0) {
+            const key = `${pubId}|${sku}`;
+            if (!summary[key]) {
+                summary[key] = { pubId: pubId || '-', sku: sku || '-', unidades: 0, total: 0 };
+            }
+            const unidades = row.unidades || 0;
+            const total = row.total_final || 0;
+            summary[key].unidades += unidades;
+            summary[key].total += total;
+        }
+    });
+
+    const summaryValues = Object.values(summary);
+    
+    const totalOfLosses = summaryValues.reduce((sum, item) => sum + item.total, 0);
+
+    const enrichedSummary = summaryValues
+      .map(item => {
+          const totalPorUnidad = (item.unidades > 0) ? item.total / item.unidades : 0;
+          const porcentajeDelTotal = (totalOfLosses !== 0) ? (item.total / totalOfLosses) * 100 : 0;
+          
+          return {
+              ...item,
+              totalPorUnidad,
+              porcentajeDelTotal
+          };
+      }).sort((a,b) => a.total - b.total);
+    
+    const groupedByPubId: { [key: string]: typeof enrichedSummary } = {};
+    enrichedSummary.forEach(item => {
+        const pubId = item.pubId;
+        if (!pubId || pubId === '-') return;
+        if (!groupedByPubId[pubId]) {
+            groupedByPubId[pubId] = [];
+        }
+        groupedByPubId[pubId].push(item);
+    });
+    
+    const uniquePubsFromSummary = enrichedSummary.filter((v,i,a) => a.findIndex(t=>(t.pubId === v.pubId)) === i).map(i => i.pubId).sort();
+    const uniqueSkusFromSummary = [...new Set(enrichedSummary.map(item => item.sku))].sort();
+    setFilteredPublications(uniquePubsFromSummary);
+    setFilteredSkus(uniqueSkusFromSummary);
+
+    const sortedGroups = Object.values(groupedByPubId).sort((a, b) => {
+        const totalA = a.reduce((sum, item) => sum + item.total, 0);
+        const totalB = b.reduce((sum, item) => sum + item.total, 0);
+        return totalA - totalB;
+    });
+
+    const summaryArrayForRender: any[] = [];
+    sortedGroups.forEach((group, groupIndex) => {
+        const sortedGroupItems = group.sort((a, b) => a.sku.localeCompare(b.sku));
+        sortedGroupItems.forEach((item, itemIndex) => {
+            summaryArrayForRender.push({
+                ...item,
+                isFirstInGroup: itemIndex === 0,
+                groupSize: group.length,
+                groupIndex: groupIndex + 1,
+            });
+        });
+    });
+    setSkuSummary(summaryArrayForRender);
+
+    const summaryByColor = {
+        darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+        lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+        orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+        yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+        red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+    };
+    
+    dataToSummarize.forEach(row => {
+        const markupValue = row.markup;
+        let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
+
+        if (typeof markupValue === 'number') {
+            if (markupValue >= 30) category = summaryByColor.darkGreen;
+            else if (markupValue >= 20) category = summaryByColor.lightGreen;
+            else if (markupValue >= 10) category = summaryByColor.orange;
+            else if (markupValue >= 5) category = summaryByColor.yellow;
+            else category = summaryByColor.red;
+        } else {
+            category = summaryByColor.red;
+        }
+
+        const pubId = String(row.num_publi || '').trim();
+        const sku = String(row.sku || '').trim();
+        const unidades = row.unidades || 0;
+        const total = row.total_final || 0;
+
+        if (pubId) category.publications.add(pubId);
+        if (sku) category.skus.add(sku);
+        category.unidades += unidades;
+        category.total += total;
+    });
+
+    const summaryWithPercentage = Object.values(summaryByColor).map(cat => ({
+        ...cat,
+        percentageOfTotal: granTotalSum !== 0 ? (cat.total / granTotalSum) * 100 : 0
+    }));
+
+    setColorSummary(summaryWithPercentage);
+
+  }, [filteredItems, granTotalSum]);
 
   const handleSort = (column: keyof SaleRecord) => {
     if (sortDescriptor.column === column) {
@@ -234,7 +410,6 @@ export default function HistorialCortesPage() {
         direction: 'ascending',
       });
     }
-    setPage(1);
   };
   
   const formatDate = (dateString: string | null) => {
@@ -277,7 +452,7 @@ export default function HistorialCortesPage() {
   const numericColumns = ['unidades', ...currencyColumns, 'markup'];
 
 
-  const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost || appliedDateFilters.startDate || appliedDateFilters.endDate;
+  const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost || appliedDateFilters.startDate || appliedDateFilters.endDate || markupFilter !== 'all';
 
   return (
     <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
@@ -308,7 +483,7 @@ export default function HistorialCortesPage() {
                             ? 'Buscando registros...'
                             : isFiltered ? (
                                 <>
-                                    Mostrando <span className="font-bold text-lg text-foreground">{totalRows}</span> de {grandTotal} registros.
+                                    Mostrando <span className="font-bold text-lg text-foreground">{sortedItems.length}</span> de {grandTotal} registros.
                                 </>
                             ) : (
                                 <>
@@ -341,6 +516,7 @@ export default function HistorialCortesPage() {
                                     checked={granTotalFilter === 'negative'}
                                     onCheckedChange={(checked) => {
                                         setGranTotalFilter(checked ? 'negative' : 'all');
+                                        if (checked) setMarkupFilter('all');
                                         setPage(1);
                                     }}
                                 >
@@ -350,6 +526,7 @@ export default function HistorialCortesPage() {
                                     checked={granTotalFilter === 'positive'}
                                     onCheckedChange={(checked) => {
                                         setGranTotalFilter(checked ? 'positive' : 'all');
+                                        if (checked) setMarkupFilter('all');
                                         setPage(1);
                                     }}
                                 >
@@ -362,6 +539,7 @@ export default function HistorialCortesPage() {
                                     checked={showHighShippingCost}
                                     onCheckedChange={(checked) => {
                                         setShowHighShippingCost(checked as boolean);
+                                        if (checked) setMarkupFilter('all');
                                         setPage(1);
                                     }}
                                 >
@@ -403,38 +581,38 @@ export default function HistorialCortesPage() {
                 </div>
                  <div className="pt-4 mt-4 border-t">
                     <h4 className="text-sm font-medium mb-2">Resumen de Rentabilidad (Página Actual)</h4>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-green-200 border border-green-400"></div>
-                            <span className="font-bold">{colorCounters.darkGreen}</span>
-                            <span className="text-muted-foreground">{'>'}=30%</span>
+                     <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('darkGreen')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-green-200 border border-green-400", markupFilter === 'darkGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <span className="font-bold">{colorCounters.darkGreen}</span>
+                                <span className="text-muted-foreground">{'>'}=30%</span>
+                            </div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('lightGreen')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-green-100 border border-green-300", markupFilter === 'lightGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <span className="font-bold">{colorCounters.lightGreen}</span>
+                                <span className="text-muted-foreground">20-29.9%</span>
+                            </div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('orange')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-orange-100 border border-orange-300", markupFilter === 'orange' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <span className="font-bold">{colorCounters.orange}</span>
+                                <span className="text-muted-foreground">10-19.9%</span>
+                            </div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('yellow')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300", markupFilter === 'yellow' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <span className="font-bold">{colorCounters.yellow}</span>
+                                <span className="text-muted-foreground">5-9.9%</span>
+                            </div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('red')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-red-100 border border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <span className="font-bold">{colorCounters.red}</span>
+                                <span className="text-muted-foreground">{'<'}5%</span>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-green-100 border border-green-300"></div>
-                            <span className="font-bold">{colorCounters.lightGreen}</span>
-                            <span className="text-muted-foreground">20-29.9%</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-orange-100 border border-orange-300"></div>
-                            <span className="font-bold">{colorCounters.orange}</span>
-                            <span className="text-muted-foreground">10-19.9%</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300"></div>
-                            <span className="font-bold">{colorCounters.yellow}</span>
-                            <span className="text-muted-foreground">5-9.9%</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-red-100 border border-red-300"></div>
-                            <span className="font-bold">{colorCounters.red}</span>
-                            <span className="text-muted-foreground">{'<'}5%</span>
-                        </div>
-                    </div>
                 </div>
             </CardHeader>
             <CardContent>
                 <div className="border rounded-md overflow-x-auto">
-                    <Table>
+                    <ShadcnTable>
                         <TableHeader>
                             <TableRow>
                                 {headers.map((header) => (
@@ -465,11 +643,12 @@ export default function HistorialCortesPage() {
                                         {error}
                                     </TableCell>
                                 </TableRow>
-                            ) : sales.length > 0 ? (
-                                sales.map((sale) => (
+                            ) : paginatedItems.length > 0 ? (
+                                paginatedItems.map((sale) => (
                                     <TableRow 
                                         key={sale.id}
                                         className={cn(
+                                            sale.status.toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                             isRowColoringActive && typeof sale.markup === 'number' && {
                                                 'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30,
                                                 'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': sale.markup >= 20 && sale.markup < 30,
@@ -495,7 +674,7 @@ export default function HistorialCortesPage() {
                                             formattedValue = formatCurrency(cellValue as number | null);
                                         } else if (header.key === 'venta_xpublicidad') {
                                             formattedValue = (cellValue as boolean) ? 'Sí' : 'No';
-                                        } else if (header.key === 'num_publi' && cellValue) {
+                                        } else if ((header.key === 'num_publi' || header.key === 'sku') && cellValue) {
                                             formattedValue = (
                                                 <span
                                                     className="cursor-pointer hover:text-primary hover:font-medium"
@@ -533,13 +712,17 @@ export default function HistorialCortesPage() {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={headers.length} className="h-24 text-center">
-                                        No se encontraron registros.
+                                     <TableCell colSpan={headers.length} className="h-24 text-center">
+                                        <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                                            <PackageSearch className="h-12 w-12"/>
+                                            <p className="font-semibold">No se encontraron resultados.</p>
+                                            <p className="text-sm">Intenta ajustar tus filtros de búsqueda.</p>
+                                       </div>
                                     </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
-                    </Table>
+                    </ShadcnTable>
                 </div>
                 {totalPages > 1 && (
                     <div className="flex items-center justify-between mt-4">
@@ -556,6 +739,154 @@ export default function HistorialCortesPage() {
                 )}
             </CardContent>
           </Card>
+            {sales.length > 0 && (
+                <Tabs 
+                defaultValue="color" 
+                value={activeTab} 
+                onValueChange={(value) => setActiveTab(value as 'sku' | 'color')} 
+                className="mt-6"
+                >
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="sku">Resumen por SKU</TabsTrigger>
+                    <TabsTrigger value="color">Resumen por Rentabilidad</TabsTrigger>
+                </TabsList>
+                <TabsContent value="sku">
+                    {skuSummary.length > 0 ? (
+                        <Card className="mt-6">
+                            <CardHeader>
+                                <CardTitle>Resumen de SKUs con Pérdidas</CardTitle>
+                                <CardDescription>
+                                    Listas de todos los números de publicación y SKUs que coinciden con los filtros y han generado pérdidas.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid md:grid-cols-2 gap-6">
+                                <div>
+                                    <h4 className="font-semibold mb-2"># de Publicación ({filteredPublications.length})</h4>
+                                    <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
+                                    {filteredPublications.map(pubId => (
+                                        <div
+                                        key={pubId}
+                                        onClick={() => handleCopyToClipboard(pubId)}
+                                        className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
+                                        title={`Copiar ${pubId}`}
+                                        >
+                                        {pubId}
+                                        </div>
+                                    ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold mb-2">SKUs ({filteredSkus.length})</h4>
+                                    <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
+                                    {filteredSkus.map(sku => (
+                                        <div
+                                        key={sku}
+                                        onClick={() => handleCopyToClipboard(sku)}
+                                        className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
+                                        title={`Copiar ${sku}`}
+                                        >
+                                        {sku}
+                                        </div>
+                                    ))}
+                                    </div>
+                                </div>
+                                </div>
+                                <div className="mt-6 pt-6 border-t">
+                                <h4 className="font-semibold mb-4">Detalle de Pérdidas</h4>
+                                <div className="border rounded-md max-h-96 overflow-y-auto">
+                                    <ShadcnTable>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>#</TableHead>
+                                                <TableHead># de Publicación</TableHead>
+                                                <TableHead>SKU</TableHead>
+                                                <TableHead className="text-right">Unidades</TableHead>
+                                                <TableHead className="text-right">Pérdida x Unidad</TableHead>
+                                                <TableHead className="text-right">Pérdida Total</TableHead>
+                                                <TableHead className="text-right">% del Total</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {skuSummary.map((item) => (
+                                                <TableRow key={`${item.pubId}-${item.sku}`}>
+                                                    {item.isFirstInGroup ? (
+                                                        <TableCell rowSpan={item.groupSize}>{item.groupIndex}</TableCell>
+                                                    ) : null}
+                                                    {item.isFirstInGroup ? (
+                                                        <TableCell rowSpan={item.groupSize} className="font-medium">
+                                                            {item.pubId}
+                                                        </TableCell>
+                                                    ) : null}
+
+                                                    <TableCell className="font-medium">{item.sku}</TableCell>
+                                                    <TableCell className="text-right">{item.unidades}</TableCell>
+                                                    <TableCell className="text-right">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                    <TableCell className="text-right text-red-600 font-semibold">{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                    <TableCell className="text-right font-mono">{item.porcentajeDelTotal.toFixed(2)}%</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </ShadcnTable>
+                                </div>
+                            </div>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <Card className="mt-6"><CardContent className="p-6 text-center text-muted-foreground">No hay pérdidas en los datos filtrados para mostrar.</CardContent></Card>
+                    )}
+                </TabsContent>
+                <TabsContent value="color">
+                    {colorSummary.length > 0 ? (
+                        <Card className="mt-6">
+                            <CardHeader>
+                            <CardTitle>Resumen por Rentabilidad</CardTitle>
+                            <CardDescription>
+                                Agrupación de datos por color de rentabilidad para los registros filtrados.
+                            </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                            <ShadcnTable>
+                                <TableHeader>
+                                <TableRow>
+                                    <TableHead>Color</TableHead>
+                                    <TableHead># de Publicación</TableHead>
+                                    <TableHead>SKU's</TableHead>
+                                    <TableHead className="text-right">Unidades</TableHead>
+                                    <TableHead className="text-right">Total</TableHead>
+                                    <TableHead className="text-right">% del Total</TableHead>
+                                </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                {colorSummary.map((item, index) => (
+                                    <TableRow key={index}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2 font-medium">
+                                        <div className={cn("w-4 h-4 rounded-full border", item.colorClass)}></div>
+                                        <span>{item.label}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{item.publications.size}</TableCell>
+                                    <TableCell>{item.skus.size}</TableCell>
+                                    <TableCell className="text-right">{item.unidades.toLocaleString()}</TableCell>
+                                    <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>
+                                        {item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                                    </TableCell>
+                                    <TableCell className="text-right font-semibold">
+                                        {item.percentageOfTotal.toFixed(2)}%
+                                    </TableCell>
+                                    </TableRow>
+                                ))}
+                                </TableBody>
+                            </ShadcnTable>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <Card className="mt-6"><CardContent className="p-6 text-center text-muted-foreground">No hay datos de resumen para mostrar.</CardContent></Card>
+                    )}
+                </TabsContent>
+              </Tabs>
+            )}
         </main>
       </div>
     </div>
