@@ -210,6 +210,7 @@ export default function ExcelVentasPage() {
   const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
   const [skuSummary, setSkuSummary] = useState<any[]>([]);
   const [colorSummary, setColorSummary] = useState<any[]>([]);
+  const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red'>('all');
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -235,6 +236,17 @@ export default function ExcelVentasPage() {
         title: 'Error',
         description: 'No se pudo copiar el texto.',
       });
+    });
+  };
+
+  const handleMarkupFilterClick = (filter: 'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red') => {
+    setMarkupFilter(prev => {
+        const newFilter = prev === filter ? 'all' : filter;
+        if (newFilter !== 'all') {
+            setShowOnlyNegative(false);
+            setShowOnlyPositive(false);
+        }
+        return newFilter;
     });
   };
 
@@ -563,13 +575,16 @@ export default function ExcelVentasPage() {
     [toast]
   );
   
-  const isFiltered = skuSearchTerm || showOnlyNegative || showOnlyPositive || showHighShippingCost;
+  const isFiltered = skuSearchTerm || showOnlyNegative || showOnlyPositive || showHighShippingCost || markupFilter !== 'all';
   const anyCheckboxFilterActive = showOnlyNegative || showOnlyPositive || showHighShippingCost;
+  const isSummaryActive = anyCheckboxFilterActive || markupFilter !== 'all';
 
   const filteredData = React.useMemo(() => {
     const granTotalIndex = headers.indexOf('Gran Total');
     const skuIndex = headers.indexOf('SKU');
     const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
+    const markupIndex = headers.indexOf('Markup (%)');
+
 
     return data.filter((row) => {
       const skuMatch =
@@ -579,7 +594,6 @@ export default function ExcelVentasPage() {
             .toLowerCase()
             .includes(skuSearchTerm.toLowerCase()));
 
-      const granTotal = granTotalIndex !== -1 ? row[granTotalIndex] : null;
       let granTotalMatch = true;
       if (showOnlyNegative) {
         granTotalMatch = typeof granTotal === 'number' && granTotal < 0;
@@ -593,7 +607,33 @@ export default function ExcelVentasPage() {
         !showHighShippingCost ||
         (typeof shippingCost === 'number' && shippingCost <= -300);
 
-      return skuMatch && granTotalMatch && highShippingCostMatch;
+      let markupMatch = true;
+      if (markupFilter !== 'all') {
+          const markupValue = markupIndex !== -1 ? row[markupIndex] : null;
+          if (typeof markupValue === 'number') {
+              switch (markupFilter) {
+                  case 'darkGreen':
+                      markupMatch = markupValue >= 30;
+                      break;
+                  case 'lightGreen':
+                      markupMatch = markupValue >= 20 && markupValue < 30;
+                      break;
+                  case 'orange':
+                      markupMatch = markupValue >= 10 && markupValue < 20;
+                      break;
+                  case 'yellow':
+                      markupMatch = markupValue >= 5 && markupValue < 10;
+                      break;
+                  case 'red':
+                      markupMatch = markupValue < 5;
+                      break;
+              }
+          } else {
+            markupMatch = markupFilter === 'red';
+          }
+      }
+
+      return skuMatch && granTotalMatch && highShippingCostMatch && markupMatch;
     });
   }, [
     data,
@@ -602,10 +642,11 @@ export default function ExcelVentasPage() {
     showOnlyPositive,
     showHighShippingCost,
     headers,
+    markupFilter,
   ]);
 
   React.useEffect(() => {
-    if (anyCheckboxFilterActive && filteredData.length > 0) {
+    if (isSummaryActive && filteredData.length > 0) {
         const pubIndex = headers.indexOf('# de publicación');
         const skuIndex = headers.indexOf('SKU');
         const unidadesIndex = headers.indexOf('Unidades');
@@ -729,7 +770,7 @@ export default function ExcelVentasPage() {
         setSkuSummary([]);
         setColorSummary([]);
     }
-}, [filteredData, anyCheckboxFilterActive, headers]);
+}, [filteredData, isSummaryActive, headers]);
 
   const createSumCalculator = (columnName: string) => {
     return React.useMemo(() => {
@@ -1317,7 +1358,10 @@ export default function ExcelVentasPage() {
                               checked={showOnlyNegative}
                               onCheckedChange={(checked) => {
                                 setShowOnlyNegative(checked as boolean);
-                                if (checked) setShowOnlyPositive(false);
+                                if (checked) {
+                                  setShowOnlyPositive(false);
+                                  setMarkupFilter('all');
+                                }
                               }}
                             />
                             <label htmlFor="show-negative" className="text-sm font-medium">
@@ -1330,7 +1374,10 @@ export default function ExcelVentasPage() {
                               checked={showOnlyPositive}
                               onCheckedChange={(checked) => {
                                 setShowOnlyPositive(checked as boolean);
-                                if (checked) setShowOnlyNegative(false);
+                                if (checked) {
+                                  setShowOnlyNegative(false);
+                                  setMarkupFilter('all');
+                                }
                               }}
                             />
                             <label htmlFor="show-positive" className="text-sm font-medium">
@@ -1465,28 +1512,28 @@ export default function ExcelVentasPage() {
                      <div className="pt-4">
                         <h4 className="text-sm font-medium mb-2">Resumen de Rentabilidad (Filtrado)</h4>
                         <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-green-200 border border-green-400"></div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('darkGreen')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-green-200 border border-green-400", markupFilter === 'darkGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.darkGreen}</span>
                                 <span className="text-muted-foreground">{'>'}=30%</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-green-100 border border-green-300"></div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('lightGreen')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-green-100 border border-green-300", markupFilter === 'lightGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.lightGreen}</span>
                                 <span className="text-muted-foreground">20-29.9%</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-orange-100 border border-orange-300"></div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('orange')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-orange-100 border border-orange-300", markupFilter === 'orange' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.orange}</span>
                                 <span className="text-muted-foreground">10-19.9%</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300"></div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('yellow')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300", markupFilter === 'yellow' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.yellow}</span>
                                 <span className="text-muted-foreground">5-9.9%</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-red-100 border border-red-300"></div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('red')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-red-100 border border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.red}</span>
                                 <span className="text-muted-foreground">{'<'}5%</span>
                             </div>
@@ -1681,7 +1728,7 @@ export default function ExcelVentasPage() {
                   </CardContent>
                 </Card>
                 
-                {anyCheckboxFilterActive && filteredData.length > 0 && (
+                {isSummaryActive && filteredData.length > 0 && (
                   <Tabs defaultValue="sku" className="mt-6">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="sku">Resumen por SKU</TabsTrigger>
