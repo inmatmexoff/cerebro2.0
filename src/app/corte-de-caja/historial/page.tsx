@@ -648,7 +648,7 @@ export default function HistorialCortesPage() {
                                     <TableRow 
                                         key={sale.id}
                                         className={cn(
-                                            sale.status.toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
+                                            (sale.status || '').toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                             isRowColoringActive && typeof sale.markup === 'number' && {
                                                 'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30,
                                                 'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': sale.markup >= 20 && sale.markup < 30,
