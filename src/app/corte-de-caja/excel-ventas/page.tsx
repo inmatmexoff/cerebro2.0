@@ -576,8 +576,6 @@ export default function ExcelVentasPage() {
   );
   
   const isFiltered = skuSearchTerm || showOnlyNegative || showOnlyPositive || showHighShippingCost || markupFilter !== 'all';
-  const anyCheckboxFilterActive = showOnlyNegative || showOnlyPositive || showHighShippingCost;
-  const isSummaryActive = anyCheckboxFilterActive || markupFilter !== 'all';
 
   const filteredData = React.useMemo(() => {
     const granTotalIndex = headers.indexOf('Gran Total');
@@ -596,9 +594,9 @@ export default function ExcelVentasPage() {
 
       let granTotalMatch = true;
       if (showOnlyNegative) {
-        granTotalMatch = typeof granTotal === 'number' && granTotal < 0;
+        granTotalMatch = typeof row[granTotalIndex] === 'number' && row[granTotalIndex] < 0;
       } else if (showOnlyPositive) {
-        granTotalMatch = typeof granTotal === 'number' && granTotal >= 0;
+        granTotalMatch = typeof row[granTotalIndex] === 'number' && row[granTotalIndex] >= 0;
       }
 
       const shippingCost =
@@ -646,7 +644,7 @@ export default function ExcelVentasPage() {
   ]);
 
   React.useEffect(() => {
-    if (isSummaryActive && filteredData.length > 0) {
+    if (filteredData.length > 0) {
         const pubIndex = headers.indexOf('# de publicación');
         const skuIndex = headers.indexOf('SKU');
         const unidadesIndex = headers.indexOf('Unidades');
@@ -770,7 +768,7 @@ export default function ExcelVentasPage() {
         setSkuSummary([]);
         setColorSummary([]);
     }
-}, [filteredData, isSummaryActive, headers]);
+}, [filteredData, headers]);
 
   const createSumCalculator = (columnName: string) => {
     return React.useMemo(() => {
@@ -1728,7 +1726,7 @@ export default function ExcelVentasPage() {
                   </CardContent>
                 </Card>
                 
-                {isSummaryActive && filteredData.length > 0 && (
+                {(filteredData.length > 0) && (
                   <Tabs defaultValue="sku" className="mt-6">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="sku">Resumen por SKU</TabsTrigger>
