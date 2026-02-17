@@ -1438,14 +1438,19 @@ export default function ExcelVentasPage() {
                             const estadoValue = estadoIndex > -1 ? String(row[estadoIndex] || '') : '';
                             const isPackage = estadoValue.toLowerCase().startsWith('paquete de');
                             const markupIndex = headers.indexOf('Markup (%)');
-                            const markupValue = markupIndex > -1 ? row[markupIndex] : 0;
-                            const isHighMarkup = typeof markupValue === 'number' && markupValue > 30;
+                            const markupValue = markupIndex > -1 ? row[markupIndex] : null;
 
                             return (
                               <TableRow key={rowIndex} className={cn(
                                   isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                   isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200',
-                                  isHighMarkup && 'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200'
+                                  typeof markupValue === 'number' && {
+                                    'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': markupValue >= 30,
+                                    'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': markupValue >= 20 && markupValue < 30,
+                                    'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': markupValue >= 10 && markupValue < 20,
+                                    'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': markupValue >= 5 && markupValue < 10,
+                                    'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue < 5,
+                                  }
                               )}>
                                 {row.map((cell, cellIndex) => {
                                   const header = headers[cellIndex];

@@ -414,9 +414,15 @@ export default function HistorialCortesPage() {
                                 sales.map((sale) => (
                                     <TableRow 
                                         key={sale.id}
-                                        className={cn({
-                                            'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': sale.markup !== null && sale.markup > 30,
-                                        })}
+                                        className={cn(
+                                            typeof sale.markup === 'number' && {
+                                                'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30,
+                                                'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': sale.markup >= 20 && sale.markup < 30,
+                                                'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': sale.markup >= 10 && sale.markup < 20,
+                                                'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': sale.markup >= 5 && sale.markup < 10,
+                                                'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': sale.markup < 5,
+                                            }
+                                        )}
                                     >
                                     {headers.map((header) => {
                                         const cellValue = sale[header.key as keyof SaleRecord];
