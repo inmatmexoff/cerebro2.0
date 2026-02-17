@@ -57,6 +57,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 // Define which columns to extract and in what order
 const COLUMN_MAPPING: { [key: string]: number } = {
@@ -193,6 +195,7 @@ export default function ExcelVentasPage() {
   const [showOnlyNegative, setShowOnlyNegative] = useState(false);
   const [showOnlyPositive, setShowOnlyPositive] = useState(false);
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
+  const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   const [editingInfo, setEditingInfo] = useState<{
     rowIndex: number;
     sku: string;
@@ -397,7 +400,8 @@ export default function ExcelVentasPage() {
                 granTotal = 0;
               }
 
-              const markup = totalLandedCost > 0 ? (granTotal / totalLandedCost) * 100 : 0;
+              const markup = totalLandedCost > 0 ? ((totalFromExcel - totalLandedCost) / totalLandedCost) * 100 : 0;
+
 
               return [
                 excelRowNum,
@@ -652,8 +656,8 @@ export default function ExcelVentasPage() {
                 }
                 groupedByPubId[pubId].push(item);
             });
-            
-            const uniquePubsFromSummary = Object.keys(groupedByPubId).sort();
+
+            const uniquePubsFromSummary = Object.values(groupedByPubId).flat().filter((v,i,a) => a.findIndex(t=>(t.pubId === v.pubId)) === i).map(i => i.pubId).sort();
             const uniqueSkusFromSummary = [...new Set(enrichedSummary.map(item => item.sku))].sort();
 
             setFilteredPublications(uniquePubsFromSummary);
@@ -709,6 +713,27 @@ export default function ExcelVentasPage() {
   );
   const costoEnvioSum = createSumCalculator('Costos de envío (MXN)');
   const totalSum = createSumCalculator('Total');
+
+  const colorCounters = React.useMemo(() => {
+    const counters = { darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
+    if (filteredData.length === 0) return counters;
+
+    const markupIndex = headers.indexOf('Markup (%)');
+    if (markupIndex === -1) return counters;
+
+    filteredData.forEach(row => {
+      const markupValue = row[markupIndex];
+      if (typeof markupValue === 'number') {
+        if (markupValue >= 30) counters.darkGreen++;
+        else if (markupValue >= 20) counters.lightGreen++;
+        else if (markupValue >= 10) counters.orange++;
+        else if (markupValue >= 5) counters.yellow++;
+        else counters.red++;
+      }
+    });
+
+    return counters;
+  }, [filteredData, headers]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -1098,7 +1123,7 @@ export default function ExcelVentasPage() {
         row[granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
 
         if (markupIndex > -1) {
-            const newMarkup = newTotalLandedCost > 0 ? (newGranTotal / newTotalLandedCost) * 100 : 0;
+            const newMarkup = newTotalLandedCost > 0 ? ((totalFromExcel - newTotalLandedCost) / newTotalLandedCost) * 100 : 0;
             row[markupIndex] = newMarkup;
         }
 
@@ -1187,19 +1212,19 @@ export default function ExcelVentasPage() {
                   </Button>
                 </div>
               </CardHeader>
-             {isProcessing && (
-                <CardContent className="p-6">
-                    <div className="flex flex-col items-center justify-center text-center">
-                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                        <p className="mt-4 text-lg font-semibold text-primary">
-                        Procesando archivo... ({progress}%)
-                        </p>
-                        <Progress value={progress} className="w-full max-w-sm mt-2" />
-                        <p className="mt-2 text-sm text-muted-foreground">
-                        Por favor espera. Archivos grandes pueden tomar varios
-                        minutos.
-                        </p>
-                    </div>
+              {isProcessing && (
+                <CardContent>
+                  <div className="flex flex-col items-center justify-center text-center p-6">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    <p className="mt-4 text-lg font-semibold text-primary">
+                      Procesando archivo... ({progress}%)
+                    </p>
+                    <Progress value={progress} className="w-full max-w-sm mt-2" />
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Por favor espera. Archivos grandes pueden tomar varios
+                      minutos.
+                    </p>
+                  </div>
                 </CardContent>
               )}
             </Card>
@@ -1292,6 +1317,10 @@ export default function ExcelVentasPage() {
                             />
                           </div>
                           <div className="flex items-center gap-2">
+                            <div className="flex items-center space-x-2">
+                                <Switch id="row-coloring" checked={isRowColoringActive} onCheckedChange={setIsRowColoringActive} />
+                                <Label htmlFor="row-coloring">Colorear Filas</Label>
+                            </div>
                             <Button
                               onClick={handleDownloadCSV}
                               variant="outline"
@@ -1388,6 +1417,36 @@ export default function ExcelVentasPage() {
                         </div>
                       </div>
                     </div>
+                     <div className="pt-4">
+                        <h4 className="text-sm font-medium mb-2">Resumen de Rentabilidad (Filtrado)</h4>
+                        <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-green-200 border border-green-400"></div>
+                                <span className="font-bold">{colorCounters.darkGreen}</span>
+                                <span className="text-muted-foreground">{'>'}=30%</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-green-100 border border-green-300"></div>
+                                <span className="font-bold">{colorCounters.lightGreen}</span>
+                                <span className="text-muted-foreground">20-29.9%</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-orange-100 border border-orange-300"></div>
+                                <span className="font-bold">{colorCounters.orange}</span>
+                                <span className="text-muted-foreground">10-19.9%</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300"></div>
+                                <span className="font-bold">{colorCounters.yellow}</span>
+                                <span className="text-muted-foreground">5-9.9%</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-red-100 border border-red-300"></div>
+                                <span className="font-bold">{colorCounters.red}</span>
+                                <span className="text-muted-foreground">{'<'}5%</span>
+                            </div>
+                        </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="h-[70vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -1444,7 +1503,7 @@ export default function ExcelVentasPage() {
                               <TableRow key={rowIndex} className={cn(
                                   isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                   isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200',
-                                  typeof markupValue === 'number' && {
+                                  isRowColoringActive && typeof markupValue === 'number' && {
                                     'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': markupValue >= 30,
                                     'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': markupValue >= 20 && markupValue < 30,
                                     'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': markupValue >= 10 && markupValue < 20,
@@ -1467,6 +1526,13 @@ export default function ExcelVentasPage() {
                                         header === 'Gran Total' &&
                                         typeof cell === 'number' &&
                                         cell >= 0,
+                                    },
+                                    !isRowColoringActive && header === 'Markup (%)' && typeof cell === 'number' && {
+                                        'bg-green-200': cell >= 30,
+                                        'bg-green-100': cell >= 20 && cell < 30,
+                                        'bg-orange-100': cell >= 10 && cell < 20,
+                                        'bg-yellow-100': cell >= 5 && cell < 10,
+                                        'bg-red-100': cell < 5,
                                     })}
                                   >
                                     {(() => {

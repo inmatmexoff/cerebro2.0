@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+
 
 // Expanded SaleRecord to include more columns
 type SaleRecord = {
@@ -77,6 +79,7 @@ export default function HistorialCortesPage() {
   
   const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive'>('all');
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
+  const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   
   const handleApplyDateFilter = () => {
     setPage(1);
@@ -129,6 +132,24 @@ export default function HistorialCortesPage() {
     };
     getGrandTotal();
   }, []);
+
+  const colorCounters = React.useMemo(() => {
+    const counters = { darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
+    if (sales.length === 0) return counters;
+
+    sales.forEach(sale => {
+      const markupValue = sale.markup;
+      if (typeof markupValue === 'number') {
+        if (markupValue >= 30) counters.darkGreen++;
+        else if (markupValue >= 20) counters.lightGreen++;
+        else if (markupValue >= 10) counters.orange++;
+        else if (markupValue >= 5) counters.yellow++;
+        else counters.red++;
+      }
+    });
+
+    return counters;
+  }, [sales]);
 
   const fetchSales = useCallback(async () => {
     setIsLoading(true);
@@ -348,6 +369,10 @@ export default function HistorialCortesPage() {
                                 </DropdownMenuCheckboxItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
+                        <div className="flex items-center space-x-2">
+                            <Switch id="row-coloring" checked={isRowColoringActive} onCheckedChange={setIsRowColoringActive} />
+                            <Label htmlFor="row-coloring">Colorear Filas</Label>
+                        </div>
                     </div>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:flex-wrap items-end gap-4 border-t pt-4 mt-4">
@@ -374,6 +399,36 @@ export default function HistorialCortesPage() {
                         <Button size="sm" variant="ghost" onClick={handleClearDateFilter}>
                             Limpiar
                         </Button>
+                    </div>
+                </div>
+                 <div className="pt-4 mt-4 border-t">
+                    <h4 className="text-sm font-medium mb-2">Resumen de Rentabilidad (Página Actual)</h4>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-green-200 border border-green-400"></div>
+                            <span className="font-bold">{colorCounters.darkGreen}</span>
+                            <span className="text-muted-foreground">{'>'}=30%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-green-100 border border-green-300"></div>
+                            <span className="font-bold">{colorCounters.lightGreen}</span>
+                            <span className="text-muted-foreground">20-29.9%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-orange-100 border border-orange-300"></div>
+                            <span className="font-bold">{colorCounters.orange}</span>
+                            <span className="text-muted-foreground">10-19.9%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300"></div>
+                            <span className="font-bold">{colorCounters.yellow}</span>
+                            <span className="text-muted-foreground">5-9.9%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-red-100 border border-red-300"></div>
+                            <span className="font-bold">{colorCounters.red}</span>
+                            <span className="text-muted-foreground">{'<'}5%</span>
+                        </div>
                     </div>
                 </div>
             </CardHeader>
@@ -415,7 +470,7 @@ export default function HistorialCortesPage() {
                                     <TableRow 
                                         key={sale.id}
                                         className={cn(
-                                            typeof sale.markup === 'number' && {
+                                            isRowColoringActive && typeof sale.markup === 'number' && {
                                                 'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30,
                                                 'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': sale.markup >= 20 && sale.markup < 30,
                                                 'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': sale.markup >= 10 && sale.markup < 20,
@@ -456,11 +511,20 @@ export default function HistorialCortesPage() {
                                         }
 
                                         return (
-                                            <TableCell key={header.key} className={cn({
-                                                'text-right': numericColumns.includes(header.key),
-                                                'font-medium text-red-600': header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) < 0,
-                                                'font-medium text-green-700': header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) >= 0,
-                                            })}>
+                                            <TableCell 
+                                                key={header.key} 
+                                                className={cn({
+                                                    'text-right': numericColumns.includes(header.key),
+                                                    'font-medium text-red-600': header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) < 0,
+                                                    'font-medium text-green-700': header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) >= 0,
+                                                },
+                                                !isRowColoringActive && header.key === 'markup' && typeof cellValue === 'number' && {
+                                                    'bg-green-200': cellValue >= 30,
+                                                    'bg-green-100': cellValue >= 20 && cellValue < 30,
+                                                    'bg-orange-100': cellValue >= 10 && cellValue < 20,
+                                                    'bg-yellow-100': cellValue >= 5 && cellValue < 10,
+                                                    'bg-red-100': cellValue < 5,
+                                                })}>
                                                 {formattedValue}
                                             </TableCell>
                                         );
