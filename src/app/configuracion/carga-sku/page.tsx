@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Upload, Save, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Upload, Save, X, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useDropzone } from 'react-dropzone';
@@ -25,7 +25,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 
 // Define column headers for the preview table
-const TABLE_HEADERS = ['sku', 'sku_mdr', 'cat_mdr', 'landed_cost', 'piezas_xcontenedor', 'esti_time', 'piezas_por_sku'];
+const TABLE_HEADERS = ['sku', 'sku_mdr', 'cat_mdr', 'landed_cost', 'piezas_xcontenedor', 'esti_time', 'piezas_por_sku', 'proveedor'];
 
 const manualSkuSchema = z.object({
     sku: z.string().min(1, { message: "SKU es requerido." }),
@@ -61,6 +61,23 @@ export default function CargaSkuPage() {
             piezas_por_sku: null
         },
     });
+
+    const handleDownloadTemplate = () => {
+        const headers = [
+            'sku',                // A
+            'cat_mdr',            // B
+            'sku_mdr',            // C
+            'landed_cost',        // D
+            'piezas_por_sku',     // E
+            'esti_time',          // F
+            'piezas_xcontenedor', // G
+            'proveedor',          // H
+        ];
+        const ws = XLSX.utils.aoa_to_sheet([headers]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Plantilla SKUs');
+        XLSX.writeFile(wb, 'plantilla_carga_sku.xlsx');
+    };
 
     async function onManualSubmit(values: z.infer<typeof manualSkuSchema>) {
         setIsSavingManual(true);
@@ -124,8 +141,8 @@ export default function CargaSkuPage() {
                 }
 
                 const dataRows = json.slice(1);
-                // Mapeo de columnas: sku (A->0), sku_mdr (C->2), cat_mdr (B->1), landed_cost (D->3), piezas_xcontenedor (G->6), esti_time (F->5), piezas_por_sku (E->4)
-                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[6], row[5], row[4]]);
+                // Mapeo de columnas: sku (A->0), sku_mdr (C->2), cat_mdr (B->1), landed_cost (D->3), piezas_xcontenedor (G->6), esti_time (F->5), piezas_por_sku (E->4), proveedor (H->7)
+                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[6], row[5], row[4], row[7]]);
                 
                 // Filter out rows where essential columns are empty
                 const validatedData = extractedData.filter(row => 
@@ -204,7 +221,7 @@ export default function CargaSkuPage() {
                 cat_mdr: String(row[2] || '').trim(),
                 landed_cost: row[3], // Send raw value, server will parse
                 piezas_xcontenedor: row[4], // Send raw value, server will parse
-                proveedor: null, // As requested
+                proveedor: row[7] || null,
                 esti_time: row[5],
                 piezas_por_sku: row[6],
             }));
@@ -417,7 +434,13 @@ export default function CargaSkuPage() {
 
                     <Card className="mt-6">
                         <CardHeader>
-                            <CardTitle>Carga Masiva desde Archivo</CardTitle>
+                            <div className="flex justify-between items-center">
+                                <CardTitle>Carga Masiva desde Archivo</CardTitle>
+                                <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Descargar Plantilla
+                                </Button>
+                            </div>
                             <CardDescription>
                                 Sube un archivo CSV o Excel para añadir múltiples SKUs a la vez.
                             </CardDescription>
