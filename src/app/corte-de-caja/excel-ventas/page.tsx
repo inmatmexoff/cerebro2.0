@@ -59,6 +59,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Define which columns to extract and in what order
 const COLUMN_MAPPING: { [key: string]: number } = {
@@ -1253,18 +1254,22 @@ export default function ExcelVentasPage() {
                 </div>
               </CardHeader>
               {isProcessing && (
-                 <CardContent>
-                    <div className="flex flex-col items-center justify-center text-center p-6">
+                <CardContent>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex flex-col items-center justify-center text-center">
                         <Loader2 className="w-8 h-8 text-primary animate-spin" />
                         <p className="mt-4 text-lg font-semibold text-primary">
-                        Procesando archivo... ({progress}%)
+                          Procesando archivo... ({progress}%)
                         </p>
                         <Progress value={progress} className="w-full max-w-sm mt-2" />
                         <p className="mt-2 text-sm text-muted-foreground">
-                        Por favor espera. Archivos grandes pueden tomar varios
-                        minutos.
+                          Por favor espera. Archivos grandes pueden tomar varios
+                          minutos.
                         </p>
-                    </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </CardContent>
               )}
             </Card>
@@ -1675,138 +1680,147 @@ export default function ExcelVentasPage() {
                     </div>
                   </CardContent>
                 </Card>
-                {anyCheckboxFilterActive && (filteredPublications.length > 0 || filteredSkus.length > 0) && (
-                  <Card className="mt-6">
-                    <CardHeader>
-                      <CardTitle>Resumen de IDs y SKUs Filtrados</CardTitle>
-                      <CardDescription>
-                        Listas de todos los números de publicación y SKUs únicos que coinciden con los filtros aplicados y que resultaron en pérdida.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div>
-                          <h4 className="font-semibold mb-2"># de Publicación ({filteredPublications.length})</h4>
-                          <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
-                            {filteredPublications.map(pubId => (
-                              <div
-                                key={pubId}
-                                onClick={() => handleCopyToClipboard(pubId)}
-                                className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
-                                title={`Copiar ${pubId}`}
-                              >
-                                {pubId}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold mb-2">SKUs ({filteredSkus.length})</h4>
-                          <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
-                            {filteredSkus.map(sku => (
-                              <div
-                                key={sku}
-                                onClick={() => handleCopyToClipboard(sku)}
-                                className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
-                                title={`Copiar ${sku}`}
-                              >
-                                {sku}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                       <div className="mt-6 pt-6 border-t">
-                        <h4 className="font-semibold mb-4">Resumen por SKU</h4>
-                        <div className="border rounded-md max-h-96 overflow-y-auto">
-                            <Table>
-                                <TableHeader>
+                
+                {anyCheckboxFilterActive && filteredData.length > 0 && (
+                  <Tabs defaultValue="sku" className="mt-6">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="sku">Resumen por SKU</TabsTrigger>
+                        <TabsTrigger value="color">Resumen por Rentabilidad</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="sku">
+                        {skuSummary.length > 0 ? (
+                            <Card className="mt-6">
+                                <CardHeader>
+                                    <CardTitle>Resumen de IDs y SKUs Filtrados</CardTitle>
+                                    <CardDescription>
+                                        Listas de todos los números de publicación y SKUs únicos que coinciden con los filtros aplicados y que resultaron en pérdida.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h4 className="font-semibold mb-2"># de Publicación ({filteredPublications.length})</h4>
+                                        <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
+                                        {filteredPublications.map(pubId => (
+                                            <div
+                                            key={pubId}
+                                            onClick={() => handleCopyToClipboard(pubId)}
+                                            className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
+                                            title={`Copiar ${pubId}`}
+                                            >
+                                            {pubId}
+                                            </div>
+                                        ))}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">SKUs ({filteredSkus.length})</h4>
+                                        <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
+                                        {filteredSkus.map(sku => (
+                                            <div
+                                            key={sku}
+                                            onClick={() => handleCopyToClipboard(sku)}
+                                            className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
+                                            title={`Copiar ${sku}`}
+                                            >
+                                            {sku}
+                                            </div>
+                                        ))}
+                                        </div>
+                                    </div>
+                                    </div>
+                                    <div className="mt-6 pt-6 border-t">
+                                    <h4 className="font-semibold mb-4">Resumen por SKU</h4>
+                                    <div className="border rounded-md max-h-96 overflow-y-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>#</TableHead>
+                                                    <TableHead># de Publicación</TableHead>
+                                                    <TableHead>SKU</TableHead>
+                                                    <TableHead className="text-right">Unidades</TableHead>
+                                                    <TableHead className="text-right">Total</TableHead>
+                                                    <TableHead className="text-right">Perdida x SKU</TableHead>
+                                                    <TableHead className="text-right">Perdida Total</TableHead>
+                                                    <TableHead className="text-right">% del Total</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {skuSummary.map((item) => (
+                                                    <TableRow key={`${item.pubId}-${item.sku}`}>
+                                                        {item.isFirstInGroup ? (
+                                                            <TableCell rowSpan={item.groupSize}>{item.groupIndex}</TableCell>
+                                                        ) : null}
+                                                        {item.isFirstInGroup ? (
+                                                            <TableCell rowSpan={item.groupSize} className="font-medium">
+                                                                {item.pubId}
+                                                            </TableCell>
+                                                        ) : null}
+
+                                                        <TableCell className="font-medium">{item.sku}</TableCell>
+                                                        <TableCell className="text-right">{item.unidades}</TableCell>
+                                                        <TableCell className="text-right">{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                        <TableCell className="text-right">{item.perdidaPorSku.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                        <TableCell className="text-right">{item.perdidaTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                        <TableCell className="text-right">{item.porcentajePerdida.toFixed(2)}%</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </div>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <Card className="mt-6"><CardContent className="p-6 text-center text-muted-foreground">No hay datos de resumen para mostrar.</CardContent></Card>
+                        )}
+                    </TabsContent>
+                    <TabsContent value="color">
+                        {colorSummary.length > 0 ? (
+                            <Card className="mt-6">
+                                <CardHeader>
+                                <CardTitle>Resumen por Rentabilidad</CardTitle>
+                                <CardDescription>
+                                    Agrupación de datos por color de rentabilidad para los registros filtrados.
+                                </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                <Table>
+                                    <TableHeader>
                                     <TableRow>
-                                        <TableHead>#</TableHead>
+                                        <TableHead>Color</TableHead>
                                         <TableHead># de Publicación</TableHead>
-                                        <TableHead>SKU</TableHead>
+                                        <TableHead>SKU's</TableHead>
                                         <TableHead className="text-right">Unidades</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
-                                        <TableHead className="text-right">Perdida x SKU</TableHead>
-                                        <TableHead className="text-right">Perdida Total</TableHead>
-                                        <TableHead className="text-right">% del Total</TableHead>
                                     </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {skuSummary.length > 0 ? (
-                                        skuSummary.map((item) => (
-                                            <TableRow key={`${item.pubId}-${item.sku}`}>
-                                                {item.isFirstInGroup ? (
-                                                    <TableCell rowSpan={item.groupSize}>{item.groupIndex}</TableCell>
-                                                ) : null}
-                                                {item.isFirstInGroup ? (
-                                                    <TableCell rowSpan={item.groupSize} className="font-medium">
-                                                        {item.pubId}
-                                                    </TableCell>
-                                                ) : null}
-
-                                                <TableCell className="font-medium">{item.sku}</TableCell>
-                                                <TableCell className="text-right">{item.unidades}</TableCell>
-                                                <TableCell className="text-right">{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                <TableCell className="text-right">{item.perdidaPorSku.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                <TableCell className="text-right">{item.perdidaTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                <TableCell className="text-right">{item.porcentajePerdida.toFixed(2)}%</TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={8} className="text-center text-muted-foreground">
-                                                No hay datos de resumen para mostrar.
-                                            </TableCell>
+                                    </TableHeader>
+                                    <TableBody>
+                                    {colorSummary.map((item, index) => (
+                                        <TableRow key={index}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2 font-medium">
+                                            <div className={cn("w-4 h-4 rounded-full border", item.colorClass)}></div>
+                                            <span>{item.label}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>{item.publications.size}</TableCell>
+                                        <TableCell>{item.skus.size}</TableCell>
+                                        <TableCell className="text-right">{item.unidades.toLocaleString()}</TableCell>
+                                        <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>
+                                            {item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                                        </TableCell>
                                         </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </div>
-                    </CardContent>
-                  </Card>
-                )}
-                 {anyCheckboxFilterActive && skuSummary.length > 0 && (
-                    <Card className="mt-6">
-                        <CardHeader>
-                        <CardTitle>Resumen por Rentabilidad</CardTitle>
-                        <CardDescription>
-                            Agrupación de datos por color de rentabilidad para los registros filtrados.
-                        </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                        <Table>
-                            <TableHeader>
-                            <TableRow>
-                                <TableHead>Color</TableHead>
-                                <TableHead># de Publicación</TableHead>
-                                <TableHead>SKU's</TableHead>
-                                <TableHead className="text-right">Unidades</TableHead>
-                                <TableHead className="text-right">Total</TableHead>
-                            </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                            {colorSummary.map((item, index) => (
-                                <TableRow key={index}>
-                                <TableCell>
-                                    <div className="flex items-center gap-2 font-medium">
-                                    <div className={cn("w-4 h-4 rounded-full border", item.colorClass)}></div>
-                                    <span>{item.label}</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell>{item.publications.size}</TableCell>
-                                <TableCell>{item.skus.size}</TableCell>
-                                <TableCell className="text-right">{item.unidades.toLocaleString()}</TableCell>
-                                <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>
-                                    {item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
-                                </TableCell>
-                                </TableRow>
-                            ))}
-                            </TableBody>
-                        </Table>
-                        </CardContent>
-                    </Card>
+                                    ))}
+                                    </TableBody>
+                                </Table>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <Card className="mt-6"><CardContent className="p-6 text-center text-muted-foreground">No hay datos de resumen para mostrar.</CardContent></Card>
+                        )}
+                    </TabsContent>
+                  </Tabs>
                 )}
               </>
             )
