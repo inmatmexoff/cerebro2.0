@@ -648,6 +648,12 @@ export default function ExcelVentasPage() {
   ]);
 
   React.useEffect(() => {
+    if (!isFiltered) {
+        setSkuSummary([]);
+        setFilteredPublications([]);
+        setFilteredSkus([]);
+    }
+
     if (filteredData.length > 0) {
         const pubIndex = headers.indexOf('# de publicación');
         const skuIndex = headers.indexOf('SKU');
@@ -675,18 +681,19 @@ export default function ExcelVentasPage() {
             const summaryValues = Object.values(summary);
 
             const totalOfGranTotal = filteredData.reduce((sum, row) => sum + (row[granTotalIndex] as number || 0), 0);
+            const totalLoss = filteredData.filter(row => row[granTotalIndex] < 0).reduce((sum, row) => sum + (row[granTotalIndex] as number), 0);
 
             const enrichedSummary = summaryValues
               .map(item => {
                   const totalPorUnidad = (item.unidades > 0) ? item.total / item.unidades : 0;
-                  const porcentajeDelTotal = (totalOfGranTotal !== 0) ? (item.total / totalOfGranTotal) * 100 : 0;
+                  const porcentajeDelTotal = (totalLoss !== 0 && item.total < 0) ? (item.total / totalLoss) * 100 : 0;
                   
                   return {
                       ...item,
                       totalPorUnidad,
                       porcentajeDelTotal
                   };
-              });
+              }).sort((a,b) => a.total - b.total);
             
             const groupedByPubId: { [key: string]: typeof enrichedSummary } = {};
             enrichedSummary.forEach(item => {
@@ -766,7 +773,7 @@ export default function ExcelVentasPage() {
         setSkuSummary([]);
         setColorSummary([]);
     }
-}, [filteredData, headers, granTotalIndex]);
+}, [filteredData, headers, granTotalIndex, isFiltered]);
 
   const createSumCalculator = (columnName: string) => {
     return React.useMemo(() => {
@@ -934,6 +941,38 @@ export default function ExcelVentasPage() {
     });
 
     doc.save('ventas_preview.pdf');
+  };
+
+  const handleDownloadXLSX = () => {
+    if (filteredData.length === 0) {
+      toast({ variant: 'destructive', title: 'No hay datos para descargar' });
+      return;
+    }
+    const colsToDownload = headers.filter((h) => selectedColumns.has(h));
+    const colIndices = colsToDownload.map((h) => headers.indexOf(h));
+
+    if (colsToDownload.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Selecciona al menos una columna',
+      });
+      return;
+    }
+
+    const dataToExport = filteredData.map((row) =>
+      colIndices.map((index) => {
+        const cell = row[index];
+        if (cell instanceof Date) {
+          return cell.toLocaleDateString('es-MX');
+        }
+        return cell ?? '';
+      })
+    );
+
+    const worksheet = XLSX.utils.aoa_to_sheet([colsToDownload, ...dataToExport]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Ventas');
+    XLSX.writeFile(workbook, 'ventas_preview.xlsx');
   };
 
   const handleSaveData = async () => {
@@ -1404,7 +1443,7 @@ export default function ExcelVentasPage() {
                               className="pl-8"
                             />
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
                             <div className="flex items-center space-x-2">
                                 <Switch id="row-coloring" checked={isRowColoringActive} onCheckedChange={setIsRowColoringActive} />
                                 <Label htmlFor="row-coloring">Colorear Filas</Label>
@@ -1416,6 +1455,14 @@ export default function ExcelVentasPage() {
                             >
                               <Download className="mr-2 h-4 w-4" />
                               CSV
+                            </Button>
+                            <Button
+                              onClick={handleDownloadXLSX}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <Download className="mr-2 h-4 w-4" />
+                              XLSX
                             </Button>
                             <Button
                               onClick={handleDownloadPDF}
@@ -1724,7 +1771,7 @@ export default function ExcelVentasPage() {
                   </CardContent>
                 </Card>
                 
-                {(filteredData.length > 0) && (
+                {(data.length > 0) && (
                   <Tabs 
                     defaultValue="color" 
                     value={activeTab} 
