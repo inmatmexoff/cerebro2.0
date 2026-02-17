@@ -12,6 +12,7 @@ import {
   Search,
   Download,
   Filter,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -221,6 +222,7 @@ export default function ExcelVentasPage() {
   const [colorSummary, setColorSummary] = useState<any[]>([]);
   const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red'>('all');
   const [activeTab, setActiveTab] = useState<'sku' | 'color'>('color');
+  const [validationIssues, setValidationIssues] = useState<{ emptySkus: { rows: number[] }, invalidLandedCosts: { rows: number[] } } | null>(null);
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -559,6 +561,33 @@ export default function ExcelVentasPage() {
           setProgress(99);
           await new Promise((resolve) => setTimeout(resolve, 0));
 
+          const skuIndex = finalHeaders.indexOf('SKU');
+          const excelRowNumIndex = 0;
+
+          const issues: { emptySkus: { rows: number[] }, invalidLandedCosts: { rows: number[] } } = {
+              emptySkus: { rows: [] },
+              invalidLandedCosts: { rows: [] },
+          };
+
+          allEnrichedData.forEach(row => {
+              const excelRowNum = row[excelRowNumIndex];
+              const sku = row[skuIndex];
+              const landedCost = row[landedCostTotalIndex];
+
+              if (!sku || String(sku).trim() === '') {
+                  issues.emptySkus.rows.push(excelRowNum);
+              }
+              if (landedCost === 0 || landedCost === 1) {
+                  issues.invalidLandedCosts.rows.push(excelRowNum);
+              }
+          });
+
+          if (issues.emptySkus.rows.length > 0 || issues.invalidLandedCosts.rows.length > 0) {
+              setValidationIssues(issues);
+          } else {
+              setValidationIssues(null);
+          }
+
           setData(allEnrichedData);
           setProgress(100);
 
@@ -877,6 +906,7 @@ export default function ExcelVentasPage() {
     setError(null);
     setSelectedColumns(new Set());
     setProgress(0);
+    setValidationIssues(null);
   };
 
   const handleDownloadCSV = () => {
@@ -1835,6 +1865,42 @@ export default function ExcelVentasPage() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {validationIssues && (
+                  <Card className="mt-6 border-amber-500">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-amber-700">
+                        <AlertTriangle className="h-5 w-5" />
+                        Revisión de Datos
+                      </CardTitle>
+                      <CardDescription>
+                        Se encontraron posibles problemas en los siguientes registros. Te recomendamos verificarlos.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {validationIssues.invalidLandedCosts.rows.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold">
+                            {validationIssues.invalidLandedCosts.rows.length} registros con "Landed Cost Total" de 0 o 1
+                          </h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Filas de Excel: {validationIssues.invalidLandedCosts.rows.join(', ')}
+                          </p>
+                        </div>
+                      )}
+                      {validationIssues.emptySkus.rows.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold">
+                            {validationIssues.emptySkus.rows.length} registros con SKU vacío
+                          </h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Filas de Excel: {validationIssues.emptySkus.rows.join(', ')}
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
                 
                 {data.length > 0 && (
                   <Tabs 
