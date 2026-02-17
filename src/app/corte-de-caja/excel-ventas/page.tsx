@@ -659,6 +659,15 @@ export default function ExcelVentasPage() {
   };
 
   const granTotalSum = createSumCalculator('Gran Total');
+  const unfilteredGranTotalSum = React.useMemo(() => {
+    const index = headers.indexOf('Gran Total');
+    if (index === -1) return 0;
+    return data.reduce((sum, row) => {
+      const value = row[index];
+      return sum + (typeof value === 'number' ? value : 0);
+    }, 0);
+  }, [data, headers]);
+
 
   React.useEffect(() => {
     if (data.length === 0) {
@@ -1379,23 +1388,28 @@ export default function ExcelVentasPage() {
                         <div className="flex-1">
                           <CardTitle>Vista Previa de Datos</CardTitle>
                           <CardDescription className="pt-4 text-2xl">
-                            {isFiltered ? (
-                              <>
-                                Mostrando{' '}
-                                <span className="font-bold text-foreground">
-                                  {filteredData.length}
-                                </span>{' '}
-                                de {data.length} registros.
-                              </>
-                            ) : (
-                              <>
-                                <span className="font-bold text-foreground">
-                                  {data.length}
-                                </span>
-                                {data.length === 1 ? ' registro' : ' registros'} en
-                                total.
-                              </>
-                            )}
+                          {isFiltered ? (
+                            <>
+                              Mostrando{' '}
+                              <span className="font-bold text-foreground">
+                                {filteredData.length}
+                              </span>{' '}
+                              de {data.length} registros.
+                              {data.length > 0 && (
+                                  <span className="text-base text-muted-foreground ml-2">
+                                      ({((filteredData.length / data.length) * 100).toFixed(1)}%)
+                                  </span>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-bold text-foreground">
+                                {data.length}
+                              </span>
+                              {data.length === 1 ? ' registro' : ' registros'} en
+                              total.
+                            </>
+                          )}
                           </CardDescription>
                         </div>
 
@@ -1497,19 +1511,40 @@ export default function ExcelVentasPage() {
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                         <div className="p-3 bg-muted/50 rounded-md">
                           <div className="text-muted-foreground">Gran Total</div>
-                          <div
-                            className={cn(
-                              'font-bold text-lg',
-                              granTotalSum >= 0
-                                ? 'text-green-700'
-                                : 'text-red-700'
-                            )}
-                          >
-                            {granTotalSum.toLocaleString('es-MX', {
-                              style: 'currency',
-                              currency: 'MXN',
-                            })}
-                          </div>
+                          {markupFilter !== 'all' ? (
+                              <>
+                                  <div
+                                      className={cn(
+                                      'font-bold text-lg',
+                                      granTotalSum >= 0 ? 'text-green-700' : 'text-red-700'
+                                      )}
+                                  >
+                                      {granTotalSum.toLocaleString('es-MX', {
+                                      style: 'currency', currency: 'MXN',
+                                      })}
+                                  </div>
+                                  <div className="flex justify-between items-baseline text-sm mt-1">
+                                      <span className="text-muted-foreground">
+                                          de {unfilteredGranTotalSum.toLocaleString('es-MX', {
+                                          style: 'currency', currency: 'MXN',
+                                          })}
+                                      </span>
+                                      <span className="font-mono font-semibold">
+                                          {unfilteredGranTotalSum !== 0
+                                          ? `${((granTotalSum / unfilteredGranTotalSum) * 100).toFixed(1)}%`
+                                          : '0.0%'}
+                                      </span>
+                                  </div>
+                              </>
+                          ) : (
+                              <div
+                              className={cn('font-bold text-lg', granTotalSum >= 0 ? 'text-green-700' : 'text-red-700')}
+                              >
+                              {granTotalSum.toLocaleString('es-MX', {
+                                  style: 'currency', currency: 'MXN',
+                              })}
+                              </div>
+                          )}
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
                           <div className="text-muted-foreground">Total</div>
