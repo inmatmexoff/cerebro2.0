@@ -620,6 +620,7 @@ export default function ExcelVentasPage() {
       let markupMatch = true;
       if (markupFilter !== 'all') {
           const markupValue = markupIndex !== -1 ? row[markupIndex] : null;
+          const granTotal = granTotalIndex > -1 ? row[granTotalIndex] : null;
           if (typeof markupValue === 'number') {
               switch (markupFilter) {
                   case 'darkGreen':
@@ -635,11 +636,11 @@ export default function ExcelVentasPage() {
                       markupMatch = markupValue >= 5 && markupValue < 10;
                       break;
                   case 'red':
-                      markupMatch = markupValue < 5;
+                      markupMatch = markupValue < 5 && granTotal !== 0;
                       break;
               }
           } else {
-            markupMatch = markupFilter === 'red';
+            markupMatch = markupFilter === 'red' && granTotal !== 0;
           }
       }
 
@@ -696,13 +697,14 @@ export default function ExcelVentasPage() {
         const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
         const dataToSummarize = markupFilter === 'all' ? filteredData : filteredData.filter(row => {
           const markupValue = row[markupIndex];
-           if (typeof markupValue !== 'number') return markupFilter === 'red';
+           const granTotal = row[granTotalIndex];
+           if (typeof markupValue !== 'number') return markupFilter === 'red' && granTotal !== 0;
            switch (markupFilter) {
                 case 'darkGreen': return markupValue >= 30;
                 case 'lightGreen': return markupValue >= 20 && markupValue < 30;
                 case 'orange': return markupValue >= 10 && markupValue < 20;
                 case 'yellow': return markupValue >= 5 && markupValue < 10;
-                case 'red': return markupValue < 5;
+                case 'red': return markupValue < 5 && granTotal !== 0;
                 default: return false;
             }
         });
@@ -838,19 +840,22 @@ export default function ExcelVentasPage() {
 
     filteredData.forEach(row => {
       const markupValue = row[markupIndex];
+      const granTotal = row[granTotalIndex];
       if (typeof markupValue === 'number') {
         if (markupValue >= 30) counters.darkGreen++;
         else if (markupValue >= 20) counters.lightGreen++;
         else if (markupValue >= 10) counters.orange++;
         else if (markupValue >= 5) counters.yellow++;
-        else counters.red++;
+        else if (markupValue < 5) {
+            if (granTotal !== 0) counters.red++;
+        }
       } else {
-        counters.red++;
+        if (granTotal !== 0) counters.red++;
       }
     });
 
     return counters;
-  }, [filteredData, headers]);
+  }, [filteredData, headers, granTotalIndex]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -1689,6 +1694,7 @@ export default function ExcelVentasPage() {
                             const isPackage = estadoValue.toLowerCase().startsWith('paquete de');
                             const markupIndex = headers.indexOf('Markup (%)');
                             const markupValue = markupIndex > -1 ? row[markupIndex] : null;
+                            const granTotalValue = granTotalIndex > -1 ? row[granTotalIndex] : null;
 
                             return (
                               <TableRow key={rowIndex} className={cn(
@@ -1699,8 +1705,9 @@ export default function ExcelVentasPage() {
                                     'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': markupValue >= 20 && markupValue < 30,
                                     'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': markupValue >= 10 && markupValue < 20,
                                     'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': markupValue >= 5 && markupValue < 10,
-                                    'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue < 5,
-                                  }
+                                    'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue < 5 && granTotalValue !== 0,
+                                  },
+                                  isRowColoringActive && typeof markupValue !== 'number' && granTotalValue !== 0 && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
                               )}>
                                 {row.map((cell, cellIndex) => {
                                   const header = headers[cellIndex];
@@ -1718,13 +1725,15 @@ export default function ExcelVentasPage() {
                                         typeof cell === 'number' &&
                                         cell >= 0,
                                     },
-                                    !isRowColoringActive && header === 'Markup (%)' && typeof cell === 'number' && {
+                                    !isRowColoringActive && header === 'Markup (%)' && (
+                                      (typeof cell === 'number' && {
                                         'bg-green-200': cell >= 30,
                                         'bg-green-100': cell >= 20 && cell < 30,
                                         'bg-orange-100': cell >= 10 && cell < 20,
                                         'bg-yellow-100': cell >= 5 && cell < 10,
-                                        'bg-red-100': cell < 5,
-                                    })}
+                                        'bg-red-100': cell < 5 && row[granTotalIndex] !== 0,
+                                      }) || (typeof cell !== 'number' && row[granTotalIndex] !== 0 && 'bg-red-100')
+                                    ))}
                                   >
                                     {(() => {
                                       if (header === '# de publicación' && cell) {

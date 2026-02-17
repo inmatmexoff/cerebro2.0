@@ -219,16 +219,17 @@ export default function HistorialCortesPage() {
         let markupMatch = true;
         if (markupFilter !== 'all') {
             const markupValue = sale.markup;
-            if (typeof markupValue === 'number') {
+            const granTotal = sale.total_final;
+             if (typeof markupValue === 'number') {
                 switch (markupFilter) {
                     case 'darkGreen': markupMatch = markupValue >= 30; break;
                     case 'lightGreen': markupMatch = markupValue >= 20 && markupValue < 30; break;
                     case 'orange': markupMatch = markupValue >= 10 && markupValue < 20; break;
                     case 'yellow': markupMatch = markupValue >= 5 && markupValue < 10; break;
-                    case 'red': markupMatch = markupValue < 5; break;
+                    case 'red': markupMatch = markupValue < 5 && granTotal !== 0; break;
                 }
             } else {
-                markupMatch = markupFilter === 'red';
+                markupMatch = markupFilter === 'red' && granTotal !== 0;
             }
         }
 
@@ -261,14 +262,17 @@ export default function HistorialCortesPage() {
     const counters = { darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
     filteredItems.forEach(sale => {
       const markupValue = sale.markup;
-      if (typeof markupValue === 'number') {
+      const granTotal = sale.total_final;
+       if (typeof markupValue === 'number') {
         if (markupValue >= 30) counters.darkGreen++;
         else if (markupValue >= 20) counters.lightGreen++;
         else if (markupValue >= 10) counters.orange++;
         else if (markupValue >= 5) counters.yellow++;
-        else counters.red++;
+        else if (markupValue < 5) {
+            if (granTotal !== 0) counters.red++;
+        }
       } else {
-          counters.red++;
+          if (granTotal !== 0) counters.red++;
       }
     });
 
@@ -650,14 +654,15 @@ export default function HistorialCortesPage() {
                                     <TableRow 
                                         key={sale.id}
                                         className={cn(
-                                            (sale.status || '').toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
+                                            (sale.status || '' ).toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                             isRowColoringActive && typeof sale.markup === 'number' && {
                                                 'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30,
                                                 'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': sale.markup >= 20 && sale.markup < 30,
                                                 'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': sale.markup >= 10 && sale.markup < 20,
                                                 'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': sale.markup >= 5 && sale.markup < 10,
-                                                'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': sale.markup < 5,
-                                            }
+                                                'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': sale.markup < 5 && sale.total_final !== 0,
+                                            },
+                                            isRowColoringActive && typeof sale.markup !== 'number' && sale.total_final !== 0 && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
                                         )}
                                     >
                                     {headers.map((header) => {
@@ -699,13 +704,16 @@ export default function HistorialCortesPage() {
                                                     'font-medium text-red-600': header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) < 0,
                                                     'font-medium text-green-700': header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) >= 0,
                                                 },
-                                                !isRowColoringActive && header.key === 'markup' && typeof cellValue === 'number' && {
-                                                    'bg-green-200': cellValue >= 30,
-                                                    'bg-green-100': cellValue >= 20 && cellValue < 30,
-                                                    'bg-orange-100': cellValue >= 10 && cellValue < 20,
-                                                    'bg-yellow-100': cellValue >= 5 && cellValue < 10,
-                                                    'bg-red-100': cellValue < 5,
-                                                })}>
+                                                !isRowColoringActive && header.key === 'markup' && (
+                                                  (typeof cellValue === 'number' && {
+                                                      'bg-green-200': cellValue >= 30,
+                                                      'bg-green-100': cellValue >= 20 && cellValue < 30,
+                                                      'bg-orange-100': cellValue >= 10 && cellValue < 20,
+                                                      'bg-yellow-100': cellValue >= 5 && cellValue < 10,
+                                                      'bg-red-100': cellValue < 5 && sale.total_final !== 0,
+                                                  }) ||
+                                                  (typeof cellValue !== 'number' && sale.total_final !== 0 && 'bg-red-100')
+                                                ))}>
                                                 {formattedValue}
                                             </TableCell>
                                         );
