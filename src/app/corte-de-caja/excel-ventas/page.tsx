@@ -11,6 +11,7 @@ import {
   Pencil,
   Search,
   Download,
+  Filter,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,6 +42,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Form,
   FormControl,
@@ -1386,122 +1395,120 @@ export default function ExcelVentasPage() {
                   <CardHeader>
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="flex-1">
-                          <CardTitle>Vista Previa de Datos</CardTitle>
-                          <CardDescription className="pt-4 text-2xl">
-                          {isFiltered ? (
-                            <>
-                              Mostrando{' '}
-                              <span className="font-bold text-foreground">
-                                {filteredData.length}
-                              </span>{' '}
-                              de {data.length} registros.
-                              {data.length > 0 && (
-                                  <span className="text-base text-muted-foreground ml-2">
-                                      ({((filteredData.length / data.length) * 100).toFixed(1)}%)
-                                  </span>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <span className="font-bold text-foreground">
-                                {data.length}
-                              </span>
-                              {data.length === 1 ? ' registro' : ' registros'} en
-                              total.
-                            </>
-                          )}
-                          </CardDescription>
+                            <CardTitle>Vista Previa de Datos</CardTitle>
+                            <CardDescription className="pt-2 text-muted-foreground">
+                                {isFiltered ? (
+                                <>
+                                    Mostrando{' '}
+                                    <span className="font-bold text-lg text-foreground">
+                                    {filteredData.length}
+                                    </span>{' '}
+                                    de {data.length} registros.
+                                    {data.length > 0 && (
+                                        <span className="text-sm text-muted-foreground ml-1">
+                                            ({((filteredData.length / data.length) * 100).toFixed(1)}%)
+                                        </span>
+                                    )}
+                                </>
+                                ) : (
+                                <>
+                                    <span className="font-bold text-lg text-foreground">
+                                    {data.length}
+                                    </span>
+                                    {data.length === 1 ? ' registro' : ' registros'} en
+                                    total.
+                                </>
+                                )}
+                            </CardDescription>
                         </div>
 
-                      <div className="flex flex-wrap justify-end items-start gap-x-6 gap-y-4">
-                        <div className="flex flex-col items-start gap-1.5">
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id="show-negative"
-                              checked={showOnlyNegative}
-                              onCheckedChange={(checked) => {
-                                setShowOnlyNegative(checked as boolean);
-                                if (checked) {
-                                  setShowOnlyPositive(false);
-                                  setMarkupFilter('all');
-                                }
-                              }}
-                            />
-                            <label htmlFor="show-negative" className="text-sm font-medium">
-                              Mostrar solo negativos
-                            </label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id="show-positive"
-                              checked={showOnlyPositive}
-                              onCheckedChange={(checked) => {
-                                setShowOnlyPositive(checked as boolean);
-                                if (checked) {
-                                  setShowOnlyNegative(false);
-                                  setMarkupFilter('all');
-                                }
-                              }}
-                            />
-                            <label htmlFor="show-positive" className="text-sm font-medium">
-                              Mostrar 0 o positivos
-                            </label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id="show-high-shipping"
-                              checked={showHighShippingCost}
-                              onCheckedChange={(checked) =>
-                                setShowHighShippingCost(checked as boolean)
-                              }
-                            />
-                            <label htmlFor="show-high-shipping" className="text-sm font-medium">
-                              Costo Envío &lt;= -$300
-                            </label>
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-col items-end gap-2">
-                          <div className="relative w-full max-w-[240px]">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <div className="relative w-full sm:w-auto">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                              placeholder="Buscar por SKU..."
-                              value={skuSearchTerm}
-                              onChange={(e) => setSkuSearchTerm(e.target.value)}
-                              className="pl-8"
+                                placeholder="Buscar por SKU..."
+                                value={skuSearchTerm}
+                                onChange={(e) => setSkuSearchTerm(e.target.value)}
+                                className="pl-8 w-full sm:w-48 h-9"
                             />
-                          </div>
-                          <div className="flex flex-wrap items-center justify-end gap-2">
-                            <div className="flex items-center space-x-2">
-                                <Switch id="row-coloring" checked={isRowColoringActive} onCheckedChange={setIsRowColoringActive} />
-                                <Label htmlFor="row-coloring">Colorear Filas</Label>
-                            </div>
-                            <Button
-                              onClick={handleDownloadCSV}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <Download className="mr-2 h-4 w-4" />
-                              CSV
-                            </Button>
-                            <Button
-                              onClick={handleDownloadXLSX}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <Download className="mr-2 h-4 w-4" />
-                              XLSX
-                            </Button>
-                            <Button
-                              onClick={handleDownloadPDF}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <Download className="mr-2 h-4 w-4" />
-                              PDF
-                            </Button>
-                          </div>
                         </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-9">
+                                    <Filter className="mr-2 h-4 w-4" />
+                                    Filtros
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Filtrar Gran Total</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuCheckboxItem
+                                    checked={showOnlyNegative}
+                                    onCheckedChange={(checked) => {
+                                        setShowOnlyNegative(checked as boolean);
+                                        if (checked) {
+                                            setShowOnlyPositive(false);
+                                            setMarkupFilter('all');
+                                        }
+                                    }}
+                                >
+                                    Mostrar solo negativos
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem
+                                    checked={showOnlyPositive}
+                                    onCheckedChange={(checked) => {
+                                        setShowOnlyPositive(checked as boolean);
+                                        if (checked) {
+                                            setShowOnlyNegative(false);
+                                            setMarkupFilter('all');
+                                        }
+                                    }}
+                                >
+                                    Mostrar 0 o positivos
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuLabel>Otros Filtros</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuCheckboxItem
+                                    checked={showHighShippingCost}
+                                    onCheckedChange={(checked) =>
+                                        setShowHighShippingCost(checked as boolean)
+                                    }
+                                >
+                                    Costo Envío &lt;= -$300
+                                </DropdownMenuCheckboxItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <div className="flex items-center space-x-2">
+                            <Switch id="row-coloring" checked={isRowColoringActive} onCheckedChange={setIsRowColoringActive} />
+                            <Label htmlFor="row-coloring">Colorear Filas</Label>
+                        </div>
+                        
+                        <Button
+                          onClick={handleDownloadCSV}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          CSV
+                        </Button>
+                        <Button
+                          onClick={handleDownloadXLSX}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          XLSX
+                        </Button>
+                        <Button
+                          onClick={handleDownloadPDF}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          PDF
+                        </Button>
                       </div>
                     </div>
                     <div className="pt-4">
