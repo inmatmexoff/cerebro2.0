@@ -20,7 +20,7 @@ export function CompanySelect({ value, onValueChange }: { value?: string, onValu
             <SelectItem value="all">Todas las empresas</SelectItem>
             <SelectItem value="mtm">MTM</SelectItem>
             <SelectItem value="tal">TAL</SelectItem>
-            <SelectItem value="domeska">DOMESKA</SelectItem>
+            <SelectItem value="do-meska">DO MESKA</SelectItem>
             <SelectItem value="hogarden">HOGARDEN</SelectItem>
             <SelectItem value="palo-de-rosa">PALO DE ROSA</SelectItem>
         </SelectContent>

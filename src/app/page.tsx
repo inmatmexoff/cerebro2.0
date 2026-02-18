@@ -265,7 +265,7 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
       const colorMap: { [key: string]: string } = {
         'MTM': '#1B5E20',        // Verde Oscuro
         'HOGARDEN': '#90EE90',  // Verde Claro
-        'DOMESKA': '#9370DB',   // Morado
+        'DO MESKA': '#9370DB',   // Morado
         'TAL': '#4682B4',        // Azul
         'PALO DE ROSA': '#FFB6C1' // Rosa
       };
