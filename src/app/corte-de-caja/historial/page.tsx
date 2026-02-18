@@ -92,6 +92,8 @@ export default function HistorialCortesPage() {
   const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
   const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
   const [colorSummarySort, setColorSummarySort] = useState<{ key: ColorSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'desc' });
+  const [totalUniquePubs, setTotalUniquePubs] = useState(0);
+  const [totalUniqueSkus, setTotalUniqueSkus] = useState(0);
 
 
   const handleApplyDateFilter = () => {
@@ -298,15 +300,24 @@ export default function HistorialCortesPage() {
         setFilteredPublications([]);
         setFilteredSkus([]);
         setColorSummary([]);
+        setTotalUniquePubs(0);
+        setTotalUniqueSkus(0);
         return;
     }
     
     const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
     const dataToSummarize = filteredItems;
+    
+    const allPubsInFilteredData = new Set<string>();
+    const allSkusInFilteredData = new Set<string>();
 
     dataToSummarize.forEach(row => {
         const pubId = String(row.num_publi || '').trim();
         const sku = String(row.sku || '').trim();
+        
+        if(pubId) allPubsInFilteredData.add(pubId);
+        if(sku) allSkusInFilteredData.add(sku);
+
         if ((pubId || sku) && (row.total_final || 0) < 0) {
             const key = `${pubId}|${sku}`;
             if (!summary[key]) {
@@ -318,6 +329,9 @@ export default function HistorialCortesPage() {
             summary[key].total += total;
         }
     });
+
+    setTotalUniquePubs(allPubsInFilteredData.size);
+    setTotalUniqueSkus(allSkusInFilteredData.size);
 
     const summaryValues = Object.values(summary);
     
@@ -520,6 +534,11 @@ export default function HistorialCortesPage() {
     const totalRow = {
         'Color': 'Total',
         'Registros': colorSummary.reduce((acc, item) => acc + item.count, 0),
+        '# de Publicación': totalUniquePubs,
+        "SKU's": totalUniqueSkus,
+        'Unidades': colorSummary.reduce((acc, item) => acc + item.unidades, 0),
+        'Total': colorSummary.reduce((acc, item) => acc + item.total, 0),
+        '% del Total': '100.00%',
     };
 
     dataToExport.push(totalRow);
@@ -680,7 +699,7 @@ export default function HistorialCortesPage() {
                                 <span className="text-muted-foreground">5-9.9%</span>
                             </div>
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('red')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-red-100 border border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <div className={cn("w-3 h-3 rounded-full bg-red-100 border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.red}</span>
                                 <span className="text-muted-foreground">{'<'}5%</span>
                             </div>
@@ -935,27 +954,28 @@ export default function HistorialCortesPage() {
                                   </div>
                             </CardHeader>
                             <CardContent>
+                            <div className="overflow-x-auto">
                             <ShadcnTable>
                                 <TableHeader>
                                 <TableRow>
                                     <TableHead>Color</TableHead>
                                     <TableHead onClick={() => handleColorSummarySort('count')} className="cursor-pointer">
-                                      <div className="flex items-center gap-1">Registros <ChevronsUpDown className="h-4 w-4" /></div>
+                                      <div className="flex items-center gap-1 whitespace-nowrap">Registros <ChevronsUpDown className="h-4 w-4" /></div>
                                     </TableHead>
                                     <TableHead onClick={() => handleColorSummarySort('publications')} className="cursor-pointer">
-                                      <div className="flex items-center gap-1"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div>
+                                      <div className="flex items-center gap-1 whitespace-nowrap"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div>
                                     </TableHead>
                                     <TableHead onClick={() => handleColorSummarySort('skus')} className="cursor-pointer">
-                                      <div className="flex items-center gap-1">SKU's <ChevronsUpDown className="h-4 w-4" /></div>
+                                      <div className="flex items-center gap-1 whitespace-nowrap">SKU's <ChevronsUpDown className="h-4 w-4" /></div>
                                     </TableHead>
                                     <TableHead onClick={() => handleColorSummarySort('unidades')} className="cursor-pointer text-right">
-                                        <div className="flex items-center justify-end gap-1">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
+                                        <div className="flex items-center justify-end gap-1 whitespace-nowrap">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
                                     </TableHead>
                                     <TableHead onClick={() => handleColorSummarySort('total')} className="cursor-pointer text-right">
-                                        <div className="flex items-center justify-end gap-1">Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                        <div className="flex items-center justify-end gap-1 whitespace-nowrap">Total <ChevronsUpDown className="h-4 w-4" /></div>
                                     </TableHead>
                                     <TableHead onClick={() => handleColorSummarySort('percentageOfTotal')} className="cursor-pointer text-right">
-                                        <div className="flex items-center justify-end gap-1">% del Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                        <div className="flex items-center justify-end gap-1 whitespace-nowrap">% del Total <ChevronsUpDown className="h-4 w-4" /></div>
                                     </TableHead>
                                 </TableRow>
                                 </TableHeader>
@@ -987,10 +1007,17 @@ export default function HistorialCortesPage() {
                                         <TableCell className="font-bold">
                                             {colorSummary.reduce((acc, item) => acc + item.count, 0).toLocaleString()}
                                         </TableCell>
-                                        <TableCell colSpan={5}></TableCell>
+                                        <TableCell className="font-bold">{totalUniquePubs.toLocaleString()}</TableCell>
+                                        <TableCell className="font-bold">{totalUniqueSkus.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right font-bold">{colorSummary.reduce((acc, item) => acc + item.unidades, 0).toLocaleString()}</TableCell>
+                                        <TableCell className="text-right font-bold">
+                                            {formatCurrency(colorSummary.reduce((acc, item) => acc + item.total, 0))}
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold">100.00%</TableCell>
                                     </TableRow>
                                 </TableFooter>
                             </ShadcnTable>
+                            </div>
                             </CardContent>
                         </Card>
                     ) : (
@@ -1004,3 +1031,4 @@ export default function HistorialCortesPage() {
     </div>
   );
 }
+

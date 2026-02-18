@@ -230,6 +230,8 @@ export default function ExcelVentasPage() {
   const [validationIssues, setValidationIssues] = useState<{ emptySkus: { rows: number[] }, invalidLandedCosts: { rows: number[] } } | null>(null);
 
   const [colorSummarySort, setColorSummarySort] = useState<{ key: ColorSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'desc' });
+  const [totalUniquePubs, setTotalUniquePubs] = React.useState(0);
+  const [totalUniqueSkus, setTotalUniqueSkus] = React.useState(0);
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -817,8 +819,16 @@ export default function ExcelVentasPage() {
               yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
               red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
           };
+
+          const allUniquePubs = new Set<string>();
+          const allUniqueSkus = new Set<string>();
           
           filteredData.forEach(row => {
+              const pubId = String(row[pubIndex] || '').trim();
+              const sku = String(row[skuIndex] || '').trim();
+              if(pubId) allUniquePubs.add(pubId);
+              if(sku) allUniqueSkus.add(sku);
+
               const markupValue = row[markupIndex];
               const granTotalValue = row[granTotalIndex];
               let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
@@ -834,8 +844,6 @@ export default function ExcelVentasPage() {
               }
       
               if (category) {
-                const pubId = String(row[pubIndex] || '').trim();
-                const sku = String(row[skuIndex] || '').trim();
                 const unidades = parseInt(String(row[unidadesIndex]), 10) || 0;
                 const total = granTotalValue as number || 0;
         
@@ -846,6 +854,9 @@ export default function ExcelVentasPage() {
                 category.count += 1;
               }
           });
+          
+          setTotalUniquePubs(allUniquePubs.size);
+          setTotalUniqueSkus(allUniqueSkus.size);
   
           const summaryWithPercentage = Object.values(summaryByColor).map(cat => ({
               ...cat,
@@ -859,6 +870,8 @@ export default function ExcelVentasPage() {
         setFilteredPublications([]);
         setFilteredSkus([]);
         setColorSummary([]);
+        setTotalUniquePubs(0);
+        setTotalUniqueSkus(0);
     }
 }, [filteredData, headers, granTotalIndex, data.length, markupFilter, granTotalSum]);
 
@@ -1366,6 +1379,11 @@ export default function ExcelVentasPage() {
     const totalRow = {
         'Color': 'Total',
         'Registros': colorSummary.reduce((acc, item) => acc + item.count, 0),
+        '# de Publicación': totalUniquePubs,
+        "SKU's": totalUniqueSkus,
+        'Unidades': colorSummary.reduce((acc, item) => acc + item.unidades, 0),
+        'Total': colorSummary.reduce((acc, item) => acc + item.total, 0),
+        '% del Total': '100.00%',
     };
 
     dataToExport.push(totalRow);
@@ -2062,27 +2080,28 @@ export default function ExcelVentasPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
+                                <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                     <TableRow>
                                         <TableHead>Color</TableHead>
                                         <TableHead onClick={() => handleColorSummarySort('count')} className="cursor-pointer">
-                                          <div className="flex items-center gap-1">Registros <ChevronsUpDown className="h-4 w-4" /></div>
+                                          <div className="flex items-center gap-1 whitespace-nowrap">Registros <ChevronsUpDown className="h-4 w-4" /></div>
                                         </TableHead>
                                         <TableHead onClick={() => handleColorSummarySort('publications')} className="cursor-pointer">
-                                          <div className="flex items-center gap-1"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div>
+                                          <div className="flex items-center gap-1 whitespace-nowrap"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div>
                                         </TableHead>
                                         <TableHead onClick={() => handleColorSummarySort('skus')} className="cursor-pointer">
-                                          <div className="flex items-center gap-1">SKU's <ChevronsUpDown className="h-4 w-4" /></div>
+                                          <div className="flex items-center gap-1 whitespace-nowrap">SKU's <ChevronsUpDown className="h-4 w-4" /></div>
                                         </TableHead>
                                         <TableHead onClick={() => handleColorSummarySort('unidades')} className="cursor-pointer text-right">
-                                           <div className="flex items-center justify-end gap-1">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
+                                           <div className="flex items-center justify-end gap-1 whitespace-nowrap">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
                                         </TableHead>
                                         <TableHead onClick={() => handleColorSummarySort('total')} className="cursor-pointer text-right">
-                                           <div className="flex items-center justify-end gap-1">Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                           <div className="flex items-center justify-end gap-1 whitespace-nowrap">Total <ChevronsUpDown className="h-4 w-4" /></div>
                                         </TableHead>
                                         <TableHead onClick={() => handleColorSummarySort('percentageOfTotal')} className="cursor-pointer text-right">
-                                           <div className="flex items-center justify-end gap-1">% del Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                           <div className="flex items-center justify-end gap-1 whitespace-nowrap">% del Total <ChevronsUpDown className="h-4 w-4" /></div>
                                         </TableHead>
                                     </TableRow>
                                     </TableHeader>
@@ -2114,10 +2133,19 @@ export default function ExcelVentasPage() {
                                             <TableCell className="font-bold">
                                                 {colorSummary.reduce((acc, item) => acc + item.count, 0).toLocaleString()}
                                             </TableCell>
-                                            <TableCell colSpan={5}></TableCell>
+                                            <TableCell className="font-bold">{totalUniquePubs.toLocaleString()}</TableCell>
+                                            <TableCell className="font-bold">{totalUniqueSkus.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-bold">{colorSummary.reduce((acc, item) => acc + item.unidades, 0).toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-bold">
+                                              {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(
+                                                colorSummary.reduce((acc, item) => acc + item.total, 0)
+                                              )}
+                                            </TableCell>
+                                            <TableCell className="text-right font-bold">100.00%</TableCell>
                                         </TableRow>
                                     </TableFooter>
                                 </Table>
+                                </div>
                                 </CardContent>
                             </Card>
                         ) : (
@@ -2216,3 +2244,4 @@ export default function ExcelVentasPage() {
     </div>
   );
 }
+
