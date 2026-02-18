@@ -223,17 +223,24 @@ const MultiPeriodAnalysisView = ({
   const [periods, setPeriods] = useState<Period[]>([
     {
       id: Date.now(),
+      name: 'Inmatmex',
+      startDate: null,
+      endDate: null,
+      company: 'inmatmex',
+    },
+    {
+      id: Date.now() + 1,
+      name: 'TAL COMERCIALIZADORA',
+      startDate: null,
+      endDate: null,
+      company: 'tal-comercializadora',
+    },
+    {
+      id: Date.now() + 2,
       name: 'DO MESKA',
       startDate: null,
       endDate: null,
       company: 'do-meska',
-    },
-    {
-      id: Date.now() + 1,
-      name: 'TAL',
-      startDate: null,
-      endDate: null,
-      company: 'tal',
     },
   ]);
 
