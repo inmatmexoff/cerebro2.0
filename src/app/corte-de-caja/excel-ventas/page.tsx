@@ -31,6 +31,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import { supabasePROD } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -808,15 +809,16 @@ export default function ExcelVentasPage() {
 
 
         const summaryByColor = {
-            darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-            lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-            orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-            yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-            red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+            darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
+            lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
+            orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
+            yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
+            red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
         };
         
         filteredData.forEach(row => {
             const markupValue = row[markupIndex];
+            const granTotalValue = row[granTotalIndex];
             let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
     
             if (typeof markupValue === 'number') {
@@ -824,20 +826,23 @@ export default function ExcelVentasPage() {
                 else if (markupValue >= 20) category = summaryByColor.lightGreen;
                 else if (markupValue >= 10) category = summaryByColor.orange;
                 else if (markupValue >= 5) category = summaryByColor.yellow;
-                else category = summaryByColor.red;
-            } else {
+                else if (markupValue < 5 && granTotalValue !== 0) category = summaryByColor.red;
+            } else if (granTotalValue !== 0) {
                 category = summaryByColor.red;
             }
     
-            const pubId = String(row[pubIndex] || '').trim();
-            const sku = String(row[skuIndex] || '').trim();
-            const unidades = parseInt(String(row[unidadesIndex]), 10) || 0;
-            const total = row[granTotalIndex] as number || 0;
-    
-            if (pubId) category.publications.add(pubId);
-            if (sku) category.skus.add(sku);
-            category.unidades += unidades;
-            category.total += total;
+            if (category) {
+              const pubId = String(row[pubIndex] || '').trim();
+              const sku = String(row[skuIndex] || '').trim();
+              const unidades = parseInt(String(row[unidadesIndex]), 10) || 0;
+              const total = granTotalValue as number || 0;
+      
+              if (pubId) category.publications.add(pubId);
+              if (sku) category.skus.add(sku);
+              category.unidades += unidades;
+              category.total += total;
+              category.count += 1;
+            }
         });
 
         const summaryWithPercentage = Object.values(summaryByColor).map(cat => ({
@@ -1217,32 +1222,6 @@ export default function ExcelVentasPage() {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleEditClick = (rowToEdit: any[]) => {
-    const rowIndex = data.findIndex((r) => r === rowToEdit);
-    if (rowIndex === -1) return;
-
-    const landedCostIndex = headers.indexOf('Landed Cost Total');
-    const skuIndex = headers.indexOf('SKU');
-    const unidadesHeader = headers.find((h) => /unidades/i.test(h));
-    const unidadesIndex = unidadesHeader ? headers.indexOf(unidadesHeader) : -1;
-
-    const rowData = rowToEdit;
-    const sku = String(rowData[skuIndex] || '');
-    const totalLandedCost = parseCurrency(rowData[landedCostIndex]) || 0;
-    const unidades =
-      (unidadesIndex !== -1
-        ? parseInt(String(rowData[unidadesIndex] || '1'))
-        : 1) || 1;
-    const perUnitLandedCost = unidades > 0 ? totalLandedCost / unidades : 0;
-
-    setEditingInfo({ rowIndex, sku, originalLandedCost: totalLandedCost });
-    form.reset({
-      sku_mdr: '',
-      cat_mdr: '',
-      landed_cost: perUnitLandedCost > 1 ? perUnitLandedCost : undefined,
-    });
   };
 
   async function onUpdateSubmit(values: z.infer<typeof formSchema>) {
@@ -2013,6 +1992,7 @@ export default function ExcelVentasPage() {
                                     <TableHeader>
                                     <TableRow>
                                         <TableHead>Color</TableHead>
+                                        <TableHead>Registros</TableHead>
                                         <TableHead># de Publicación</TableHead>
                                         <TableHead>SKU's</TableHead>
                                         <TableHead className="text-right">Unidades</TableHead>
@@ -2029,6 +2009,7 @@ export default function ExcelVentasPage() {
                                             <span>{item.label}</span>
                                             </div>
                                         </TableCell>
+                                        <TableCell>{item.count.toLocaleString()}</TableCell>
                                         <TableCell>{item.publications.size}</TableCell>
                                         <TableCell>{item.skus.size}</TableCell>
                                         <TableCell className="text-right">{item.unidades.toLocaleString()}</TableCell>
@@ -2041,6 +2022,15 @@ export default function ExcelVentasPage() {
                                         </TableRow>
                                     ))}
                                     </TableBody>
+                                    <TableFooter>
+                                        <TableRow>
+                                            <TableCell className="font-bold">Total</TableCell>
+                                            <TableCell className="font-bold">
+                                                {colorSummary.reduce((acc, item) => acc + item.count, 0).toLocaleString()}
+                                            </TableCell>
+                                            <TableCell colSpan={5}></TableCell>
+                                        </TableRow>
+                                    </TableFooter>
                                 </Table>
                                 </CardContent>
                             </Card>

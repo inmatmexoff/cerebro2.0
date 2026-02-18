@@ -6,7 +6,7 @@ import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter, PackageSearch } fro
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Table as ShadcnTable, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table as ShadcnTable, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { supabasePROD } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -160,7 +160,7 @@ export default function HistorialCortesPage() {
     setError(null);
 
     try {
-      let query = supabasePROD.from('ml_sales').select('*', { count: 'exact' });
+      let query = supabasePROD.from('ml_sales').select('*, landed_cost_total:landed_cost', { count: 'exact' });
 
       if (debouncedSearchTerm) {
         query = query.or(
@@ -185,7 +185,12 @@ export default function HistorialCortesPage() {
         throw error;
       }
 
-      setSales(data as SaleRecord[]);
+      const transformedData = data.map(item => ({
+          ...item,
+          landed_cost: item.landed_cost_total,
+      }))
+
+      setSales(transformedData as SaleRecord[]);
       setTotalRows(count || 0);
 
     } catch (err: any) {
@@ -225,7 +230,7 @@ export default function HistorialCortesPage() {
                     case 'darkGreen': markupMatch = markupValue >= 30; break;
                     case 'lightGreen': markupMatch = markupValue >= 20 && markupValue < 30; break;
                     case 'orange': markupMatch = markupValue >= 10 && markupValue < 20; break;
-                    case 'yellow': markupMatch = markupValue >= 5 && markupValue < 10; break;
+                    case 'yellow': markupMatch = markupValue >= 5 && markupValue < 10;
                     case 'red': markupMatch = markupValue < 5 && granTotal !== 0; break;
                 }
             } else {
@@ -378,30 +383,33 @@ export default function HistorialCortesPage() {
             else if (markupValue >= 20) category = summaryByColor.lightGreen;
             else if (markupValue >= 10) category = summaryByColor.orange;
             else if (markupValue >= 5) category = summaryByColor.yellow;
-            else category = summaryByColor.red;
-        } else {
+            else if (markupValue < 5 && row.total_final !== 0) category = summaryByColor.red;
+        } else if (row.total_final !== 0) {
             category = summaryByColor.red;
         }
 
-        const pubId = String(row.num_publi || '').trim();
-        const sku = String(row.sku || '').trim();
-        const unidades = row.unidades || 0;
-        const total = row.total_final || 0;
+        if (category) {
+            const pubId = String(row.num_publi || '').trim();
+            const sku = String(row.sku || '').trim();
+            const unidades = row.unidades || 0;
+            const total = row.total_final || 0;
 
-        if (pubId) category.publications.add(pubId);
-        if (sku) category.skus.add(sku);
-        category.unidades += unidades;
-        category.total += total;
+            if (pubId) category.publications.add(pubId);
+            if (sku) category.skus.add(sku);
+            category.unidades += unidades;
+            category.total += total;
+        }
     });
 
-    const summaryWithPercentage = Object.values(summaryByColor).map(cat => ({
+    const summaryWithPercentage = Object.entries(summaryByColor).map(([key, cat]) => ({
         ...cat,
+        count: colorCounters[key as keyof typeof colorCounters],
         percentageOfTotal: granTotalSum !== 0 ? (cat.total / granTotalSum) * 100 : 0
     }));
 
     setColorSummary(summaryWithPercentage);
 
-  }, [filteredItems, granTotalSum]);
+  }, [filteredItems, granTotalSum, colorCounters]);
 
   const handleSort = (column: keyof SaleRecord) => {
     if (sortDescriptor.column === column) {
@@ -860,6 +868,7 @@ export default function HistorialCortesPage() {
                                 <TableHeader>
                                 <TableRow>
                                     <TableHead>Color</TableHead>
+                                    <TableHead>Registros</TableHead>
                                     <TableHead># de Publicación</TableHead>
                                     <TableHead>SKU's</TableHead>
                                     <TableHead className="text-right">Unidades</TableHead>
@@ -876,6 +885,7 @@ export default function HistorialCortesPage() {
                                         <span>{item.label}</span>
                                         </div>
                                     </TableCell>
+                                    <TableCell>{item.count.toLocaleString()}</TableCell>
                                     <TableCell>{item.publications.size}</TableCell>
                                     <TableCell>{item.skus.size}</TableCell>
                                     <TableCell className="text-right">{item.unidades.toLocaleString()}</TableCell>
@@ -888,6 +898,15 @@ export default function HistorialCortesPage() {
                                     </TableRow>
                                 ))}
                                 </TableBody>
+                                 <TableFooter>
+                                    <TableRow>
+                                        <TableCell className="font-bold">Total</TableCell>
+                                        <TableCell className="font-bold">
+                                            {colorSummary.reduce((acc, item) => acc + item.count, 0).toLocaleString()}
+                                        </TableCell>
+                                        <TableCell colSpan={5}></TableCell>
+                                    </TableRow>
+                                </TableFooter>
                             </ShadcnTable>
                             </CardContent>
                         </Card>
