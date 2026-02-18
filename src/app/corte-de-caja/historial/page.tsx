@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter, PackageSearch } from 'lucide-react';
+import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter, PackageSearch, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Table as ShadcnTable, TableBody, TableCell, TableHead, TableHeader, Tab
 import { supabasePROD } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import * as XLSX from 'xlsx';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -54,6 +55,7 @@ type SortDescriptor = {
 };
 
 const ROWS_PER_PAGE = 20;
+type ColorSummarySortKey = 'count' | 'publications' | 'skus' | 'unidades' | 'total' | 'percentageOfTotal';
 
 export default function HistorialCortesPage() {
   const [sales, setSales] = useState<SaleRecord[]>([]);
@@ -89,6 +91,8 @@ export default function HistorialCortesPage() {
   const [colorSummary, setColorSummary] = useState<any[]>([]);
   const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
   const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
+  const [colorSummarySort, setColorSummarySort] = useState<{ key: ColorSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'desc' });
+
 
   const handleApplyDateFilter = () => {
     setPage(1);
@@ -468,6 +472,65 @@ export default function HistorialCortesPage() {
 
   const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost || appliedDateFilters.startDate || appliedDateFilters.endDate || markupFilter !== 'all';
 
+  const handleColorSummarySort = (key: ColorSummarySortKey) => {
+    setColorSummarySort(prev => {
+        if (prev.key === key) {
+            return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+        }
+        return { key, direction: 'desc' };
+    });
+  };
+
+  const sortedColorSummary = React.useMemo(() => {
+      if (!colorSummary) return [];
+      return [...colorSummary].sort((a, b) => {
+          const key = colorSummarySort.key;
+          
+          let aValue, bValue;
+
+          if (key === 'publications' || key === 'skus') {
+              aValue = a[key].size;
+              bValue = b[key].size;
+          } else {
+              aValue = a[key];
+              bValue = b[key];
+          }
+
+          if (aValue < bValue) return colorSummarySort.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return colorSummarySort.direction === 'asc' ? 1 : -1;
+          return 0;
+      });
+  }, [colorSummary, colorSummarySort]);
+
+  const handleDownloadSummaryXLSX = () => {
+    if (sortedColorSummary.length === 0) {
+        toast({ variant: 'destructive', title: 'No hay datos para descargar' });
+        return;
+    }
+    const dataToExport = sortedColorSummary.map(item => ({
+        'Color': item.label,
+        'Registros': item.count,
+        '# de Publicación': item.publications.size,
+        "SKU's": item.skus.size,
+        'Unidades': item.unidades,
+        'Total': item.total,
+        '% del Total': `${item.percentageOfTotal.toFixed(2)}%`,
+    }));
+
+    const totalRow = {
+        'Color': 'Total',
+        'Registros': colorSummary.reduce((acc, item) => acc + item.count, 0),
+    };
+
+    dataToExport.push(totalRow);
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumen Rentabilidad');
+    XLSX.writeFile(workbook, 'resumen_rentabilidad.xlsx');
+  };
+
+
   return (
     <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -662,7 +725,7 @@ export default function HistorialCortesPage() {
                                     <TableRow 
                                         key={sale.id}
                                         className={cn(
-                                            (sale.status || '' ).toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
+                                            (sale.status || '').toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                             isRowColoringActive && typeof sale.markup === 'number' && {
                                                 'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30,
                                                 'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': sale.markup >= 20 && sale.markup < 30,
@@ -858,26 +921,46 @@ export default function HistorialCortesPage() {
                     {colorSummary.length > 0 ? (
                         <Card className="mt-6">
                             <CardHeader>
-                            <CardTitle>Resumen por Rentabilidad</CardTitle>
-                            <CardDescription>
-                                Agrupación de datos por color de rentabilidad para los registros filtrados.
-                            </CardDescription>
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                      <CardTitle>Resumen por Rentabilidad</CardTitle>
+                                      <CardDescription>
+                                          Agrupación de datos por color de rentabilidad para los registros filtrados.
+                                      </CardDescription>
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={handleDownloadSummaryXLSX}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Descargar XLSX
+                                    </Button>
+                                  </div>
                             </CardHeader>
                             <CardContent>
                             <ShadcnTable>
                                 <TableHeader>
                                 <TableRow>
                                     <TableHead>Color</TableHead>
-                                    <TableHead>Registros</TableHead>
-                                    <TableHead># de Publicación</TableHead>
-                                    <TableHead>SKU's</TableHead>
-                                    <TableHead className="text-right">Unidades</TableHead>
-                                    <TableHead className="text-right">Total</TableHead>
-                                    <TableHead className="text-right">% del Total</TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('count')} className="cursor-pointer">
+                                      <div className="flex items-center gap-1">Registros <ChevronsUpDown className="h-4 w-4" /></div>
+                                    </TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('publications')} className="cursor-pointer">
+                                      <div className="flex items-center gap-1"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div>
+                                    </TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('skus')} className="cursor-pointer">
+                                      <div className="flex items-center gap-1">SKU's <ChevronsUpDown className="h-4 w-4" /></div>
+                                    </TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('unidades')} className="cursor-pointer text-right">
+                                        <div className="flex items-center justify-end gap-1">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
+                                    </TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('total')} className="cursor-pointer text-right">
+                                        <div className="flex items-center justify-end gap-1">Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                    </TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('percentageOfTotal')} className="cursor-pointer text-right">
+                                        <div className="flex items-center justify-end gap-1">% del Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                    </TableHead>
                                 </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                {colorSummary.map((item, index) => (
+                                {sortedColorSummary.map((item, index) => (
                                     <TableRow key={index}>
                                     <TableCell>
                                         <div className="flex items-center gap-2 font-medium">

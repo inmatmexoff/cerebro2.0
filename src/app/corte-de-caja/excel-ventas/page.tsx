@@ -13,6 +13,7 @@ import {
   Download,
   Filter,
   AlertTriangle,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -193,6 +194,9 @@ const formSchema = z.object({
     .positive('Landed cost debe ser un número positivo.'),
 });
 
+type ColorSummarySortKey = 'count' | 'publications' | 'skus' | 'unidades' | 'total' | 'percentageOfTotal';
+
+
 export default function ExcelVentasPage() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [data, setData] = useState<any[][]>([]);
@@ -224,6 +228,8 @@ export default function ExcelVentasPage() {
   const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red'>('all');
   const [activeTab, setActiveTab] = useState<'sku' | 'color'>('color');
   const [validationIssues, setValidationIssues] = useState<{ emptySkus: { rows: number[] }, invalidLandedCosts: { rows: number[] } } | null>(null);
+
+  const [colorSummarySort, setColorSummarySort] = useState<{ key: ColorSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'desc' });
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -428,7 +434,7 @@ export default function ExcelVentasPage() {
                 granTotal = 0;
               }
 
-              const markup = totalLandedCost > 0 ? ((totalFromExcel - totalLandedCost) / totalLandedCost) * 100 : 0;
+              const markup = totalLandedCost > 0 ? (granTotal / totalLandedCost) * 100 : 0;
 
 
               return [
@@ -710,147 +716,149 @@ export default function ExcelVentasPage() {
 
 
   React.useEffect(() => {
-    if (data.length === 0) {
+    if (data.length > 0) {
+      const pubIndex = headers.indexOf('# de publicación');
+      const skuIndex = headers.indexOf('SKU');
+      const unidadesIndex = headers.indexOf('Unidades');
+      const markupIndex = headers.indexOf('Markup (%)');
+  
+      if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && granTotalIndex > -1 && markupIndex > -1) {
+          const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
+          const dataToSummarize = markupFilter === 'all' ? filteredData : filteredData.filter(row => {
+            const markupValue = row[markupIndex];
+            const granTotal = row[granTotalIndex];
+            if (typeof markupValue !== 'number') {
+              if (markupFilter === 'red') return granTotal !== 0;
+              return false;
+            }
+            switch (markupFilter) {
+                  case 'darkGreen': return markupValue >= 30;
+                  case 'lightGreen': return markupValue >= 20 && markupValue < 30;
+                  case 'orange': return markupValue >= 10 && markupValue < 20;
+                  case 'yellow': return markupValue >= 5 && markupValue < 10;
+                  case 'red': return markupValue < 5 && granTotal !== 0;
+                  default: return false;
+              }
+          });
+  
+          dataToSummarize.forEach(row => {
+              const pubId = String(row[pubIndex] || '').trim();
+              const sku = String(row[skuIndex] || '').trim();
+              if (pubId || sku) {
+                  const key = `${pubId}|${sku}`;
+                  if (!summary[key]) {
+                      summary[key] = { pubId: pubId || '-', sku: sku || '-', unidades: 0, total: 0 };
+                  }
+                  const unidades = parseInt(String(row[unidadesIndex])) || 0;
+                  const total = row[granTotalIndex] as number || 0;
+                  summary[key].unidades += unidades;
+                  summary[key].total += total;
+              }
+          });
+  
+          const summaryValues = Object.values(summary);
+          
+          const totalOfGranTotal = dataToSummarize.reduce((sum, row) => sum + (row[granTotalIndex] as number || 0), 0);
+  
+          const enrichedSummary = summaryValues
+            .map(item => {
+                const totalPorUnidad = (item.unidades > 0) ? item.total / item.unidades : 0;
+                const porcentajeDelTotal = (totalOfGranTotal !== 0) ? (item.total / totalOfGranTotal) * 100 : 0;
+                
+                return {
+                    ...item,
+                    totalPorUnidad,
+                    porcentajeDelTotal
+                };
+            }).sort((a,b) => a.total - b.total);
+          
+          const groupedByPubId: { [key: string]: typeof enrichedSummary } = {};
+          enrichedSummary.forEach(item => {
+              const pubId = item.pubId;
+              if (!pubId || pubId === '-') return;
+              if (!groupedByPubId[pubId]) {
+                  groupedByPubId[pubId] = [];
+              }
+              groupedByPubId[pubId].push(item);
+          });
+          
+          const uniquePubsFromSummary = Object.values(groupedByPubId).flat().filter((v,i,a) => a.findIndex(t=>(t.pubId === v.pubId)) === i).map(i => i.pubId).sort();
+          const uniqueSkusFromSummary = [...new Set(enrichedSummary.map(item => item.sku))].sort();
+  
+          setFilteredPublications(uniquePubsFromSummary);
+          setFilteredSkus(uniqueSkusFromSummary);
+  
+          const sortedGroups = Object.values(groupedByPubId).sort((a, b) => {
+              const totalA = a.reduce((sum, item) => sum + item.total, 0);
+              const totalB = b.reduce((sum, item) => sum + item.total, 0);
+              return totalA - totalB;
+          });
+  
+          const summaryArrayForRender: any[] = [];
+          sortedGroups.forEach((group, groupIndex) => {
+              const sortedGroupItems = group.sort((a, b) => a.sku.localeCompare(b.sku));
+              
+              sortedGroupItems.forEach((item, itemIndex) => {
+                  summaryArrayForRender.push({
+                      ...item,
+                      isFirstInGroup: itemIndex === 0,
+                      groupSize: group.length,
+                      groupIndex: groupIndex + 1,
+                  });
+              });
+          });
+          setSkuSummary(summaryArrayForRender);
+  
+  
+          const summaryByColor = {
+              darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
+              lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
+              orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
+              yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
+              red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
+          };
+          
+          filteredData.forEach(row => {
+              const markupValue = row[markupIndex];
+              const granTotalValue = row[granTotalIndex];
+              let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
+      
+              if (typeof markupValue === 'number') {
+                  if (markupValue >= 30) category = summaryByColor.darkGreen;
+                  else if (markupValue >= 20) category = summaryByColor.lightGreen;
+                  else if (markupValue >= 10) category = summaryByColor.orange;
+                  else if (markupValue >= 5) category = summaryByColor.yellow;
+                  else if (markupValue < 5 && granTotalValue !== 0) category = summaryByColor.red;
+              } else if (granTotalValue !== 0) {
+                  category = summaryByColor.red;
+              }
+      
+              if (category) {
+                const pubId = String(row[pubIndex] || '').trim();
+                const sku = String(row[skuIndex] || '').trim();
+                const unidades = parseInt(String(row[unidadesIndex]), 10) || 0;
+                const total = granTotalValue as number || 0;
+        
+                if (pubId) category.publications.add(pubId);
+                if (sku) category.skus.add(sku);
+                category.unidades += unidades;
+                category.total += total;
+                category.count += 1;
+              }
+          });
+  
+          const summaryWithPercentage = Object.values(summaryByColor).map(cat => ({
+              ...cat,
+              percentageOfTotal: granTotalSum !== 0 ? (cat.total / granTotalSum) * 100 : 0
+          }));
+  
+          setColorSummary(summaryWithPercentage);
+      }
+    } else {
         setSkuSummary([]);
         setFilteredPublications([]);
         setFilteredSkus([]);
         setColorSummary([]);
-        return;
-    }
-
-    const pubIndex = headers.indexOf('# de publicación');
-    const skuIndex = headers.indexOf('SKU');
-    const unidadesIndex = headers.indexOf('Unidades');
-    const markupIndex = headers.indexOf('Markup (%)');
-
-    if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && granTotalIndex > -1 && markupIndex > -1) {
-        const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
-        const dataToSummarize = markupFilter === 'all' ? filteredData : filteredData.filter(row => {
-          const markupValue = row[markupIndex];
-           const granTotal = row[granTotalIndex];
-           if (typeof markupValue !== 'number') return markupFilter === 'red' && granTotal !== 0;
-           switch (markupFilter) {
-                case 'darkGreen': return markupValue >= 30;
-                case 'lightGreen': return markupValue >= 20 && markupValue < 30;
-                case 'orange': return markupValue >= 10 && markupValue < 20;
-                case 'yellow': return markupValue >= 5 && markupValue < 10;
-                case 'red': return markupValue < 5 && granTotal !== 0;
-                default: return false;
-            }
-        });
-
-        dataToSummarize.forEach(row => {
-            const pubId = String(row[pubIndex] || '').trim();
-            const sku = String(row[skuIndex] || '').trim();
-            if (pubId || sku) {
-                const key = `${pubId}|${sku}`;
-                if (!summary[key]) {
-                    summary[key] = { pubId: pubId || '-', sku: sku || '-', unidades: 0, total: 0 };
-                }
-                const unidades = parseInt(String(row[unidadesIndex])) || 0;
-                const total = row[granTotalIndex] as number || 0;
-                summary[key].unidades += unidades;
-                summary[key].total += total;
-            }
-        });
-
-        const summaryValues = Object.values(summary);
-        
-        const totalOfGranTotal = dataToSummarize.reduce((sum, row) => sum + (row[granTotalIndex] as number || 0), 0);
-
-        const enrichedSummary = summaryValues
-          .map(item => {
-              const totalPorUnidad = (item.unidades > 0) ? item.total / item.unidades : 0;
-              const porcentajeDelTotal = (totalOfGranTotal !== 0) ? (item.total / totalOfGranTotal) * 100 : 0;
-              
-              return {
-                  ...item,
-                  totalPorUnidad,
-                  porcentajeDelTotal
-              };
-          }).sort((a,b) => a.total - b.total);
-        
-        const groupedByPubId: { [key: string]: typeof enrichedSummary } = {};
-        enrichedSummary.forEach(item => {
-            const pubId = item.pubId;
-            if (!pubId || pubId === '-') return;
-            if (!groupedByPubId[pubId]) {
-                groupedByPubId[pubId] = [];
-            }
-            groupedByPubId[pubId].push(item);
-        });
-        
-        const uniquePubsFromSummary = Object.values(groupedByPubId).flat().filter((v,i,a) => a.findIndex(t=>(t.pubId === v.pubId)) === i).map(i => i.pubId).sort();
-        const uniqueSkusFromSummary = [...new Set(enrichedSummary.map(item => item.sku))].sort();
-
-        setFilteredPublications(uniquePubsFromSummary);
-        setFilteredSkus(uniqueSkusFromSummary);
-
-        const sortedGroups = Object.values(groupedByPubId).sort((a, b) => {
-            const totalA = a.reduce((sum, item) => sum + item.total, 0);
-            const totalB = b.reduce((sum, item) => sum + item.total, 0);
-            return totalA - totalB;
-        });
-
-        const summaryArrayForRender: any[] = [];
-        sortedGroups.forEach((group, groupIndex) => {
-            const sortedGroupItems = group.sort((a, b) => a.sku.localeCompare(b.sku));
-            
-            sortedGroupItems.forEach((item, itemIndex) => {
-                summaryArrayForRender.push({
-                    ...item,
-                    isFirstInGroup: itemIndex === 0,
-                    groupSize: group.length,
-                    groupIndex: groupIndex + 1,
-                });
-            });
-        });
-        setSkuSummary(summaryArrayForRender);
-
-
-        const summaryByColor = {
-            darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
-            lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
-            orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
-            yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
-            red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
-        };
-        
-        filteredData.forEach(row => {
-            const markupValue = row[markupIndex];
-            const granTotalValue = row[granTotalIndex];
-            let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
-    
-            if (typeof markupValue === 'number') {
-                if (markupValue >= 30) category = summaryByColor.darkGreen;
-                else if (markupValue >= 20) category = summaryByColor.lightGreen;
-                else if (markupValue >= 10) category = summaryByColor.orange;
-                else if (markupValue >= 5) category = summaryByColor.yellow;
-                else if (markupValue < 5 && granTotalValue !== 0) category = summaryByColor.red;
-            } else if (granTotalValue !== 0) {
-                category = summaryByColor.red;
-            }
-    
-            if (category) {
-              const pubId = String(row[pubIndex] || '').trim();
-              const sku = String(row[skuIndex] || '').trim();
-              const unidades = parseInt(String(row[unidadesIndex]), 10) || 0;
-              const total = granTotalValue as number || 0;
-      
-              if (pubId) category.publications.add(pubId);
-              if (sku) category.skus.add(sku);
-              category.unidades += unidades;
-              category.total += total;
-              category.count += 1;
-            }
-        });
-
-        const summaryWithPercentage = Object.values(summaryByColor).map(cat => ({
-            ...cat,
-            percentageOfTotal: granTotalSum !== 0 ? (cat.total / granTotalSum) * 100 : 0
-        }));
-
-        setColorSummary(summaryWithPercentage);
     }
 }, [filteredData, headers, granTotalIndex, data.length, markupFilter, granTotalSum]);
 
@@ -1309,6 +1317,64 @@ export default function ExcelVentasPage() {
       setIsUpdatingCost(false);
     }
   }
+
+  const handleColorSummarySort = (key: ColorSummarySortKey) => {
+    setColorSummarySort(prev => {
+        if (prev.key === key) {
+            return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+        }
+        return { key, direction: 'desc' };
+    });
+  };
+
+  const sortedColorSummary = React.useMemo(() => {
+      if (!colorSummary) return [];
+      return [...colorSummary].sort((a, b) => {
+          const key = colorSummarySort.key;
+          
+          let aValue, bValue;
+
+          if (key === 'publications' || key === 'skus') {
+              aValue = a[key].size;
+              bValue = b[key].size;
+          } else {
+              aValue = a[key];
+              bValue = b[key];
+          }
+
+          if (aValue < bValue) return colorSummarySort.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return colorSummarySort.direction === 'asc' ? 1 : -1;
+          return 0;
+      });
+  }, [colorSummary, colorSummarySort]);
+
+  const handleDownloadSummaryXLSX = () => {
+    if (sortedColorSummary.length === 0) {
+        toast({ variant: 'destructive', title: 'No hay datos para descargar' });
+        return;
+    }
+    const dataToExport = sortedColorSummary.map(item => ({
+        'Color': item.label,
+        'Registros': item.count,
+        '# de Publicación': item.publications.size,
+        "SKU's": item.skus.size,
+        'Unidades': item.unidades,
+        'Total': item.total,
+        '% del Total': `${item.percentageOfTotal.toFixed(2)}%`,
+    }));
+
+    const totalRow = {
+        'Color': 'Total',
+        'Registros': colorSummary.reduce((acc, item) => acc + item.count, 0),
+    };
+
+    dataToExport.push(totalRow);
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumen Rentabilidad');
+    XLSX.writeFile(workbook, 'resumen_rentabilidad.xlsx');
+  };
 
   return (
     <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
@@ -1964,7 +2030,7 @@ export default function ExcelVentasPage() {
                                                         <TableCell className="font-medium">{item.sku}</TableCell>
                                                         <TableCell className="text-right">{item.unidades}</TableCell>
                                                         <TableCell className="text-right">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                        <TableCell className="text-right">{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                        <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
                                                         <TableCell className="text-right font-mono">{item.porcentajeDelTotal.toFixed(2)}%</TableCell>
                                                     </TableRow>
                                                 ))}
@@ -1982,26 +2048,46 @@ export default function ExcelVentasPage() {
                         {colorSummary.length > 0 ? (
                             <Card className="mt-6">
                                 <CardHeader>
-                                <CardTitle>Resumen por Rentabilidad</CardTitle>
-                                <CardDescription>
-                                    Agrupación de datos por color de rentabilidad para los registros filtrados.
-                                </CardDescription>
+                                    <div className="flex justify-between items-center">
+                                      <div>
+                                        <CardTitle>Resumen por Rentabilidad</CardTitle>
+                                        <CardDescription>
+                                            Agrupación de datos por color de rentabilidad para los registros filtrados.
+                                        </CardDescription>
+                                      </div>
+                                      <Button variant="outline" size="sm" onClick={handleDownloadSummaryXLSX}>
+                                          <Download className="mr-2 h-4 w-4" />
+                                          Descargar XLSX
+                                      </Button>
+                                    </div>
                                 </CardHeader>
                                 <CardContent>
                                 <Table>
                                     <TableHeader>
                                     <TableRow>
                                         <TableHead>Color</TableHead>
-                                        <TableHead>Registros</TableHead>
-                                        <TableHead># de Publicación</TableHead>
-                                        <TableHead>SKU's</TableHead>
-                                        <TableHead className="text-right">Unidades</TableHead>
-                                        <TableHead className="text-right">Total</TableHead>
-                                        <TableHead className="text-right">% del Total</TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('count')} className="cursor-pointer">
+                                          <div className="flex items-center gap-1">Registros <ChevronsUpDown className="h-4 w-4" /></div>
+                                        </TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('publications')} className="cursor-pointer">
+                                          <div className="flex items-center gap-1"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div>
+                                        </TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('skus')} className="cursor-pointer">
+                                          <div className="flex items-center gap-1">SKU's <ChevronsUpDown className="h-4 w-4" /></div>
+                                        </TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('unidades')} className="cursor-pointer text-right">
+                                           <div className="flex items-center justify-end gap-1">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
+                                        </TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('total')} className="cursor-pointer text-right">
+                                           <div className="flex items-center justify-end gap-1">Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                        </TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('percentageOfTotal')} className="cursor-pointer text-right">
+                                           <div className="flex items-center justify-end gap-1">% del Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                        </TableHead>
                                     </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                    {colorSummary.map((item, index) => (
+                                    {sortedColorSummary.map((item, index) => (
                                         <TableRow key={index}>
                                         <TableCell>
                                             <div className="flex items-center gap-2 font-medium">
