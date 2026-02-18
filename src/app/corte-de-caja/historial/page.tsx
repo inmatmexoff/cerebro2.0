@@ -166,7 +166,7 @@ export default function HistorialCortesPage() {
     setError(null);
 
     try {
-      let query = supabasePROD.from('ml_sales').select('*, landed_cost_total:landed_cost', { count: 'exact' });
+      let query = supabasePROD.from('ml_sales').select('*, landed_cost_total', { count: 'exact' });
 
       if (debouncedSearchTerm) {
         query = query.or(
@@ -699,7 +699,7 @@ export default function HistorialCortesPage() {
                                 <span className="text-muted-foreground">5-9.9%</span>
                             </div>
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('red')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-red-100 border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <div className={cn("w-3 h-3 rounded-full bg-red-100 border border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.red}</span>
                                 <span className="text-muted-foreground">{'<'}5%</span>
                             </div>
@@ -1031,4 +1031,3 @@ export default function HistorialCortesPage() {
     </div>
   );
 }
-
