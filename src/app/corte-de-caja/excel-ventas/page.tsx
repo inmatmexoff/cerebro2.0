@@ -1082,25 +1082,25 @@ export default function ExcelVentasPage() {
     setError(null);
 
     const newIndices = {
-      num_venta: headers.indexOf('ID'),
-      fecha_venta: headers.indexOf('Fecha de venta'),
-      status: headers.indexOf('ESTADO'),
-      unidades: headers.indexOf('Unidades'),
-      ing_xenvio: headers.indexOf('Ingresos por envío (MXN)'),
-      cargo_difpeso: headers.indexOf('Cargo por diferencia de peso (MXN)'),
-      anu_reembolsos: headers.indexOf('Anulaciones y reembolsos (MXN)'),
-      venta_xpublicidad: headers.indexOf('Venta por Publicidad'),
-      sku: headers.indexOf('SKU'),
-      num_publi: headers.indexOf('# de publicación'),
-      tienda: headers.indexOf('Tienda'),
-      tip_publi: headers.indexOf('Tipo de publicación'),
-      total: headers.indexOf('Total'),
-      landed_cost: headers.indexOf('Landed Cost Total'),
-      ing_xunidad: headers.indexOf('Ingresos por productos (MXN)'),
-      cargo_venta: headers.indexOf('Cargo por venta e impuestos (MXN)'),
-      costo_envio: headers.indexOf('Costos de envío (MXN)'),
-      total_final: headers.indexOf('Gran Total'),
-      markup: headers.indexOf('Markup (%)'),
+      num_venta: 1,
+      fecha_venta: 2,
+      status: 3,
+      unidades: 4,
+      sku: 5,
+      ing_xunidad: 6,
+      cargo_venta: 7,
+      costo_envio: 8,
+      ing_xenvio: 9,
+      cargo_difpeso: 10,
+      anu_reembolsos: 11,
+      venta_xpublicidad: 12,
+      num_publi: 13,
+      tienda: 14,
+      tip_publi: 15,
+      total: 16,
+      landed_cost: 17,
+      total_final: 18,
+      markup: 19,
     };
 
     const CHUNK_SIZE = 500;
@@ -2244,4 +2244,3 @@ export default function ExcelVentasPage() {
     </div>
   );
 }
-
