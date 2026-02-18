@@ -166,7 +166,7 @@ export default function HistorialCortesPage() {
     setError(null);
 
     try {
-      let query = supabasePROD.from('ml_sales').select('*, landed_cost_total', { count: 'exact' });
+      let query = supabasePROD.from('ml_sales').select('*', { count: 'exact' });
 
       if (debouncedSearchTerm) {
         query = query.or(
@@ -185,18 +185,79 @@ export default function HistorialCortesPage() {
         query = query.lte('fecha_venta', endOfDay.toISOString());
       }
       
-      const { data, error, count } = await query;
+      const { data: salesData, error, count } = await query;
       
       if (error) {
         throw error;
       }
 
-      const transformedData = data.map(item => ({
-          ...item,
-          landed_cost: item.landed_cost_total,
-      }))
+      const skusInPage = [...new Set(salesData.map(s => s.sku).filter(Boolean))];
+      const skuToMdrMap = new Map();
+      const mdrToPriceMap = new Map();
 
-      setSales(transformedData as SaleRecord[]);
+      if (skusInPage.length > 0) {
+        const { data: skuAlternoData, error: skuAlternoError } = await supabasePROD
+          .from('sku_alterno')
+          .select('sku, sku_mdr')
+          .in('sku', skusInPage);
+        if (skuAlternoError) throw skuAlternoError;
+        skuAlternoData.forEach((item) => skuToMdrMap.set(item.sku, item.sku_mdr));
+
+        const foundSkus = new Set(skuAlternoData.map(item => item.sku));
+        const remainingSkus = skusInPage.filter(sku => !foundSkus.has(sku));
+
+        if (remainingSkus.length > 0) {
+          const { data: skuMData, error: skuMError } = await supabasePROD
+            .from('sku_m')
+            .select('sku, sku_mdr')
+            .in('sku', remainingSkus);
+          if (skuMError) throw skuMError;
+          skuMData.forEach((item) => skuToMdrMap.set(item.sku, item.sku_mdr));
+        }
+
+        const mdrs = [...new Set(Array.from(skuToMdrMap.values()))].filter(Boolean);
+        if (mdrs.length > 0) {
+          const { data: skuCostosData, error: skuCostosError } = await supabasePROD
+            .from('sku_costos')
+            .select('sku_mdr, landed_cost, id')
+            .in('sku_mdr', mdrs)
+            .order('id', { ascending: false });
+
+          if (skuCostosError) throw skuCostosError;
+          if (skuCostosData) {
+            for (const item of skuCostosData) {
+              if (!mdrToPriceMap.has(item.sku_mdr)) {
+                mdrToPriceMap.set(item.sku_mdr, item.landed_cost);
+              }
+            }
+          }
+        }
+      }
+
+      const enrichedData = salesData.map(sale => {
+        const unidades = sale.unidades || 1;
+        const skuMdr = skuToMdrMap.get(sale.sku);
+        const landedCostPerUnit = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
+        const totalLandedCost = landedCostPerUnit * unidades;
+        const totalFromDb = sale.total || 0;
+        let granTotal = totalFromDb - totalLandedCost;
+        
+        const saleStatus = sale.status || '';
+        if (totalFromDb === 0 && !saleStatus.toLowerCase().startsWith('paquete de')) {
+            granTotal = 0;
+        }
+
+        const markup = totalLandedCost > 0 ? (granTotal / totalLandedCost) * 100 : 0;
+
+        return {
+            ...sale,
+            landed_cost: totalLandedCost,
+            total_final: parseFloat(granTotal.toFixed(2)),
+            markup,
+        };
+      });
+
+      setSales(enrichedData as SaleRecord[]);
       setTotalRows(count || 0);
 
     } catch (err: any) {
