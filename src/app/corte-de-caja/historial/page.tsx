@@ -23,6 +23,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CompanySelect } from '@/components/company-select';
 
 
 // Expanded SaleRecord to include more columns
@@ -71,9 +72,15 @@ export default function HistorialCortesPage() {
 
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
-  const [appliedDateFilters, setAppliedDateFilters] = useState<{startDate: Date | null, endDate: Date | null}>({
+  const [company, setCompany] = useState<string | undefined>();
+  const [appliedFilters, setAppliedFilters] = useState<{
+    startDate: Date | null;
+    endDate: Date | null;
+    company: string | undefined;
+  }>({
     startDate: null,
-    endDate: null
+    endDate: null,
+    company: undefined,
   });
 
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
@@ -96,16 +103,17 @@ export default function HistorialCortesPage() {
   const [totalUniqueSkus, setTotalUniqueSkus] = useState(0);
 
 
-  const handleApplyDateFilter = () => {
+  const handleApplyFilters = () => {
     setPage(1);
-    setAppliedDateFilters({ startDate, endDate });
+    setAppliedFilters({ startDate, endDate, company });
   };
 
-  const handleClearDateFilter = () => {
+  const handleClearFilters = () => {
     setPage(1);
     setStartDate(null);
     setEndDate(null);
-    setAppliedDateFilters({ startDate: null, endDate: null });
+    setCompany(undefined);
+    setAppliedFilters({ startDate: null, endDate: null, company: undefined });
   };
 
   const handleCopyToClipboard = (text: string) => {
@@ -174,15 +182,20 @@ export default function HistorialCortesPage() {
         );
       }
 
-      if (appliedDateFilters.startDate) {
-        const startOfDay = new Date(appliedDateFilters.startDate);
+      if (appliedFilters.startDate) {
+        const startOfDay = new Date(appliedFilters.startDate);
         startOfDay.setHours(0, 0, 0, 0);
         query = query.gte('fecha_venta', startOfDay.toISOString());
       }
-      if (appliedDateFilters.endDate) {
-        const endOfDay = new Date(appliedDateFilters.endDate);
+      if (appliedFilters.endDate) {
+        const endOfDay = new Date(appliedFilters.endDate);
         endOfDay.setHours(23, 59, 59, 999);
         query = query.lte('fecha_venta', endOfDay.toISOString());
+      }
+      
+      if (appliedFilters.company && appliedFilters.company !== 'all') {
+        const companyFilterValue = appliedFilters.company.replace(/-/g, ' ').toUpperCase();
+        query = query.eq('tienda', companyFilterValue);
       }
       
       const { data: salesData, error, count } = await query;
@@ -271,7 +284,7 @@ export default function HistorialCortesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearchTerm, appliedDateFilters, toast]);
+  }, [debouncedSearchTerm, appliedFilters, toast]);
 
   useEffect(() => {
     fetchSales();
@@ -545,7 +558,7 @@ export default function HistorialCortesPage() {
   const numericColumns = ['unidades', ...currencyColumns, 'markup'];
 
 
-  const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost || appliedDateFilters.startDate || appliedDateFilters.endDate || markupFilter !== 'all';
+  const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost || appliedFilters.startDate || appliedFilters.endDate || (appliedFilters.company && appliedFilters.company !== 'all') || markupFilter !== 'all';
 
   const handleColorSummarySort = (key: ColorSummarySortKey) => {
     setColorSummarySort(prev => {
@@ -727,11 +740,15 @@ export default function HistorialCortesPage() {
                             onChange={setEndDate}
                         />
                     </div>
+                     <div className="grid gap-1.5 flex-grow min-w-[180px]">
+                        <Label>Empresa</Label>
+                        <CompanySelect value={company} onValueChange={setCompany} />
+                    </div>
                     <div className="flex gap-2">
-                        <Button size="sm" onClick={handleApplyDateFilter}>
-                            Aplicar Fechas
+                        <Button size="sm" onClick={handleApplyFilters}>
+                            Aplicar Filtros
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={handleClearDateFilter}>
+                        <Button size="sm" variant="ghost" onClick={handleClearFilters}>
                             Limpiar
                         </Button>
                     </div>
