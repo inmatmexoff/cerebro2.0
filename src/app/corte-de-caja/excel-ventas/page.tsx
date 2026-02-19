@@ -1917,6 +1917,8 @@ export default function ExcelVentasPage() {
                             </div>
                         </div>
                     </div>
+                  </CardHeader>
+                  <CardContent>
                     <div className="pt-4 mt-4 border-t">
                       <h4 className="text-lg font-semibold mb-2">KPIs Ejecutivos</h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
@@ -1934,9 +1936,7 @@ export default function ExcelVentasPage() {
                           </div>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[70vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                    <div className="h-[70vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mt-6">
                       <Table>
                         <TableHeader className="sticky top-0 bg-background">
                           <TableRow>
@@ -2045,48 +2045,19 @@ export default function ExcelVentasPage() {
                                       if (
                                         header === 'Landed Cost Total'
                                       ) {
-                                        const totalLandedCost =
-                                          parseCurrency(cell) || 0;
-                                        const unidadesHeader = headers.find((h) =>
-                                          /unidades/i.test(h)
-                                        );
-                                        const unidadesIndex = unidadesHeader
-                                          ? headers.indexOf(unidadesHeader)
-                                          : -1;
-                                        const unidades =
-                                          (unidadesIndex > -1
-                                            ? parseInt(String(row[unidadesIndex] || '1'))
-                                            : 1) || 1;
-                                        const landedCostPerUnit =
-                                          unidades > 0
-                                            ? totalLandedCost / unidades
-                                            : 0;
-                                        
-                                        const estadoIndex = headers.indexOf('ESTADO');
-                                        const estadoValue = estadoIndex > -1 ? String(row[estadoIndex] || '') : '';
-                                        const isPackage = estadoValue.toLowerCase().startsWith('paquete de');
-                                        
-                                        const costIsMissingOrPlaceholder = landedCostPerUnit === 0 || landedCostPerUnit === 1;
-
-                                        const parentTotalValue = parseCurrency(row[headers.indexOf('Total')]) || 0;
                                         const ingresos = parseCurrency(row[headers.indexOf('Costo de Venta en Mercado Libre')]);
                                         const cargoVenta = parseCurrency(row[headers.indexOf('Cargo por venta e impuestos (MXN)')]);
                                         const costoEnvio = parseCurrency(row[headers.indexOf('Costos de envío (MXN)')]);
 
-                                        const isParentRow = (
-                                            (parentTotalValue !== 0) ||
-                                            (ingresos !== null && ingresos !== 0) ||
-                                            (cargoVenta !== null && cargoVenta !== 0) ||
-                                            (costoEnvio !== null && costoEnvio !== 0)
-                                        );
+                                        const isComponentRow = (ingresos === null || ingresos === 0) &&
+                                                               (cargoVenta === null || cargoVenta === 0) &&
+                                                               (costoEnvio === null || costoEnvio === 0);
 
-                                        if (
-                                          costIsMissingOrPlaceholder || isPackage || isParentRow
-                                        ) {
+                                        if (!isComponentRow) {
                                           return (
                                             <div className="flex items-center justify-between gap-2">
-                                              <span className={cn(costIsMissingOrPlaceholder && "text-destructive font-bold")}>
-                                                {(totalLandedCost ?? 0).toLocaleString(
+                                              <span>
+                                                {(parseCurrency(cell) ?? 0).toLocaleString(
                                                   'es-MX',
                                                   {
                                                     minimumFractionDigits: 2,
