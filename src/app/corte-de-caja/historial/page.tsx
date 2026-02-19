@@ -264,7 +264,7 @@ export default function HistorialCortesPage() {
     setError(null);
 
     try {
-      let query = supabasePROD.from('ml_sales').select('*, landed_cost:sku_costos(landed_cost)', { count: 'exact' });
+      let query = supabasePROD.from('ml_sales').select('*', { count: 'exact' });
 
       if (debouncedSearchTerm) {
         query = query.or(
