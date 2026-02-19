@@ -2038,20 +2038,25 @@ export default function ExcelVentasPage() {
                                           : -1;
                                         const unidades =
                                           (unidadesIndex > -1
-                                            ? row[unidadesIndex]
+                                            ? parseInt(String(row[unidadesIndex] || '1'))
                                             : 1) || 1;
                                         const landedCostPerUnit =
                                           unidades > 0
                                             ? totalLandedCost / unidades
                                             : 0;
+                                        
+                                        const estadoIndex = headers.indexOf('ESTADO');
+                                        const estadoValue = estadoIndex > -1 ? String(row[estadoIndex] || '') : '';
+                                        const isPackage = estadoValue.toLowerCase().startsWith('paquete de');
+                                        
+                                        const costIsMissingOrPlaceholder = landedCostPerUnit === 0 || landedCostPerUnit === 1;
 
                                         if (
-                                          landedCostPerUnit === 0 ||
-                                          landedCostPerUnit === 1
+                                          costIsMissingOrPlaceholder || isPackage
                                         ) {
                                           return (
                                             <div className="flex items-center justify-between gap-2">
-                                              <span className="text-destructive font-bold">
+                                              <span className={cn(costIsMissingOrPlaceholder && "text-destructive font-bold")}>
                                                 {(totalLandedCost ?? 0).toLocaleString(
                                                   'es-MX',
                                                   {
