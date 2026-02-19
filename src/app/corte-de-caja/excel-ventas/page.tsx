@@ -763,6 +763,25 @@ export default function ExcelVentasPage() {
     }, 0);
   }, [data, headers]);
 
+  const unfilteredLandedCostSum = React.useMemo(() => {
+    const index = headers.indexOf('Landed Cost Total');
+    if (index === -1) return 0;
+    return data.reduce((sum, row) => {
+      const value = row[index];
+      return sum + (typeof value === 'number' ? value : 0);
+    }, 0);
+  }, [data, headers]);
+
+  const unfilteredIngresosPorProductosSum = React.useMemo(() => {
+    const index = headers.indexOf('Costo de Venta en Mercado Libre');
+    if (index === -1) return 0;
+    return data.reduce((sum, row) => {
+      const value = row[index];
+      return sum + (typeof value === 'number' ? value : 0);
+    }, 0);
+  }, [data, headers]);
+
+
 
   React.useEffect(() => {
     if (data.length > 0) {
@@ -1710,39 +1729,72 @@ export default function ExcelVentasPage() {
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                         <div className="p-3 bg-muted/50 rounded-md">
                           <div className="text-muted-foreground">Utilidad Bruta</div>
-                          {markupFilter !== 'all' ? (
-                              <>
-                                  <div
-                                      className={cn(
-                                      'font-bold text-lg',
-                                      utilidadBrutaSum >= 0 ? 'text-green-700' : 'text-red-700'
-                                      )}
-                                  >
-                                      {utilidadBrutaSum.toLocaleString('es-MX', {
-                                      style: 'currency', currency: 'MXN',
-                                      })}
-                                  </div>
-                                  <div className="flex justify-between items-baseline text-sm mt-1">
-                                      <span className="text-muted-foreground">
-                                          de {unfilteredUtilidadBrutaSum.toLocaleString('es-MX', {
-                                          style: 'currency', currency: 'MXN',
-                                          })}
-                                      </span>
-                                      <span className="font-mono font-semibold">
-                                          {unfilteredUtilidadBrutaSum !== 0
-                                          ? `${((utilidadBrutaSum / unfilteredUtilidadBrutaSum) * 100).toFixed(1)}%`
-                                          : '0.0%'}
-                                      </span>
-                                  </div>
-                              </>
+                          <div
+                            className={cn(
+                              'font-bold text-lg',
+                              utilidadBrutaSum >= 0
+                                ? 'text-green-700'
+                                : 'text-red-700'
+                            )}
+                          >
+                            {utilidadBrutaSum.toLocaleString('es-MX', {
+                              style: 'currency',
+                              currency: 'MXN',
+                            })}
+                          </div>
+                          {isFiltered ? (
+                            <div className="flex justify-between items-baseline text-sm mt-1">
+                              <span className="text-muted-foreground">
+                                de{' '}
+                                {unfilteredUtilidadBrutaSum.toLocaleString(
+                                  'es-MX',
+                                  {
+                                    style: 'currency',
+                                    currency: 'MXN',
+                                  }
+                                )}
+                              </span>
+                              <span className="font-mono font-semibold">
+                                {unfilteredUtilidadBrutaSum !== 0
+                                  ? `${(
+                                      (utilidadBrutaSum /
+                                        unfilteredUtilidadBrutaSum) *
+                                      100
+                                    ).toFixed(1)}%`
+                                  : '0.0%'}
+                              </span>
+                            </div>
                           ) : (
-                              <div
-                              className={cn('font-bold text-lg', utilidadBrutaSum >= 0 ? 'text-green-700' : 'text-red-700')}
-                              >
-                              {utilidadBrutaSum.toLocaleString('es-MX', {
-                                  style: 'currency', currency: 'MXN',
-                              })}
+                            <div className="mt-1 space-y-1 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                  vs Landed Cost
+                                </span>
+                                <span className="font-mono font-semibold">
+                                  {unfilteredLandedCostSum > 0
+                                    ? `${(
+                                        (unfilteredUtilidadBrutaSum /
+                                          unfilteredLandedCostSum) *
+                                        100
+                                      ).toFixed(1)}%`
+                                    : 'N/A'}
+                                </span>
                               </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                  vs Costo Venta ML
+                                </span>
+                                <span className="font-mono font-semibold">
+                                  {unfilteredIngresosPorProductosSum > 0
+                                    ? `${(
+                                        (unfilteredUtilidadBrutaSum /
+                                          unfilteredIngresosPorProductosSum) *
+                                        100
+                                      ).toFixed(1)}%`
+                                    : 'N/A'}
+                                </span>
+                              </div>
+                            </div>
                           )}
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">

@@ -104,7 +104,87 @@ export default function HistorialCortesPage() {
   const [skuSummarySort, setSkuSummarySort] = React.useState<{ key: SkuSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'asc' });
   const [totalUniquePubs, setTotalUniquePubs] = useState(0);
   const [totalUniqueSkus, setTotalUniqueSkus] = useState(0);
+  const [unfilteredTotals, setUnfilteredTotals] = React.useState({
+    utilidadBruta: 0,
+    landedCost: 0,
+    ingresosPorProductos: 0,
+  });
 
+  useEffect(() => {
+    const getUnfilteredTotals = async () => {
+      const { data: salesData, error } = await supabasePROD.from('ml_sales').select('*');
+      if (error || !salesData) {
+        console.error("Error fetching all sales for totals:", error?.message);
+        return;
+      }
+      
+      const skus = [...new Set(salesData.map(s => s.sku).filter(Boolean))];
+      const skuToMdrMap = new Map();
+      const mdrToPriceMap = new Map();
+
+      if (skus.length > 0) {
+        const { data: skuAlternoData, error: skuAlternoError } = await supabasePROD
+          .from('sku_alterno')
+          .select('sku, sku_mdr')
+          .in('sku', skus);
+        if (skuAlternoError) return;
+        skuAlternoData.forEach((item) => skuToMdrMap.set(item.sku, item.sku_mdr));
+
+        const foundSkus = new Set(skuAlternoData.map(item => item.sku));
+        const remainingSkus = skus.filter(sku => !foundSkus.has(sku));
+
+        if (remainingSkus.length > 0) {
+          const { data: skuMData, error: skuMError } = await supabasePROD
+            .from('sku_m')
+            .select('sku, sku_mdr')
+            .in('sku', remainingSkus);
+          if (skuMError) return;
+          skuMData.forEach((item) => skuToMdrMap.set(item.sku, item.sku_mdr));
+        }
+
+        const mdrs = [...new Set(Array.from(skuToMdrMap.values()))].filter(Boolean);
+        if (mdrs.length > 0) {
+          const { data: skuCostosData, error: skuCostosError } = await supabasePROD
+            .from('sku_costos')
+            .select('sku_mdr, landed_cost, id')
+            .in('sku_mdr', mdrs)
+            .order('id', { ascending: false });
+
+          if (skuCostosError) return;
+          if (skuCostosData) {
+            for (const item of skuCostosData) {
+              if (!mdrToPriceMap.has(item.sku_mdr)) {
+                mdrToPriceMap.set(item.sku_mdr, item.landed_cost);
+              }
+            }
+          }
+        }
+      }
+
+      const totals = salesData.reduce((acc, sale) => {
+          const unidades = sale.unidades || 1;
+          const skuMdr = skuToMdrMap.get(sale.sku);
+          const landedCostPerUnit = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
+          const totalLandedCost = landedCostPerUnit * unidades;
+          const totalFromDb = sale.total || 0;
+          let utilidadBruta = totalFromDb - totalLandedCost;
+          
+          const saleStatus = sale.status || '';
+          if (totalFromDb === 0 && !saleStatus.toLowerCase().startsWith('paquete de')) {
+              utilidadBruta = 0;
+          }
+          
+          acc.utilidadBruta += utilidadBruta;
+          acc.landedCost += totalLandedCost;
+          acc.ingresosPorProductos += sale.ing_xunidad || 0;
+          return acc;
+      }, { utilidadBruta: 0, landedCost: 0, ingresosPorProductos: 0 });
+
+      setUnfilteredTotals(totals);
+    };
+
+    getUnfilteredTotals();
+  }, []);
 
   const handleApplyFilters = () => {
     setPage(1);
@@ -826,6 +906,33 @@ export default function HistorialCortesPage() {
                         <div className={cn('font-bold text-lg', utilidadBrutaSum >= 0 ? 'text-green-700' : 'text-red-700')}>
                             {formatCurrency(utilidadBrutaSum)}
                         </div>
+                         {isFiltered ? (
+                            <div className="flex justify-between items-baseline text-sm mt-1">
+                                <span className="text-muted-foreground">
+                                    de {formatCurrency(unfilteredTotals.utilidadBruta)}
+                                </span>
+                                <span className="font-mono font-semibold">
+                                    {unfilteredTotals.utilidadBruta !== 0
+                                    ? `${((utilidadBrutaSum / unfilteredTotals.utilidadBruta) * 100).toFixed(1)}%`
+                                    : '0.0%'}
+                                </span>
+                            </div>
+                            ) : (
+                            <div className="mt-1 space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">vs Landed Cost</span>
+                                    <span className="font-mono font-semibold">
+                                        {landedCostSum > 0 ? `${((utilidadBrutaSum / landedCostSum) * 100).toFixed(1)}%` : 'N/A'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">vs Costo Venta ML</span>
+                                    <span className="font-mono font-semibold">
+                                        {ingresosPorProductosSum > 0 ? `${((utilidadBrutaSum / ingresosPorProductosSum) * 100).toFixed(1)}%` : 'N/A'}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
                         <div className="text-muted-foreground">Total</div>
