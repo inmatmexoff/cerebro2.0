@@ -230,13 +230,14 @@ export default function ExcelVentasPage() {
   const [validationIssues, setValidationIssues] = useState<{ emptySkus: { rows: number[] }, invalidLandedCosts: { rows: number[] } } | null>(null);
 
   const [colorSummarySort, setColorSummarySort] = useState<{ key: ColorSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'desc' });
-  const [skuSummarySort, setSkuSummarySort] = React.useState<{ key: SkuSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'asc' });
+  const [skuSummarySort, setSkuSummarySort] = React.useState<{ key: SkuSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'desc' });
   const [totalUniquePubs, setTotalUniquePubs] = React.useState(0);
   const [totalUniqueSkus, setTotalUniqueSkus] = React.useState(0);
   const [totalUniquePedidos, setTotalUniquePedidos] = React.useState(0);
   const [totalUnidades, setTotalUnidades] = React.useState(0);
   const [executiveKpis, setExecutiveKpis] = React.useState({
     gananciaPromedioPorPedido: 0,
+    utilidadPromedioPorUnidad: 0,
     porcentajePedidosMargenBajo: 0,
   });
 
@@ -934,6 +935,7 @@ export default function ExcelVentasPage() {
 
           setExecutiveKpis({
             gananciaPromedioPorPedido: totalPedidos > 0 ? utilidadBrutaSum / totalPedidos : 0,
+            utilidadPromedioPorUnidad: currentTotalUnidades > 0 ? utilidadBrutaSum / currentTotalUnidades : 0,
             porcentajePedidosMargenBajo: totalPedidos > 0 ? (pedidosMargenBajo / totalPedidos) * 100 : 0
           });
   
@@ -1246,7 +1248,7 @@ export default function ExcelVentasPage() {
               venta_xpublicidad: parseBoolean(row[newIndices.venta_xpublicidad]),
               sku: String(row[newIndices.sku] || ''),
               num_publi: String(row[newIndices.num_publi] || ''),
-              tienda: String(row[COLUMN_MAPPING.S] || ''),
+              tienda: String(row[newIndices.tienda] || ''),
               tip_publi: String(row[newIndices.tip_publi] || ''),
               total_final: parseCurrency(row[newIndices.total_final]),
               markup: parseCurrency(row[newIndices.markup]),
@@ -1427,7 +1429,7 @@ export default function ExcelVentasPage() {
         if (prev.key === key) {
             return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
         }
-        const newDirection = (key === 'sku') ? 'asc' : 'desc';
+        const newDirection = (key === 'sku' || key === '# de Publicación') ? 'asc' : 'desc';
         return { key, direction: newDirection };
     });
   };
@@ -2147,12 +2149,16 @@ export default function ExcelVentasPage() {
                     <CardHeader>
                         <CardTitle>KPIs Ejecutivos</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-4 text-center">
-                        <div>
-                            <p className="text-sm text-muted-foreground">Ganancia Promedio por Pedido</p>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                        <div className="p-4 rounded-lg bg-muted/50">
+                            <p className="text-sm text-muted-foreground">Utilidad Promedio por Pedido</p>
                             <p className="text-2xl font-bold">{executiveKpis.gananciaPromedioPorPedido.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</p>
                         </div>
-                        <div>
+                        <div className="p-4 rounded-lg bg-muted/50">
+                            <p className="text-sm text-muted-foreground">Utilidad Promedio por Unidad</p>
+                            <p className="text-2xl font-bold">{executiveKpis.utilidadPromedioPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</p>
+                        </div>
+                        <div className="p-4 rounded-lg bg-muted/50">
                             <p className="text-sm text-muted-foreground">% Pedidos con Margen Bajo (&lt;5%)</p>
                             <p className="text-2xl font-bold">{executiveKpis.porcentajePedidosMargenBajo.toFixed(2)}%</p>
                         </div>

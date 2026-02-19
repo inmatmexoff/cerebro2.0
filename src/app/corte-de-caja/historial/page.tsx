@@ -101,7 +101,7 @@ export default function HistorialCortesPage() {
   const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
   const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
   const [colorSummarySort, setColorSummarySort] = useState<{ key: ColorSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'desc' });
-  const [skuSummarySort, setSkuSummarySort] = React.useState<{ key: SkuSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'asc' });
+  const [skuSummarySort, setSkuSummarySort] = React.useState<{ key: SkuSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'desc' });
   const [totalUniquePubs, setTotalUniquePubs] = useState(0);
   const [totalUniqueSkus, setTotalUniqueSkus] = useState(0);
   const [unfilteredTotals, setUnfilteredTotals] = React.useState({
@@ -111,6 +111,7 @@ export default function HistorialCortesPage() {
   });
   const [executiveKpis, setExecutiveKpis] = React.useState({
     gananciaPromedioPorPedido: 0,
+    utilidadPromedioPorUnidad: 0,
     porcentajePedidosMargenBajo: 0,
   });
   const [totalUnidades, setTotalUnidades] = React.useState(0);
@@ -590,6 +591,7 @@ export default function HistorialCortesPage() {
 
     setExecutiveKpis({
       gananciaPromedioPorPedido: allPedidosInFiltered.size > 0 ? utilidadBrutaSum / allPedidosInFiltered.size : 0,
+      utilidadPromedioPorUnidad: allUnidadesInFiltered > 0 ? utilidadBrutaSum / allUnidadesInFiltered : 0,
       porcentajePedidosMargenBajo: allPedidosInFiltered.size > 0 ? (pedidosMargenBajo / allPedidosInFiltered.size) * 100 : 0
     });
 
@@ -923,7 +925,7 @@ export default function HistorialCortesPage() {
                     <h4 className="text-sm font-medium mb-2">
                         Resumen de Totales (Filtrado)
                     </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                         <div className="p-3 bg-muted/50 rounded-md">
                         <div className="text-muted-foreground">Utilidad Bruta</div>
                         <div className={cn('font-bold text-lg', utilidadBrutaSum >= 0 ? 'text-green-700' : 'text-red-700')}>
@@ -996,9 +998,15 @@ export default function HistorialCortesPage() {
                         </div>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">Ganancia Promedio x Pedido</div>
+                          <div className="text-muted-foreground">Utilidad Promedio por Pedido</div>
                           <div className="font-bold text-lg text-foreground">
                             {formatCurrency(executiveKpis.gananciaPromedioPorPedido)}
+                          </div>
+                        </div>
+                         <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">Utilidad Promedio por Unidad</div>
+                          <div className="font-bold text-lg text-foreground">
+                            {formatCurrency(executiveKpis.utilidadPromedioPorUnidad)}
                           </div>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
