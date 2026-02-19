@@ -195,7 +195,7 @@ const formSchema = z.object({
     .positive('Landed cost debe ser un número positivo.'),
 });
 
-type ColorSummarySortKey = 'count' | 'publications' | 'skus' | 'unidades' | 'total' | 'percentageOfTotal';
+type ColorSummarySortKey = 'count' | 'publications' | 'skus' | 'unidades' | 'total' | 'percentageOfTotal' | 'pedidos' | 'porcentaje_pedidos_rango' | 'porcentaje_unidades_rango' | 'utilidad_promedio_por_pedido_rango';
 type SkuSummarySortKey = 'sku' | 'unidades' | 'totalPorUnidad' | 'total' | 'porcentajeDelTotal';
 
 export default function ExcelVentasPage() {
@@ -233,6 +233,12 @@ export default function ExcelVentasPage() {
   const [skuSummarySort, setSkuSummarySort] = React.useState<{ key: SkuSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'asc' });
   const [totalUniquePubs, setTotalUniquePubs] = React.useState(0);
   const [totalUniqueSkus, setTotalUniqueSkus] = React.useState(0);
+  const [totalUniquePedidos, setTotalUniquePedidos] = React.useState(0);
+  const [totalUnidades, setTotalUnidades] = React.useState(0);
+  const [executiveKpis, setExecutiveKpis] = React.useState({
+    gananciaPromedioPorPedido: 0,
+    porcentajePedidosMargenBajo: 0,
+  });
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -789,8 +795,9 @@ export default function ExcelVentasPage() {
       const skuIndex = headers.indexOf('SKU');
       const unidadesIndex = headers.indexOf('Unidades');
       const markupIndex = headers.indexOf('Markup (%)');
+      const idIndex = headers.indexOf('ID');
   
-      if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && utilidadBrutaIndex > -1 && markupIndex > -1) {
+      if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && utilidadBrutaIndex > -1 && markupIndex > -1 && idIndex > -1) {
           const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
           const dataToSummarize = markupFilter === 'all' ? filteredData : filteredData.filter(row => {
             const markupValue = row[markupIndex];
@@ -868,21 +875,27 @@ export default function ExcelVentasPage() {
   
   
           const summaryByColor = {
-              darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
-              lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
-              orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
-              yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
-              red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0 },
+              darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0, pedidos: new Set<string>() },
+              lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0, pedidos: new Set<string>() },
+              orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0, pedidos: new Set<string>() },
+              yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0, pedidos: new Set<string>() },
+              red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0, pedidos: new Set<string>() },
           };
 
           const allUniquePubs = new Set<string>();
           const allUniqueSkus = new Set<string>();
+          const allUniquePedidos = new Set<string>();
+          let currentTotalUnidades = 0;
           
           filteredData.forEach(row => {
               const pubId = String(row[pubIndex] || '').trim();
               const sku = String(row[skuIndex] || '').trim();
+              const numVenta = String(row[idIndex] || '').trim();
+
               if(pubId) allUniquePubs.add(pubId);
               if(sku) allUniqueSkus.add(sku);
+              if(numVenta) allUniquePedidos.add(numVenta);
+              currentTotalUnidades += parseInt(String(row[unidadesIndex]), 10) || 0;
 
               const markupValue = row[markupIndex];
               const utilidadBrutaValue = row[utilidadBrutaIndex];
@@ -904,6 +917,7 @@ export default function ExcelVentasPage() {
         
                 if (pubId) category.publications.add(pubId);
                 if (sku) category.skus.add(sku);
+                if (numVenta) category.pedidos.add(numVenta);
                 category.unidades += unidades;
                 category.total += total;
                 category.count += 1;
@@ -912,10 +926,23 @@ export default function ExcelVentasPage() {
           
           setTotalUniquePubs(allUniquePubs.size);
           setTotalUniqueSkus(allUniqueSkus.size);
+          setTotalUniquePedidos(allUniquePedidos.size);
+          setTotalUnidades(currentTotalUnidades);
+
+          const totalPedidos = allUniquePedidos.size;
+          const pedidosMargenBajo = summaryByColor.red.pedidos.size;
+
+          setExecutiveKpis({
+            gananciaPromedioPorPedido: totalPedidos > 0 ? utilidadBrutaSum / totalPedidos : 0,
+            porcentajePedidosMargenBajo: totalPedidos > 0 ? (pedidosMargenBajo / totalPedidos) * 100 : 0
+          });
   
           const summaryWithPercentage = Object.values(summaryByColor).map(cat => ({
               ...cat,
-              percentageOfTotal: utilidadBrutaSum !== 0 ? (cat.total / utilidadBrutaSum) * 100 : 0
+              percentageOfTotal: utilidadBrutaSum !== 0 ? (cat.total / utilidadBrutaSum) * 100 : 0,
+              porcentaje_pedidos_rango: totalPedidos > 0 ? (cat.pedidos.size / totalPedidos) * 100 : 0,
+              porcentaje_unidades_rango: currentTotalUnidades > 0 ? (cat.unidades / currentTotalUnidades) * 100 : 0,
+              utilidad_promedio_por_pedido_rango: cat.pedidos.size > 0 ? cat.total / cat.pedidos.size : 0,
           }));
   
           setColorSummary(summaryWithPercentage);
@@ -1219,7 +1246,7 @@ export default function ExcelVentasPage() {
               venta_xpublicidad: parseBoolean(row[newIndices.venta_xpublicidad]),
               sku: String(row[newIndices.sku] || ''),
               num_publi: String(row[newIndices.num_publi] || ''),
-              tienda: String(row[newIndices.tienda] || ''),
+              tienda: String(row[COLUMN_MAPPING.S] || ''),
               tip_publi: String(row[newIndices.tip_publi] || ''),
               total_final: parseCurrency(row[newIndices.total_final]),
               markup: parseCurrency(row[newIndices.markup]),
@@ -1412,7 +1439,7 @@ export default function ExcelVentasPage() {
           
           let aValue, bValue;
 
-          if (key === 'publications' || key === 'skus') {
+          if (key === 'publications' || key === 'skus' || key === 'pedidos') {
               aValue = a[key].size;
               bValue = b[key].size;
           } else {
@@ -2116,6 +2143,22 @@ export default function ExcelVentasPage() {
                   </Card>
                 )}
                 
+                <Card className="mt-6">
+                    <CardHeader>
+                        <CardTitle>KPIs Ejecutivos</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                            <p className="text-sm text-muted-foreground">Ganancia Promedio por Pedido</p>
+                            <p className="text-2xl font-bold">{executiveKpis.gananciaPromedioPorPedido.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">% Pedidos con Margen Bajo (&lt;5%)</p>
+                            <p className="text-2xl font-bold">{executiveKpis.porcentajePedidosMargenBajo.toFixed(2)}%</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {data.length > 0 && (
                   <Tabs 
                     defaultValue="color" 
@@ -2247,62 +2290,47 @@ export default function ExcelVentasPage() {
                                     <TableHeader>
                                     <TableRow>
                                         <TableHead>Color</TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('count')} className="cursor-pointer">
-                                          <div className="flex items-center gap-1 whitespace-nowrap">Registros <ChevronsUpDown className="h-4 w-4" /></div>
-                                        </TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('publications')} className="cursor-pointer">
-                                          <div className="flex items-center gap-1 whitespace-nowrap"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div>
-                                        </TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('skus')} className="cursor-pointer">
-                                          <div className="flex items-center gap-1 whitespace-nowrap">SKU's <ChevronsUpDown className="h-4 w-4" /></div>
-                                        </TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('unidades')} className="cursor-pointer text-right">
-                                           <div className="flex items-center justify-end gap-1 whitespace-nowrap">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
-                                        </TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('total')} className="cursor-pointer text-right">
-                                           <div className="flex items-center justify-end gap-1 whitespace-nowrap">Total <ChevronsUpDown className="h-4 w-4" /></div>
-                                        </TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('percentageOfTotal')} className="cursor-pointer text-right">
-                                           <div className="flex items-center justify-end gap-1 whitespace-nowrap">% del Total <ChevronsUpDown className="h-4 w-4" /></div>
-                                        </TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('count')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">Registros <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('pedidos')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">Pedidos <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('porcentaje_pedidos_rango')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">% Pedidos <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('publications')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('skus')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">SKU's <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('unidades')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Unidades <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('porcentaje_unidades_rango')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">% Unidades <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('utilidad_promedio_por_pedido_rango')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Utilidad Prom/Pedido <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('total')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Total <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                        <TableHead onClick={() => handleColorSummarySort('percentageOfTotal')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">% del Total <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
                                     </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                     {sortedColorSummary.map((item, index) => (
                                         <TableRow key={index}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2 font-medium">
-                                            <div className={cn("w-4 h-4 rounded-full border", item.colorClass)}></div>
-                                            <span>{item.label}</span>
-                                            </div>
-                                        </TableCell>
+                                        <TableCell><div className="flex items-center gap-2 font-medium"><div className={cn("w-4 h-4 rounded-full border", item.colorClass)}></div><span>{item.label}</span></div></TableCell>
                                         <TableCell>{item.count.toLocaleString()}</TableCell>
+                                        <TableCell>{item.pedidos.size.toLocaleString()}</TableCell>
+                                        <TableCell>{item.porcentaje_pedidos_rango.toFixed(2)}%</TableCell>
                                         <TableCell>{item.publications.size}</TableCell>
                                         <TableCell>{item.skus.size}</TableCell>
                                         <TableCell className="text-right">{item.unidades.toLocaleString()}</TableCell>
-                                        <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>
-                                            {item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
-                                        </TableCell>
-                                        <TableCell className="text-right font-semibold">
-                                            {item.percentageOfTotal.toFixed(2)}%
-                                        </TableCell>
+                                        <TableCell className="text-right">{item.porcentaje_unidades_rango.toFixed(2)}%</TableCell>
+                                        <TableCell className="text-right">{item.utilidad_promedio_por_pedido_rango.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                        <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                        <TableCell className="text-right font-semibold">{item.percentageOfTotal.toFixed(2)}%</TableCell>
                                         </TableRow>
                                     ))}
                                     </TableBody>
                                     <TableFooter>
                                         <TableRow>
                                             <TableCell className="font-bold">Total</TableCell>
-                                            <TableCell className="font-bold">
-                                                {colorSummary.reduce((acc, item) => acc + item.count, 0).toLocaleString()}
-                                            </TableCell>
+                                            <TableCell className="font-bold">{colorSummary.reduce((acc, item) => acc + item.count, 0).toLocaleString()}</TableCell>
+                                            <TableCell className="font-bold">{totalUniquePedidos.toLocaleString()}</TableCell>
+                                            <TableCell className="font-bold">100.00%</TableCell>
                                             <TableCell className="font-bold">{totalUniquePubs.toLocaleString()}</TableCell>
                                             <TableCell className="font-bold">{totalUniqueSkus.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right font-bold">{colorSummary.reduce((acc, item) => acc + item.unidades, 0).toLocaleString()}</TableCell>
-                                            <TableCell className="text-right font-bold">
-                                              {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(
-                                                colorSummary.reduce((acc, item) => acc + item.total, 0)
-                                              )}
-                                            </TableCell>
+                                            <TableCell className="text-right font-bold">{totalUnidades.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-bold">100.00%</TableCell>
+                                            <TableCell className="text-right font-bold">{executiveKpis.gananciaPromedioPorPedido.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                            <TableCell className="text-right font-bold">{new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(colorSummary.reduce((acc, item) => acc + item.total, 0))}</TableCell>
                                             <TableCell className="text-right font-bold">100.00%</TableCell>
                                         </TableRow>
                                     </TableFooter>

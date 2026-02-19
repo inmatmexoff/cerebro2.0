@@ -56,7 +56,7 @@ type SortDescriptor = {
 };
 
 const ROWS_PER_PAGE = 20;
-type ColorSummarySortKey = 'count' | 'publications' | 'skus' | 'unidades' | 'total' | 'percentageOfTotal';
+type ColorSummarySortKey = 'count' | 'publications' | 'skus' | 'unidades' | 'total' | 'percentageOfTotal' | 'pedidos' | 'porcentaje_pedidos_rango' | 'porcentaje_unidades_rango' | 'utilidad_promedio_por_pedido_rango';
 type SkuSummarySortKey = 'sku' | 'unidades' | 'totalPorUnidad' | 'total' | 'porcentajeDelTotal';
 
 
@@ -109,6 +109,12 @@ export default function HistorialCortesPage() {
     landedCost: 0,
     ingresosPorProductos: 0,
   });
+  const [executiveKpis, setExecutiveKpis] = React.useState({
+    gananciaPromedioPorPedido: 0,
+    porcentajePedidosMargenBajo: 0,
+  });
+  const [totalUnidades, setTotalUnidades] = React.useState(0);
+  const [totalPedidos, setTotalPedidos] = React.useState(0);
 
   useEffect(() => {
     const getUnfilteredTotals = async () => {
@@ -539,13 +545,18 @@ export default function HistorialCortesPage() {
     setSkuSummary(enrichedSummary);
 
     const summaryByColor = {
-        darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-        lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-        orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-        yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
-        red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
+        darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
+        lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
+        orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
+        yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
+        red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
     };
     
+    const allPedidosInFiltered = new Set(dataToSummarize.map(i => i.num_venta));
+    const allUnidadesInFiltered = dataToSummarize.reduce((acc, i) => acc + (i.unidades || 0), 0);
+    setTotalPedidos(allPedidosInFiltered.size);
+    setTotalUnidades(allUnidadesInFiltered);
+
     dataToSummarize.forEach(row => {
         const markupValue = row.markup;
         let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
@@ -563,20 +574,32 @@ export default function HistorialCortesPage() {
         if (category) {
             const pubId = String(row.num_publi || '').trim();
             const sku = String(row.sku || '').trim();
+            const numVenta = String(row.num_venta || '').trim();
             const unidades = row.unidades || 0;
             const total = row.total_final || 0;
 
             if (pubId) category.publications.add(pubId);
             if (sku) category.skus.add(sku);
+            if (numVenta) category.pedidos.add(numVenta);
             category.unidades += unidades;
             category.total += total;
         }
     });
 
+    const pedidosMargenBajo = summaryByColor.red.pedidos.size;
+
+    setExecutiveKpis({
+      gananciaPromedioPorPedido: allPedidosInFiltered.size > 0 ? utilidadBrutaSum / allPedidosInFiltered.size : 0,
+      porcentajePedidosMargenBajo: allPedidosInFiltered.size > 0 ? (pedidosMargenBajo / allPedidosInFiltered.size) * 100 : 0
+    });
+
     const summaryWithPercentage = Object.entries(summaryByColor).map(([key, cat]) => ({
         ...cat,
         count: colorCounters[key as keyof typeof colorCounters],
-        percentageOfTotal: utilidadBrutaSum !== 0 ? (cat.total / utilidadBrutaSum) * 100 : 0
+        percentageOfTotal: utilidadBrutaSum !== 0 ? (cat.total / utilidadBrutaSum) * 100 : 0,
+        porcentaje_pedidos_rango: allPedidosInFiltered.size > 0 ? (cat.pedidos.size / allPedidosInFiltered.size) * 100 : 0,
+        porcentaje_unidades_rango: allUnidadesInFiltered > 0 ? (cat.unidades / allUnidadesInFiltered) * 100 : 0,
+        utilidad_promedio_por_pedido_rango: cat.pedidos.size > 0 ? cat.total / cat.pedidos.size : 0,
     }));
 
     setColorSummary(summaryWithPercentage);
@@ -665,7 +688,7 @@ export default function HistorialCortesPage() {
           
           let aValue, bValue;
 
-          if (key === 'publications' || key === 'skus') {
+          if (key === 'publications' || key === 'skus' || key === 'pedidos') {
               aValue = a[key].size;
               bValue = b[key].size;
           } else {
@@ -900,7 +923,7 @@ export default function HistorialCortesPage() {
                     <h4 className="text-sm font-medium mb-2">
                         Resumen de Totales (Filtrado)
                     </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div className="p-3 bg-muted/50 rounded-md">
                         <div className="text-muted-foreground">Utilidad Bruta</div>
                         <div className={cn('font-bold text-lg', utilidadBrutaSum >= 0 ? 'text-green-700' : 'text-red-700')}>
@@ -971,6 +994,18 @@ export default function HistorialCortesPage() {
                         <div className="font-bold text-lg text-foreground">
                             {formatCurrency(costoEnvioSum)}
                         </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">Ganancia Promedio x Pedido</div>
+                          <div className="font-bold text-lg text-foreground">
+                            {formatCurrency(executiveKpis.gananciaPromedioPorPedido)}
+                          </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">% Pedidos Margen Bajo</div>
+                          <div className="font-bold text-lg text-foreground">
+                            {executiveKpis.porcentajePedidosMargenBajo.toFixed(2)}%
+                          </div>
                         </div>
                     </div>
                 </div>
@@ -1274,60 +1309,47 @@ export default function HistorialCortesPage() {
                                 <TableHeader>
                                 <TableRow>
                                     <TableHead>Color</TableHead>
-                                    <TableHead onClick={() => handleColorSummarySort('count')} className="cursor-pointer">
-                                      <div className="flex items-center gap-1 whitespace-nowrap">Registros <ChevronsUpDown className="h-4 w-4" /></div>
-                                    </TableHead>
-                                    <TableHead onClick={() => handleColorSummarySort('publications')} className="cursor-pointer">
-                                      <div className="flex items-center gap-1 whitespace-nowrap"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div>
-                                    </TableHead>
-                                    <TableHead onClick={() => handleColorSummarySort('skus')} className="cursor-pointer">
-                                      <div className="flex items-center gap-1 whitespace-nowrap">SKU's <ChevronsUpDown className="h-4 w-4" /></div>
-                                    </TableHead>
-                                    <TableHead onClick={() => handleColorSummarySort('unidades')} className="cursor-pointer text-right">
-                                        <div className="flex items-center justify-end gap-1 whitespace-nowrap">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
-                                    </TableHead>
-                                    <TableHead onClick={() => handleColorSummarySort('total')} className="cursor-pointer text-right">
-                                        <div className="flex items-center justify-end gap-1 whitespace-nowrap">Total <ChevronsUpDown className="h-4 w-4" /></div>
-                                    </TableHead>
-                                    <TableHead onClick={() => handleColorSummarySort('percentageOfTotal')} className="cursor-pointer text-right">
-                                        <div className="flex items-center justify-end gap-1 whitespace-nowrap">% del Total <ChevronsUpDown className="h-4 w-4" /></div>
-                                    </TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('count')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">Registros <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('pedidos')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">Pedidos <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('porcentaje_pedidos_rango')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">% Pedidos <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('publications')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('skus')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">SKU's <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('unidades')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Unidades <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('porcentaje_unidades_rango')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">% Unidades <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('utilidad_promedio_por_pedido_rango')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Utilidad Prom/Pedido <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('total')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Total <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                    <TableHead onClick={() => handleColorSummarySort('percentageOfTotal')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">% del Total <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
                                 </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                 {sortedColorSummary.map((item, index) => (
                                     <TableRow key={index}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2 font-medium">
-                                        <div className={cn("w-4 h-4 rounded-full border", item.colorClass)}></div>
-                                        <span>{item.label}</span>
-                                        </div>
-                                    </TableCell>
+                                    <TableCell><div className="flex items-center gap-2 font-medium"><div className={cn("w-4 h-4 rounded-full border", item.colorClass)}></div><span>{item.label}</span></div></TableCell>
                                     <TableCell>{item.count.toLocaleString()}</TableCell>
+                                    <TableCell>{item.pedidos.size.toLocaleString()}</TableCell>
+                                    <TableCell>{item.porcentaje_pedidos_rango.toFixed(2)}%</TableCell>
                                     <TableCell>{item.publications.size}</TableCell>
                                     <TableCell>{item.skus.size}</TableCell>
                                     <TableCell className="text-right">{item.unidades.toLocaleString()}</TableCell>
-                                    <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>
-                                        {item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
-                                    </TableCell>
-                                    <TableCell className="text-right font-semibold">
-                                        {item.percentageOfTotal.toFixed(2)}%
-                                    </TableCell>
+                                    <TableCell className="text-right">{item.porcentaje_unidades_rango.toFixed(2)}%</TableCell>
+                                    <TableCell className="text-right">{item.utilidad_promedio_por_pedido_rango.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                    <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                    <TableCell className="text-right font-semibold">{item.percentageOfTotal.toFixed(2)}%</TableCell>
                                     </TableRow>
                                 ))}
                                 </TableBody>
                                  <TableFooter>
                                     <TableRow>
                                         <TableCell className="font-bold">Total</TableCell>
-                                        <TableCell className="font-bold">
-                                            {colorSummary.reduce((acc, item) => acc + item.count, 0).toLocaleString()}
-                                        </TableCell>
+                                        <TableCell className="font-bold">{colorSummary.reduce((acc, item) => acc + item.count, 0).toLocaleString()}</TableCell>
+                                        <TableCell className="font-bold">{totalPedidos.toLocaleString()}</TableCell>
+                                        <TableCell className="font-bold">100.00%</TableCell>
                                         <TableCell className="font-bold">{totalUniquePubs.toLocaleString()}</TableCell>
                                         <TableCell className="font-bold">{totalUniqueSkus.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right font-bold">{colorSummary.reduce((acc, item) => acc + item.unidades, 0).toLocaleString()}</TableCell>
-                                        <TableCell className="text-right font-bold">
-                                            {formatCurrency(colorSummary.reduce((acc, item) => acc + item.total, 0))}
-                                        </TableCell>
+                                        <TableCell className="text-right font-bold">{totalUnidades.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right font-bold">100.00%</TableCell>
+                                        <TableCell className="text-right font-bold">{formatCurrency(executiveKpis.gananciaPromedioPorPedido)}</TableCell>
+                                        <TableCell className="text-right font-bold">{formatCurrency(colorSummary.reduce((acc, item) => acc + item.total, 0))}</TableCell>
                                         <TableCell className="text-right font-bold">100.00%</TableCell>
                                     </TableRow>
                                 </TableFooter>
