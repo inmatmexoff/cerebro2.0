@@ -188,8 +188,8 @@ const parseSaleDate = (value: any): Date | null => {
 };
 
 const formSchema = z.object({
-  sku_mdr: z.string().min(1, 'SKU MDR es requerido.'),
-  cat_mdr: z.string().min(1, 'Categoría MDR es requerida.'),
+  sku_mdr: z.string().min(1, 'NOMBRE MADRE es requerido.'),
+  cat_mdr: z.string().min(1, 'Categoría Madre es requerida.'),
   landed_cost: z.coerce
     .number()
     .positive('Landed cost debe ser un número positivo.'),
@@ -1209,7 +1209,7 @@ export default function ExcelVentasPage() {
               venta_xpublicidad: parseBoolean(row[newIndices.venta_xpublicidad]),
               sku: String(row[newIndices.sku] || ''),
               num_publi: String(row[newIndices.num_publi] || ''),
-              tienda: String(row[COLUMN_MAPPING.S] || ''),
+              tienda: String(row[newIndices.tienda] || ''),
               tip_publi: String(row[newIndices.tip_publi] || ''),
               total_final: parseCurrency(row[newIndices.total_final]),
               markup: parseCurrency(row[newIndices.markup]),
@@ -2310,7 +2310,7 @@ export default function ExcelVentasPage() {
                   name="sku_mdr"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>SKU MDR</FormLabel>
+                      <FormLabel>NOMBRE MADRE</FormLabel>
                       <FormControl>
                         <Input placeholder="Ej. SKU_MDR_123" {...field} />
                       </FormControl>
@@ -2323,7 +2323,7 @@ export default function ExcelVentasPage() {
                   name="cat_mdr"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Categoría MDR</FormLabel>
+                      <FormLabel>Categoría Madre</FormLabel>
                       <FormControl>
                         <Input placeholder="Ej. RACKS" {...field} />
                       </FormControl>

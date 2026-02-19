@@ -51,7 +51,7 @@ export async function POST(request: Request) {
             if (duplicates.length > 0) {
                 return NextResponse.json(
                     { 
-                        message: 'Error: Se encontraron SKU MDRs duplicados en el archivo. Un archivo de SKUs "Oficiales" solo puede tener una fila por cada SKU MDR.',
+                        message: 'Error: Se encontraron NOMBRES MADRE duplicados en el archivo. Un archivo de SKUs "Oficiales" solo puede tener una fila por cada NOMBRE MADRE.',
                         duplicates 
                     }, 
                     { status: 400 }

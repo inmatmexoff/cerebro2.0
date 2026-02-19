@@ -91,7 +91,7 @@ export default function RepositorioPage() {
             <CardHeader>
               <CardTitle>Buscar SKU Oficial</CardTitle>
               <CardDescription>
-                Busca por SKU o SKU MDR. La búsqueda se iniciará automáticamente.
+                Busca por SKU o NOMBRE MADRE. La búsqueda se iniciará automáticamente.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -99,7 +99,7 @@ export default function RepositorioPage() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="search-sku"
-                  placeholder="Escribe el SKU o SKU MDR..."
+                  placeholder="Escribe el SKU o NOMBRE MADRE..."
                   className="pl-8 w-full"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -118,8 +118,8 @@ export default function RepositorioPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>SKU Oficial</TableHead>
-                      <TableHead>SKU MDR</TableHead>
-                      <TableHead>Categoría</TableHead>
+                      <TableHead>NOMBRE MADRE</TableHead>
+                      <TableHead>Categoría Madre</TableHead>
                       <TableHead className="text-right">Piezas x SKU</TableHead>
                       <TableHead className="text-right">Tiempo Est. (min)</TableHead>
                     </TableRow>

@@ -25,12 +25,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 
 // Define column headers for the preview table
-const TABLE_HEADERS = ['sku', 'sku_mdr', 'cat_mdr', 'landed_cost', 'piezas_xcontenedor', 'esti_time', 'piezas_por_sku', 'proveedor'];
+const TABLE_HEADERS = ['sku', 'NOMBRE MADRE', 'Categoría Madre', 'landed_cost', 'piezas_xcontenedor', 'esti_time', 'piezas_por_sku', 'proveedor'];
 
 const manualSkuSchema = z.object({
     sku: z.string().min(1, { message: "SKU es requerido." }),
-    sku_mdr: z.string().min(1, { message: "SKU MDR es requerido." }),
-    cat_mdr: z.string().min(1, { message: "Categoría MDR es requerida." }),
+    sku_mdr: z.string().min(1, { message: "NOMBRE MADRE es requerido." }),
+    cat_mdr: z.string().min(1, { message: "Categoría Madre es requerida." }),
     landed_cost: z.coerce.number().optional().nullable(),
     proveedor: z.string().optional().nullable(),
     piezas_xcontenedor: z.coerce.number().int({ message: "Debe ser un número entero." }).positive({ message: "Debe ser un número positivo."}).optional().nullable(),
@@ -141,20 +141,20 @@ export default function CargaSkuPage() {
                 }
 
                 const dataRows = json.slice(1);
-                // Mapeo de columnas: sku (A->0), sku_mdr (C->2), cat_mdr (B->1), landed_cost (D->3), piezas_xcontenedor (G->6), esti_time (F->5), piezas_por_sku (E->4), proveedor (H->7)
+                // Mapeo de columnas: sku (A->0), NOMBRE MADRE (C->2), Categoría Madre (B->1), landed_cost (D->3), piezas_xcontenedor (G->6), esti_time (F->5), piezas_por_sku (E->4), proveedor (H->7)
                 const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[6], row[5], row[4], row[7]]);
                 
                 // Filter out rows where essential columns are empty
                 const validatedData = extractedData.filter(row => 
                     String(row[0] || '').trim() && // sku
-                    String(row[1] || '').trim() && // sku_mdr
-                    String(row[2] || '').trim()    // cat_mdr
+                    String(row[1] || '').trim() && // NOMBRE MADRE
+                    String(row[2] || '').trim()    // Categoría Madre
                 );
                 
                 const skippedCount = extractedData.length - validatedData.length;
 
                 if (validatedData.length === 0) {
-                     setError("No se encontraron registros válidos. Asegúrate de que las columnas A (sku), C (sku_mdr) y B (cat_mdr) no estén vacías a partir de la segunda fila.");
+                     setError("No se encontraron registros válidos. Asegúrate de que las columnas A (sku), C (NOMBRE MADRE) y B (Categoría Madre) no estén vacías a partir de la segunda fila.");
                      setIsProcessing(false);
                      return;
                 }
@@ -162,7 +162,7 @@ export default function CargaSkuPage() {
                 if (skippedCount > 0) {
                     toast({
                         title: "Registros omitidos",
-                        description: `Se omitieron ${skippedCount} registros porque una de las columnas esenciales (sku, sku_mdr, cat_mdr) estaba vacía.`
+                        description: `Se omitieron ${skippedCount} registros porque una de las columnas esenciales (sku, NOMBRE MADRE, Categoría Madre) estaba vacía.`
                     });
                 }
                 
@@ -182,7 +182,7 @@ export default function CargaSkuPage() {
         }
 
         reader.readAsBinaryString(file);
-    }, [toast]);
+    }, [toast, uploadType]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -332,7 +332,7 @@ export default function CargaSkuPage() {
                                             name="sku_mdr"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>SKU MDR</FormLabel>
+                                                    <FormLabel>NOMBRE MADRE</FormLabel>
                                                     <FormControl>
                                                         <Input placeholder="Ej. SKU_MDR_123" {...field} />
                                                     </FormControl>
@@ -345,7 +345,7 @@ export default function CargaSkuPage() {
                                             name="cat_mdr"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>Categoría MDR</FormLabel>
+                                                    <FormLabel>Categoría Madre</FormLabel>
                                                     <FormControl>
                                                         <Input placeholder="Ej. RACKS" {...field} />
                                                     </FormControl>
