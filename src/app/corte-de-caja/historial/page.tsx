@@ -90,7 +90,7 @@ export default function HistorialCortesPage() {
     direction: 'descending',
   });
   
-  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive'>('all');
+  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit'>('all');
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   
@@ -256,19 +256,19 @@ export default function HistorialCortesPage() {
         const landedCostPerUnit = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
         const totalLandedCost = landedCostPerUnit * unidades;
         const totalFromDb = sale.total || 0;
-        let granTotal = totalFromDb - totalLandedCost;
+        let utilidadBruta = totalFromDb - totalLandedCost;
         
         const saleStatus = sale.status || '';
         if (totalFromDb === 0 && !saleStatus.toLowerCase().startsWith('paquete de')) {
-            granTotal = 0;
+            utilidadBruta = 0;
         }
 
-        const markup = totalLandedCost > 0 ? (granTotal / totalLandedCost) * 100 : 0;
+        const markup = totalLandedCost > 0 ? (utilidadBruta / totalLandedCost) * 100 : 0;
 
         return {
             ...sale,
             landed_cost: totalLandedCost,
-            total_final: parseFloat(granTotal.toFixed(2)),
+            total_final: parseFloat(utilidadBruta.toFixed(2)),
             markup,
         };
       });
@@ -295,11 +295,13 @@ export default function HistorialCortesPage() {
 
   const filteredItems = React.useMemo(() => {
     return sales.filter((sale) => {
-        let granTotalMatch = true;
+        let utilidadBrutaMatch = true;
         if (granTotalFilter === 'negative') {
-            granTotalMatch = (sale.total_final ?? 0) < 0;
+            utilidadBrutaMatch = (sale.total_final ?? 0) < 0;
         } else if (granTotalFilter === 'positive') {
-            granTotalMatch = (sale.total_final ?? 0) >= 0;
+            utilidadBrutaMatch = (sale.total_final ?? 0) >= 0;
+        } else if (granTotalFilter === 'low_profit') {
+            utilidadBrutaMatch = (sale.total_final ?? 0) < 30;
         }
 
         const highShippingCostMatch = !showHighShippingCost || (sale.costo_envio ?? 0) <= -300;
@@ -307,21 +309,21 @@ export default function HistorialCortesPage() {
         let markupMatch = true;
         if (markupFilter !== 'all') {
             const markupValue = sale.markup;
-            const granTotal = sale.total_final;
+            const utilidadBruta = sale.total_final;
              if (typeof markupValue === 'number') {
                 switch (markupFilter) {
                     case 'darkGreen': markupMatch = markupValue >= 30; break;
                     case 'lightGreen': markupMatch = markupValue >= 20 && markupValue < 30; break;
                     case 'orange': markupMatch = markupValue >= 10 && markupValue < 20; break;
                     case 'yellow': markupMatch = markupValue >= 5 && markupValue < 10; break;
-                    case 'red': markupMatch = markupValue < 5 && granTotal !== 0; break;
+                    case 'red': markupMatch = markupValue < 5 && utilidadBruta !== 0; break;
                 }
             } else {
-                markupMatch = markupFilter === 'red' && granTotal !== 0;
+                markupMatch = markupFilter === 'red' && utilidadBruta !== 0;
             }
         }
 
-        return granTotalMatch && highShippingCostMatch && markupMatch;
+        return utilidadBrutaMatch && highShippingCostMatch && markupMatch;
     });
   }, [sales, granTotalFilter, showHighShippingCost, markupFilter]);
 
@@ -346,7 +348,7 @@ export default function HistorialCortesPage() {
 
   const totalPages = Math.ceil(sortedItems.length / ROWS_PER_PAGE);
 
-  const granTotalSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.total_final || 0), 0), [filteredItems]);
+  const utilidadBrutaSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.total_final || 0), 0), [filteredItems]);
   const totalSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.total || 0), 0), [filteredItems]);
   const landedCostSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.landed_cost || 0), 0), [filteredItems]);
   const ingresosPorProductosSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.ing_xunidad || 0), 0), [filteredItems]);
@@ -357,17 +359,17 @@ export default function HistorialCortesPage() {
     const counters = { darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
     filteredItems.forEach(sale => {
       const markupValue = sale.markup;
-      const granTotal = sale.total_final;
+      const utilidadBruta = sale.total_final;
        if (typeof markupValue === 'number') {
         if (markupValue >= 30) counters.darkGreen++;
         else if (markupValue >= 20) counters.lightGreen++;
         else if (markupValue >= 10) counters.orange++;
         else if (markupValue >= 5) counters.yellow++;
         else if (markupValue < 5) {
-            if (granTotal !== 0) counters.red++;
+            if (utilidadBruta !== 0) counters.red++;
         }
       } else {
-          if (granTotal !== 0) counters.red++;
+          if (utilidadBruta !== 0) counters.red++;
       }
     });
 
@@ -494,12 +496,12 @@ export default function HistorialCortesPage() {
     const summaryWithPercentage = Object.entries(summaryByColor).map(([key, cat]) => ({
         ...cat,
         count: colorCounters[key as keyof typeof colorCounters],
-        percentageOfTotal: granTotalSum !== 0 ? (cat.total / granTotalSum) * 100 : 0
+        percentageOfTotal: utilidadBrutaSum !== 0 ? (cat.total / utilidadBrutaSum) * 100 : 0
     }));
 
     setColorSummary(summaryWithPercentage);
 
-  }, [filteredItems, granTotalSum, colorCounters, skuSummarySort]);
+  }, [filteredItems, utilidadBrutaSum, colorCounters, skuSummarySort]);
 
   const handleSort = (column: keyof SaleRecord) => {
     if (sortDescriptor.column === column) {
@@ -537,7 +539,7 @@ export default function HistorialCortesPage() {
     { key: 'sku', label: 'SKU' },
     { key: 'num_publi', label: '# de Publicación' },
     { key: 'unidades', label: 'Unidades' },
-    { key: 'ing_xunidad', label: 'Ingresos x Prod.' },
+    { key: 'ing_xunidad', label: 'Costo Venta ML' },
     { key: 'cargo_venta', label: 'Cargo x Venta' },
     { key: 'costo_envio', label: 'Costo Envío' },
     { key: 'ing_xenvio', label: 'Ingreso x Envío' },
@@ -548,7 +550,7 @@ export default function HistorialCortesPage() {
     { key: 'tip_publi', label: 'Tipo Pub.' },
     { key: 'total', label: 'Total' },
     { key: 'landed_cost', label: 'Landed Cost Total' },
-    { key: 'total_final', label: 'Gran Total' },
+    { key: 'total_final', label: 'Utilidad Bruta' },
     { key: 'markup', label: 'Markup (%)' },
   ];
 
@@ -731,7 +733,7 @@ export default function HistorialCortesPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel>Filtrar Gran Total</DropdownMenuLabel>
+                                <DropdownMenuLabel>Filtrar Utilidad Bruta</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuCheckboxItem
                                     checked={granTotalFilter === 'negative'}
@@ -752,6 +754,16 @@ export default function HistorialCortesPage() {
                                     }}
                                 >
                                     0 o positivos
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem
+                                    checked={granTotalFilter === 'low_profit'}
+                                    onCheckedChange={(checked) => {
+                                        setGranTotalFilter(checked ? 'low_profit' : 'all');
+                                        if (checked) setMarkupFilter('all');
+                                        setPage(1);
+                                    }}
+                                >
+                                    Utilidad Bruta &lt; $30
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuLabel>Otros Filtros</DropdownMenuLabel>
@@ -810,9 +822,9 @@ export default function HistorialCortesPage() {
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                         <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">Gran Total</div>
-                        <div className={cn('font-bold text-lg', granTotalSum >= 0 ? 'text-green-700' : 'text-red-700')}>
-                            {formatCurrency(granTotalSum)}
+                        <div className="text-muted-foreground">Utilidad Bruta</div>
+                        <div className={cn('font-bold text-lg', utilidadBrutaSum >= 0 ? 'text-green-700' : 'text-red-700')}>
+                            {formatCurrency(utilidadBrutaSum)}
                         </div>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
@@ -831,7 +843,7 @@ export default function HistorialCortesPage() {
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
                         <div className="text-muted-foreground">
-                            Ingresos x Productos
+                           Costo de Venta en Mercado Libre
                         </div>
                         <div className="font-bold text-lg text-foreground">
                             {formatCurrency(ingresosPorProductosSum)}
@@ -1222,3 +1234,5 @@ export default function HistorialCortesPage() {
     </div>
   );
 }
+
+    

@@ -209,8 +209,7 @@ export default function ExcelVentasPage() {
   const [progress, setProgress] = React.useState(0);
 
   const [skuSearchTerm, setSkuSearchTerm] = React.useState('');
-  const [showOnlyNegative, setShowOnlyNegative] = useState(false);
-  const [showOnlyPositive, setShowOnlyPositive] = useState(false);
+  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit'>('all');
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   const [editingInfo, setEditingInfo] = useState<{
@@ -309,8 +308,8 @@ export default function ExcelVentasPage() {
   const handleMarkupFilterClick = (filter: 'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red') => {
     const newFilter = markupFilter === filter ? 'all' : filter;
     if (newFilter !== 'all') {
-        setShowOnlyNegative(false);
-        setShowOnlyPositive(false);
+        setGranTotalFilter('all');
+        setShowHighShippingCost(false);
         setActiveTab('sku');
     } else {
         setActiveTab('color');
@@ -367,7 +366,7 @@ export default function ExcelVentasPage() {
             headerRow[COLUMN_MAPPING.C] || 'ESTADO',
             headerRow[COLUMN_MAPPING.G] || 'Unidades',
             headerRow[COLUMN_MAPPING.Q] || 'SKU',
-            'Ingresos por productos (MXN)',
+            'Costo de Venta en Mercado Libre',
             'Cargo por venta e impuestos (MXN)',
             'Costos de envío (MXN)',
             headerRow[COLUMN_MAPPING.J] || 'Ingresos por envío (MXN)',
@@ -379,7 +378,7 @@ export default function ExcelVentasPage() {
             headerRow[COLUMN_MAPPING.W] || 'Tipo de publicación',
             'Total',
             'Landed Cost Total',
-            'Gran Total',
+            'Utilidad Bruta',
             'Markup (%)',
           ];
 
@@ -476,13 +475,13 @@ export default function ExcelVentasPage() {
               const totalFromExcel =
                 parseCurrency(row[COLUMN_MAPPING.O]) || 0;
               
-              let granTotal = totalFromExcel - totalLandedCost;
+              let utilidadBruta = totalFromExcel - totalLandedCost;
               const estado = row[COLUMN_MAPPING.C] ? String(row[COLUMN_MAPPING.C]).trim() : '';
               if (totalFromExcel === 0 && !estado.toLowerCase().startsWith('paquete de')) {
-                granTotal = 0;
+                utilidadBruta = 0;
               }
 
-              const markup = totalLandedCost > 0 ? (granTotal / totalLandedCost) * 100 : 0;
+              const markup = totalLandedCost > 0 ? (utilidadBruta / totalLandedCost) * 100 : 0;
 
 
               return [
@@ -504,7 +503,7 @@ export default function ExcelVentasPage() {
                 row[COLUMN_MAPPING.W] || '',
                 totalFromExcel,
                 totalLandedCost,
-                parseFloat(granTotal.toFixed(2)),
+                parseFloat(utilidadBruta.toFixed(2)),
                 markup,
               ];
             });
@@ -520,17 +519,17 @@ export default function ExcelVentasPage() {
           setProgress(92);
           await new Promise((resolve) => setTimeout(resolve, 0));
 
-          const ingresosIndex = finalHeaders.indexOf('Ingresos por productos (MXN)');
+          const ingresosIndex = finalHeaders.indexOf('Costo de Venta en Mercado Libre');
           const cargoVentaIndex = finalHeaders.indexOf('Cargo por venta e impuestos (MXN)');
           const costoEnvioIndex = finalHeaders.indexOf('Costos de envío (MXN)');
           const landedCostTotalIndex = finalHeaders.indexOf('Landed Cost Total');
           const totalIndex = finalHeaders.indexOf('Total');
-          const granTotalIndex = finalHeaders.indexOf('Gran Total');
+          const utilidadBrutaIndex = finalHeaders.indexOf('Utilidad Bruta');
           const estadoIndex = finalHeaders.indexOf('ESTADO');
           const markupIndex = finalHeaders.indexOf('Markup (%)');
 
 
-          if (ingresosIndex > -1 && cargoVentaIndex > -1 && costoEnvioIndex > -1 && landedCostTotalIndex > -1 && totalIndex > -1 && granTotalIndex > -1) {
+          if (ingresosIndex > -1 && cargoVentaIndex > -1 && costoEnvioIndex > -1 && landedCostTotalIndex > -1 && totalIndex > -1 && utilidadBrutaIndex > -1) {
             const isComponentRow = (row: any[]) => {
                 const ingresos = row[ingresosIndex];
                 const cargoVenta = row[cargoVentaIndex];
@@ -567,10 +566,10 @@ export default function ExcelVentasPage() {
                     if (componentCostSum > 0) {
                         const originalParentTotal = parentRow[totalIndex] || 0;
                         parentRow[landedCostTotalIndex] = componentCostSum;
-                        const newGranTotal = originalParentTotal - componentCostSum;
-                        parentRow[granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
+                        const newUtilidadBruta = originalParentTotal - componentCostSum;
+                        parentRow[utilidadBrutaIndex] = parseFloat(newUtilidadBruta.toFixed(2));
                         if (markupIndex > -1) {
-                            const newMarkup = componentCostSum > 0 ? (newGranTotal / componentCostSum) * 100 : 0;
+                            const newMarkup = componentCostSum > 0 ? (newUtilidadBruta / componentCostSum) * 100 : 0;
                             parentRow[markupIndex] = newMarkup;
                         }
                     }
@@ -581,7 +580,7 @@ export default function ExcelVentasPage() {
           setProgress(96);
           await new Promise((resolve) => setTimeout(resolve, 0));
 
-          if (estadoIndex !== -1 && landedCostTotalIndex !== -1 && granTotalIndex !== -1 && totalIndex !== -1) {
+          if (estadoIndex !== -1 && landedCostTotalIndex !== -1 && utilidadBrutaIndex !== -1 && totalIndex !== -1) {
             for (let i = 0; i < allEnrichedData.length; i++) {
               const row = allEnrichedData[i];
               const estado = row[estadoIndex] ? String(row[estadoIndex]).trim() : '';
@@ -600,11 +599,11 @@ export default function ExcelVentasPage() {
       
                   allEnrichedData[i][landedCostTotalIndex] = summedLandedCost;
                   const totalFromExcel = allEnrichedData[i][totalIndex] || 0;
-                  const newGranTotal = totalFromExcel - summedLandedCost;
-                  allEnrichedData[i][granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
+                  const newUtilidadBruta = totalFromExcel - summedLandedCost;
+                  allEnrichedData[i][utilidadBrutaIndex] = parseFloat(newUtilidadBruta.toFixed(2));
 
                   if (markupIndex > -1) {
-                      const newMarkup = summedLandedCost > 0 ? (newGranTotal / summedLandedCost) * 100 : 0;
+                      const newMarkup = summedLandedCost > 0 ? (newUtilidadBruta / summedLandedCost) * 100 : 0;
                       allEnrichedData[i][markupIndex] = newMarkup;
                   }
                 }
@@ -670,9 +669,9 @@ export default function ExcelVentasPage() {
     [toast]
   );
   
-  const isFiltered = skuSearchTerm || showOnlyNegative || showOnlyPositive || showHighShippingCost || markupFilter !== 'all';
+  const isFiltered = skuSearchTerm || granTotalFilter !== 'all' || showHighShippingCost || markupFilter !== 'all';
 
-  const granTotalIndex = headers.indexOf('Gran Total');
+  const utilidadBrutaIndex = headers.indexOf('Utilidad Bruta');
 
   const filteredData = React.useMemo(() => {
     const skuIndex = headers.indexOf('SKU');
@@ -688,11 +687,14 @@ export default function ExcelVentasPage() {
             .toLowerCase()
             .includes(skuSearchTerm.toLowerCase()));
 
-      let granTotalMatch = true;
-      if (showOnlyNegative) {
-        granTotalMatch = typeof row[granTotalIndex] === 'number' && row[granTotalIndex] < 0;
-      } else if (showOnlyPositive) {
-        granTotalMatch = typeof row[granTotalIndex] === 'number' && row[granTotalIndex] >= 0;
+      let utilidadBrutaMatch = true;
+      const utilidadBrutaValue = row[utilidadBrutaIndex];
+      if (granTotalFilter === 'negative') {
+        utilidadBrutaMatch = typeof utilidadBrutaValue === 'number' && utilidadBrutaValue < 0;
+      } else if (granTotalFilter === 'positive') {
+        utilidadBrutaMatch = typeof utilidadBrutaValue === 'number' && utilidadBrutaValue >= 0;
+      } else if (granTotalFilter === 'low_profit') {
+        utilidadBrutaMatch = typeof utilidadBrutaValue === 'number' && utilidadBrutaValue < 30;
       }
 
       const shippingCost =
@@ -704,7 +706,7 @@ export default function ExcelVentasPage() {
       let markupMatch = true;
       if (markupFilter !== 'all') {
           const markupValue = markupIndex !== -1 ? row[markupIndex] : null;
-          const granTotal = granTotalIndex > -1 ? row[granTotalIndex] : null;
+          const utilidadBruta = utilidadBrutaIndex > -1 ? row[utilidadBrutaIndex] : null;
           if (typeof markupValue === 'number') {
               switch (markupFilter) {
                   case 'darkGreen':
@@ -720,25 +722,24 @@ export default function ExcelVentasPage() {
                       markupMatch = markupValue >= 5 && markupValue < 10;
                       break;
                   case 'red':
-                      markupMatch = markupValue < 5 && granTotal !== 0;
+                      markupMatch = markupValue < 5 && utilidadBruta !== 0;
                       break;
               }
           } else {
-            markupMatch = markupFilter === 'red' && granTotal !== 0;
+            markupMatch = markupFilter === 'red' && utilidadBruta !== 0;
           }
       }
 
-      return skuMatch && granTotalMatch && highShippingCostMatch && markupMatch;
+      return skuMatch && utilidadBrutaMatch && highShippingCostMatch && markupMatch;
     });
   }, [
     data,
     skuSearchTerm,
-    showOnlyNegative,
-    showOnlyPositive,
+    granTotalFilter,
     showHighShippingCost,
     headers,
     markupFilter,
-    granTotalIndex,
+    utilidadBrutaIndex,
   ]);
 
   const createSumCalculator = (columnName: string) => {
@@ -752,9 +753,9 @@ export default function ExcelVentasPage() {
     }, [filteredData, headers]);
   };
 
-  const granTotalSum = createSumCalculator('Gran Total');
-  const unfilteredGranTotalSum = React.useMemo(() => {
-    const index = headers.indexOf('Gran Total');
+  const utilidadBrutaSum = createSumCalculator('Utilidad Bruta');
+  const unfilteredUtilidadBrutaSum = React.useMemo(() => {
+    const index = headers.indexOf('Utilidad Bruta');
     if (index === -1) return 0;
     return data.reduce((sum, row) => {
       const value = row[index];
@@ -770,13 +771,13 @@ export default function ExcelVentasPage() {
       const unidadesIndex = headers.indexOf('Unidades');
       const markupIndex = headers.indexOf('Markup (%)');
   
-      if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && granTotalIndex > -1 && markupIndex > -1) {
+      if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && utilidadBrutaIndex > -1 && markupIndex > -1) {
           const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
           const dataToSummarize = markupFilter === 'all' ? filteredData : filteredData.filter(row => {
             const markupValue = row[markupIndex];
-            const granTotal = row[granTotalIndex];
+            const utilidadBruta = row[utilidadBrutaIndex];
             if (typeof markupValue !== 'number') {
-              if (markupFilter === 'red') return granTotal !== 0;
+              if (markupFilter === 'red') return utilidadBruta !== 0;
               return false;
             }
             switch (markupFilter) {
@@ -784,7 +785,7 @@ export default function ExcelVentasPage() {
                   case 'lightGreen': return markupValue >= 20 && markupValue < 30;
                   case 'orange': return markupValue >= 10 && markupValue < 20;
                   case 'yellow': return markupValue >= 5 && markupValue < 10;
-                  case 'red': return markupValue < 5 && granTotal !== 0;
+                  case 'red': return markupValue < 5 && utilidadBruta !== 0;
                   default: return false;
               }
           });
@@ -798,7 +799,7 @@ export default function ExcelVentasPage() {
                       summary[key] = { pubId: pubId || '-', sku: sku || '-', unidades: 0, total: 0 };
                   }
                   const unidades = parseInt(String(row[unidadesIndex])) || 0;
-                  const total = row[granTotalIndex] as number || 0;
+                  const total = row[utilidadBrutaIndex] as number || 0;
                   summary[key].unidades += unidades;
                   summary[key].total += total;
               }
@@ -806,12 +807,12 @@ export default function ExcelVentasPage() {
   
           const summaryValues = Object.values(summary);
           
-          const totalOfGranTotal = dataToSummarize.reduce((sum, row) => sum + (row[granTotalIndex] as number || 0), 0);
+          const totalOfUtilidadBruta = dataToSummarize.reduce((sum, row) => sum + (row[utilidadBrutaIndex] as number || 0), 0);
   
           const enrichedSummary = summaryValues
             .map(item => {
                 const totalPorUnidad = (item.unidades > 0) ? item.total / item.unidades : 0;
-                const porcentajeDelTotal = (totalOfGranTotal !== 0) ? (item.total / totalOfGranTotal) * 100 : 0;
+                const porcentajeDelTotal = (totalOfUtilidadBruta !== 0) ? (item.total / totalOfUtilidadBruta) * 100 : 0;
                 
                 return {
                     ...item,
@@ -865,7 +866,7 @@ export default function ExcelVentasPage() {
               if(sku) allUniqueSkus.add(sku);
 
               const markupValue = row[markupIndex];
-              const granTotalValue = row[granTotalIndex];
+              const utilidadBrutaValue = row[utilidadBrutaIndex];
               let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
       
               if (typeof markupValue === 'number') {
@@ -873,14 +874,14 @@ export default function ExcelVentasPage() {
                   else if (markupValue >= 20) category = summaryByColor.lightGreen;
                   else if (markupValue >= 10) category = summaryByColor.orange;
                   else if (markupValue >= 5) category = summaryByColor.yellow;
-                  else if (markupValue < 5 && granTotalValue !== 0) category = summaryByColor.red;
-              } else if (granTotalValue !== 0) {
+                  else if (markupValue < 5 && utilidadBrutaValue !== 0) category = summaryByColor.red;
+              } else if (utilidadBrutaValue !== 0) {
                   category = summaryByColor.red;
               }
       
               if (category) {
                 const unidades = parseInt(String(row[unidadesIndex]), 10) || 0;
-                const total = granTotalValue as number || 0;
+                const total = utilidadBrutaValue as number || 0;
         
                 if (pubId) category.publications.add(pubId);
                 if (sku) category.skus.add(sku);
@@ -895,7 +896,7 @@ export default function ExcelVentasPage() {
   
           const summaryWithPercentage = Object.values(summaryByColor).map(cat => ({
               ...cat,
-              percentageOfTotal: granTotalSum !== 0 ? (cat.total / granTotalSum) * 100 : 0
+              percentageOfTotal: utilidadBrutaSum !== 0 ? (cat.total / utilidadBrutaSum) * 100 : 0
           }));
   
           setColorSummary(summaryWithPercentage);
@@ -908,12 +909,12 @@ export default function ExcelVentasPage() {
         setTotalUniquePubs(0);
         setTotalUniqueSkus(0);
     }
-}, [filteredData, headers, granTotalIndex, data.length, markupFilter, granTotalSum, skuSummarySort]);
+}, [filteredData, headers, utilidadBrutaIndex, data.length, markupFilter, utilidadBrutaSum, skuSummarySort]);
 
   
   const landedCostSum = createSumCalculator('Landed Cost Total');
   const ingresosPorProductosSum = createSumCalculator(
-    'Ingresos por productos (MXN)'
+    'Costo de Venta en Mercado Libre'
   );
   const cargoVentaSum = createSumCalculator(
     'Cargo por venta e impuestos (MXN)'
@@ -930,22 +931,22 @@ export default function ExcelVentasPage() {
 
     filteredData.forEach(row => {
       const markupValue = row[markupIndex];
-      const granTotal = row[granTotalIndex];
+      const utilidadBruta = row[utilidadBrutaIndex];
       if (typeof markupValue === 'number') {
         if (markupValue >= 30) counters.darkGreen++;
         else if (markupValue >= 20) counters.lightGreen++;
         else if (markupValue >= 10) counters.orange++;
         else if (markupValue >= 5) counters.yellow++;
         else if (markupValue < 5) {
-            if (granTotal !== 0) counters.red++;
+            if (utilidadBruta !== 0) counters.red++;
         }
       } else {
-        if (granTotal !== 0) counters.red++;
+        if (utilidadBruta !== 0) counters.red++;
       }
     });
 
     return counters;
-  }, [filteredData, headers, granTotalIndex]);
+  }, [filteredData, headers, utilidadBrutaIndex]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -1314,7 +1315,7 @@ export default function ExcelVentasPage() {
         const rowIndex = editingInfo!.rowIndex;
         const totalIndex = headers.indexOf('Total');
         const landedCostIndex = headers.indexOf('Landed Cost Total');
-        const granTotalIndex = headers.indexOf('Gran Total');
+        const utilidadBrutaIndex = headers.indexOf('Utilidad Bruta');
         const markupIndex = headers.indexOf('Markup (%)');
         const unidadesHeader = headers.find((h) => /unidades/i.test(h));
         const unidadesIndex = unidadesHeader
@@ -1330,16 +1331,16 @@ export default function ExcelVentasPage() {
             ? parseInt(String(row[unidadesIndex] || '1'))
             : 1) || 1;
         const newTotalLandedCost = newLandedCostPerUnit * unidades;
-        let newGranTotal = totalFromExcel - newTotalLandedCost;
+        let newUtilidadBruta = totalFromExcel - newTotalLandedCost;
         
         const estadoIndex = headers.indexOf('ESTADO');
         const estado = (estadoIndex !== -1 && row[estadoIndex]) ? String(row[estadoIndex]).trim() : '';
         if (totalFromExcel === 0 && !estado.toLowerCase().startsWith('paquete de')) {
-            newGranTotal = 0;
+            newUtilidadBruta = 0;
         }
 
         row[landedCostIndex] = newTotalLandedCost;
-        row[granTotalIndex] = parseFloat(newGranTotal.toFixed(2));
+        row[utilidadBrutaIndex] = parseFloat(newUtilidadBruta.toFixed(2));
 
         if (markupIndex > -1) {
             const newMarkup = newTotalLandedCost > 0 ? ((totalFromExcel - newTotalLandedCost) / newTotalLandedCost) * 100 : 0;
@@ -1628,31 +1629,34 @@ export default function ExcelVentasPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Filtrar Gran Total</DropdownMenuLabel>
+                                <DropdownMenuLabel>Filtrar Utilidad Bruta</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuCheckboxItem
-                                    checked={showOnlyNegative}
+                                    checked={granTotalFilter === 'negative'}
                                     onCheckedChange={(checked) => {
-                                        setShowOnlyNegative(checked as boolean);
-                                        if (checked) {
-                                            setShowOnlyPositive(false);
-                                            setMarkupFilter('all');
-                                        }
+                                        setGranTotalFilter(checked ? 'negative' : 'all');
+                                        if (checked) setMarkupFilter('all');
                                     }}
                                 >
                                     Mostrar solo negativos
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuCheckboxItem
-                                    checked={showOnlyPositive}
+                                    checked={granTotalFilter === 'positive'}
                                     onCheckedChange={(checked) => {
-                                        setShowOnlyPositive(checked as boolean);
-                                        if (checked) {
-                                            setShowOnlyNegative(false);
-                                            setMarkupFilter('all');
-                                        }
+                                        setGranTotalFilter(checked ? 'positive' : 'all');
+                                        if (checked) setMarkupFilter('all');
                                     }}
                                 >
                                     Mostrar 0 o positivos
+                                </DropdownMenuCheckboxItem>
+                                 <DropdownMenuCheckboxItem
+                                    checked={granTotalFilter === 'low_profit'}
+                                    onCheckedChange={(checked) => {
+                                        setGranTotalFilter(checked ? 'low_profit' : 'all');
+                                        if (checked) setMarkupFilter('all');
+                                    }}
+                                >
+                                    Utilidad Bruta &lt; $30
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuLabel>Otros Filtros</DropdownMenuLabel>
@@ -1705,37 +1709,37 @@ export default function ExcelVentasPage() {
                       </h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                         <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">Gran Total</div>
+                          <div className="text-muted-foreground">Utilidad Bruta</div>
                           {markupFilter !== 'all' ? (
                               <>
                                   <div
                                       className={cn(
                                       'font-bold text-lg',
-                                      granTotalSum >= 0 ? 'text-green-700' : 'text-red-700'
+                                      utilidadBrutaSum >= 0 ? 'text-green-700' : 'text-red-700'
                                       )}
                                   >
-                                      {granTotalSum.toLocaleString('es-MX', {
+                                      {utilidadBrutaSum.toLocaleString('es-MX', {
                                       style: 'currency', currency: 'MXN',
                                       })}
                                   </div>
                                   <div className="flex justify-between items-baseline text-sm mt-1">
                                       <span className="text-muted-foreground">
-                                          de {unfilteredGranTotalSum.toLocaleString('es-MX', {
+                                          de {unfilteredUtilidadBrutaSum.toLocaleString('es-MX', {
                                           style: 'currency', currency: 'MXN',
                                           })}
                                       </span>
                                       <span className="font-mono font-semibold">
-                                          {unfilteredGranTotalSum !== 0
-                                          ? `${((granTotalSum / unfilteredGranTotalSum) * 100).toFixed(1)}%`
+                                          {unfilteredUtilidadBrutaSum !== 0
+                                          ? `${((utilidadBrutaSum / unfilteredUtilidadBrutaSum) * 100).toFixed(1)}%`
                                           : '0.0%'}
                                       </span>
                                   </div>
                               </>
                           ) : (
                               <div
-                              className={cn('font-bold text-lg', granTotalSum >= 0 ? 'text-green-700' : 'text-red-700')}
+                              className={cn('font-bold text-lg', utilidadBrutaSum >= 0 ? 'text-green-700' : 'text-red-700')}
                               >
-                              {granTotalSum.toLocaleString('es-MX', {
+                              {utilidadBrutaSum.toLocaleString('es-MX', {
                                   style: 'currency', currency: 'MXN',
                               })}
                               </div>
@@ -1763,7 +1767,7 @@ export default function ExcelVentasPage() {
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
                           <div className="text-muted-foreground">
-                            Ingresos x Productos
+                            Costo de Venta en Mercado Libre
                           </div>
                           <div className="font-bold text-lg text-foreground">
                             {ingresosPorProductosSum.toLocaleString('es-MX', {
@@ -1877,7 +1881,7 @@ export default function ExcelVentasPage() {
                             const isPackage = estadoValue.toLowerCase().startsWith('paquete de');
                             const markupIndex = headers.indexOf('Markup (%)');
                             const markupValue = markupIndex > -1 ? row[markupIndex] : null;
-                            const granTotalValue = granTotalIndex > -1 ? row[granTotalIndex] : null;
+                            const utilidadBrutaValue = utilidadBrutaIndex > -1 ? row[utilidadBrutaIndex] : null;
 
                             return (
                               <TableRow key={rowIndex} className={cn(
@@ -1888,9 +1892,9 @@ export default function ExcelVentasPage() {
                                     'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': markupValue >= 20 && markupValue < 30,
                                     'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': markupValue >= 10 && markupValue < 20,
                                     'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': markupValue >= 5 && markupValue < 10,
-                                    'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue < 5 && granTotalValue !== 0,
+                                    'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue < 5 && utilidadBrutaValue !== 0,
                                   },
-                                  isRowColoringActive && typeof markupValue !== 'number' && granTotalValue !== 0 && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
+                                  isRowColoringActive && typeof markupValue !== 'number' && utilidadBrutaValue !== 0 && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
                               )}>
                                 {row.map((cell, cellIndex) => {
                                   const header = headers[cellIndex];
@@ -1900,11 +1904,11 @@ export default function ExcelVentasPage() {
                                     key={cellIndex}
                                     className={cn({
                                       'text-red-800 font-medium':
-                                        header === 'Gran Total' &&
+                                        header === 'Utilidad Bruta' &&
                                         typeof cell === 'number' &&
                                         cell < 0,
                                       'text-green-800 font-medium':
-                                        header === 'Gran Total' &&
+                                        header === 'Utilidad Bruta' &&
                                         typeof cell === 'number' &&
                                         cell >= 0,
                                     },
@@ -1914,8 +1918,8 @@ export default function ExcelVentasPage() {
                                         'bg-green-100': cell >= 20 && cell < 30,
                                         'bg-orange-100': cell >= 10 && cell < 20,
                                         'bg-yellow-100': cell >= 5 && cell < 10,
-                                        'bg-red-100': cell < 5 && row[granTotalIndex] !== 0,
-                                      }) || (typeof cell !== 'number' && row[granTotalIndex] !== 0 && 'bg-red-100')
+                                        'bg-red-100': cell < 5 && row[utilidadBrutaIndex] !== 0,
+                                      }) || (typeof cell !== 'number' && row[utilidadBrutaIndex] !== 0 && 'bg-red-100')
                                     ))}
                                   >
                                     {(() => {
@@ -2345,3 +2349,5 @@ export default function ExcelVentasPage() {
     </div>
   );
 }
+
+    
