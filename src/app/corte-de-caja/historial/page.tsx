@@ -310,7 +310,7 @@ export default function HistorialCortesPage() {
                     case 'darkGreen': markupMatch = markupValue >= 30; break;
                     case 'lightGreen': markupMatch = markupValue >= 20 && markupValue < 30; break;
                     case 'orange': markupMatch = markupValue >= 10 && markupValue < 20; break;
-                    case 'yellow': markupMatch = markupValue >= 5 && markupValue < 10;
+                    case 'yellow': markupMatch = markupValue >= 5 && markupValue < 10; break;
                     case 'red': markupMatch = markupValue < 5 && granTotal !== 0; break;
                 }
             } else {
@@ -343,6 +343,13 @@ export default function HistorialCortesPage() {
 
   const totalPages = Math.ceil(sortedItems.length / ROWS_PER_PAGE);
 
+  const granTotalSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.total_final || 0), 0), [filteredItems]);
+  const totalSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.total || 0), 0), [filteredItems]);
+  const landedCostSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.landed_cost || 0), 0), [filteredItems]);
+  const ingresosPorProductosSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.ing_xunidad || 0), 0), [filteredItems]);
+  const cargoVentaSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.cargo_venta || 0), 0), [filteredItems]);
+  const costoEnvioSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.costo_envio || 0), 0), [filteredItems]);
+
   const colorCounters = React.useMemo(() => {
     const counters = { darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
     filteredItems.forEach(sale => {
@@ -364,9 +371,6 @@ export default function HistorialCortesPage() {
     return counters;
   }, [filteredItems]);
   
-  const granTotalSum = React.useMemo(() => {
-    return filteredItems.reduce((sum, row) => sum + (row.total_final || 0), 0);
-  }, [filteredItems]);
 
   useEffect(() => {
     if (filteredItems.length === 0) {
@@ -796,6 +800,57 @@ export default function HistorialCortesPage() {
                         <Button size="sm" variant="ghost" onClick={handleClearFilters}>
                             Limpiar
                         </Button>
+                    </div>
+                </div>
+                <div className="pt-4 mt-4 border-t">
+                    <h4 className="text-sm font-medium mb-2">
+                        Resumen de Totales (Filtrado)
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                        <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">Gran Total</div>
+                        <div className={cn('font-bold text-lg', granTotalSum >= 0 ? 'text-green-700' : 'text-red-700')}>
+                            {formatCurrency(granTotalSum)}
+                        </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">Total</div>
+                        <div className="font-bold text-lg text-foreground">
+                            {formatCurrency(totalSum)}
+                        </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">
+                            Landed Cost Total
+                        </div>
+                        <div className="font-bold text-lg text-foreground">
+                            {formatCurrency(landedCostSum)}
+                        </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">
+                            Ingresos x Productos
+                        </div>
+                        <div className="font-bold text-lg text-foreground">
+                            {formatCurrency(ingresosPorProductosSum)}
+                        </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">
+                            Cargos x Venta
+                        </div>
+                        <div className="font-bold text-lg text-foreground">
+                            {formatCurrency(cargoVentaSum)}
+                        </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="text-muted-foreground">
+                            Costos x Envío
+                        </div>
+                        <div className="font-bold text-lg text-foreground">
+                            {formatCurrency(costoEnvioSum)}
+                        </div>
+                        </div>
                     </div>
                 </div>
                  <div className="pt-4 mt-4 border-t">
