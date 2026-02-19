@@ -196,6 +196,12 @@ const formSchema = z.object({
     .positive('Landed cost debe ser un número positivo.'),
 });
 
+const manualEntrySchema = z.object({
+  costoVentaML: z.coerce.number().optional().nullable(),
+  cargoVenta: z.coerce.number().optional().nullable(),
+  costoEnvio: z.coerce.number().optional().nullable(),
+});
+
 type ColorSummarySortKey = 'count' | 'publications' | 'skus' | 'unidades' | 'total' | 'percentageOfTotal' | 'pedidos' | 'porcentaje_pedidos_rango' | 'porcentaje_unidades_rango' | 'utilidad_promedio_por_pedido_rango';
 type SkuSummarySortKey = 'sku' | 'unidades' | 'totalPorUnidad' | 'total' | 'porcentajeDelTotal';
 
@@ -218,6 +224,8 @@ export default function ExcelVentasPage() {
     sku: string;
     originalLandedCost: number;
   } | null>(null);
+  const [manualEntryInfo, setManualEntryInfo] = useState<{ rowIndex: number; rowData: any[] } | null>(null);
+
   const [isUpdatingCost, setIsUpdatingCost] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
     new Set()
@@ -249,6 +257,15 @@ export default function ExcelVentasPage() {
       sku_mdr: '',
       cat_mdr: '',
       landed_cost: 0,
+    },
+  });
+
+  const manualEntryForm = useForm<z.infer<typeof manualEntrySchema>>({
+    resolver: zodResolver(manualEntrySchema),
+    defaultValues: {
+        costoVentaML: null,
+        cargoVenta: null,
+        costoEnvio: null,
     },
   });
 
@@ -295,6 +312,81 @@ export default function ExcelVentasPage() {
         });
     }
   };
+
+  const handleManualEntryClick = (row: any[]) => {
+    const rowIndex = data.findIndex(d => d[0] === row[0]);
+    if (rowIndex === -1) return;
+
+    const costoVentaMLIndex = headers.indexOf('Costo de Venta en Mercado Libre');
+    const cargoVentaIndex = headers.indexOf('Cargo por venta e impuestos (MXN)');
+    const costoEnvioIndex = headers.indexOf('Costos de envío (MXN)');
+
+    manualEntryForm.reset({
+        costoVentaML: row[costoVentaMLIndex],
+        cargoVenta: row[cargoVentaIndex],
+        costoEnvio: row[costoEnvioIndex],
+    });
+    setManualEntryInfo({ rowIndex, rowData: row });
+  };
+
+  function onManualEntrySubmit(values: z.infer<typeof manualEntrySchema>) {
+    if (!manualEntryInfo) return;
+
+    setData(currentData => {
+        const newData = [...currentData];
+        const { rowIndex, rowData } = manualEntryInfo;
+        
+        const rowToUpdate = newData[rowIndex];
+
+        const costoVentaMLIndex = headers.indexOf('Costo de Venta en Mercado Libre');
+        const cargoVentaIndex = headers.indexOf('Cargo por venta e impuestos (MXN)');
+        const costoEnvioIndex = headers.indexOf('Costos de envío (MXN)');
+        const totalIndex = headers.indexOf('Total');
+
+        const originalCostoVentaML = rowData[costoVentaMLIndex] || 0;
+        const originalCargoVenta = rowData[cargoVentaIndex] || 0;
+        const originalCostoEnvio = rowData[costoEnvioIndex] || 0;
+
+        const newCostoVentaML = values.costoVentaML ?? 0;
+        const newCargoVenta = values.cargoVenta ?? 0;
+        const newCostoEnvio = values.costoEnvio ?? 0;
+
+        // Costo de Venta en ML (ing_xunidad) is income.
+        // Cargo por venta is a cost.
+        // Costo de envio is a cost.
+        const delta = (newCostoVentaML - originalCostoVentaML) - (newCargoVenta - originalCargoVenta) - (newCostoEnvio - originalCostoEnvio);
+
+        const originalTotal = rowToUpdate[totalIndex] || 0;
+        const newTotal = originalTotal + delta;
+
+        rowToUpdate[costoVentaMLIndex] = newCostoVentaML;
+        rowToUpdate[cargoVentaIndex] = newCargoVenta;
+        rowToUpdate[costoEnvioIndex] = newCostoEnvio;
+        if(totalIndex > -1) rowToUpdate[totalIndex] = newTotal;
+
+        // Recalculate derived fields
+        const landedCostTotalIndex = headers.indexOf('Landed Cost Total');
+        const utilidadBrutaIndex = headers.indexOf('Utilidad Bruta');
+        const markupIndex = headers.indexOf('Markup (%)');
+
+        const landedCostTotal = rowToUpdate[landedCostTotalIndex] || 0;
+        const newUtilidadBruta = newTotal - landedCostTotal;
+        if(utilidadBrutaIndex > -1) rowToUpdate[utilidadBrutaIndex] = parseFloat(newUtilidadBruta.toFixed(2));
+
+        if (markupIndex > -1) {
+          const newMarkup = landedCostTotal > 0 ? (newUtilidadBruta / landedCostTotal) * 100 : 0;
+          rowToUpdate[markupIndex] = newMarkup;
+        }
+
+        return newData;
+    });
+
+    toast({
+        title: "Éxito",
+        description: `Fila ${manualEntryInfo.rowData[0]} actualizada.`,
+    });
+    setManualEntryInfo(null);
+  }
 
   const handleCopyToClipboard = (text: string) => {
     if (!text) return;
@@ -1913,6 +2005,8 @@ export default function ExcelVentasPage() {
                             </div>
                         </div>
                     </div>
+                  </CardHeader>
+                  <CardContent>
                     <div className="pt-4 mt-4 border-t">
                       <h4 className="text-lg font-semibold mb-2">KPIs Ejecutivos</h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
@@ -1930,8 +2024,6 @@ export default function ExcelVentasPage() {
                           </div>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
                     <div className="h-[70vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mt-6">
                       <Table>
                         <TableHeader className="sticky top-0 bg-background">
@@ -1973,6 +2065,7 @@ export default function ExcelVentasPage() {
                         </TableHeader>
                         <TableBody>
                           {filteredData.map((row, rowIndex) => {
+                            const skuIndex = headers.indexOf('SKU');
                             const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
                             const shippingCost = shippingCostIndex > -1 ? row[shippingCostIndex] : 0;
                             const isHighShippingCost = typeof shippingCost === 'number' && shippingCost <= -300;
@@ -1982,6 +2075,11 @@ export default function ExcelVentasPage() {
                             const markupIndex = headers.indexOf('Markup (%)');
                             const markupValue = markupIndex > -1 ? row[markupIndex] : null;
                             const utilidadBrutaValue = utilidadBrutaIndex > -1 ? row[utilidadBrutaIndex] : null;
+                            const editableColsForManualEntry = [
+                                'Costo de Venta en Mercado Libre',
+                                'Cargo por venta e impuestos (MXN)',
+                                'Costos de envío (MXN)'
+                            ];
 
                             return (
                               <TableRow key={rowIndex} className={cn(
@@ -2039,42 +2137,51 @@ export default function ExcelVentasPage() {
                                       }
                                       
                                       if (
-                                        header === 'Landed Cost Total'
+                                        header === 'Landed Cost Total' &&
+                                        row[skuIndex] // Check if there is an SKU
                                       ) {
-                                        const ingresos = parseCurrency(row[headers.indexOf('Costo de Venta en Mercado Libre')]);
-                                        const cargoVenta = parseCurrency(row[headers.indexOf('Cargo por venta e impuestos (MXN)')]);
-                                        const costoEnvio = parseCurrency(row[headers.indexOf('Costos de envío (MXN)')]);
-
-                                        const isParentRow = (ingresos !== null && ingresos !== 0) ||
-                                                               (cargoVenta !== null && cargoVenta !== 0) ||
-                                                               (costoEnvio !== null && costoEnvio !== 0);
-
-                                        if (isParentRow) {
-                                          return (
-                                            <div className="flex items-center justify-between gap-2">
-                                              <span>
-                                                {(parseCurrency(cell) ?? 0).toLocaleString(
-                                                  'es-MX',
-                                                  {
-                                                    minimumFractionDigits: 2,
-                                                    maximumFractionDigits: 2,
-                                                  }
-                                                )}
-                                              </span>
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8"
-                                                onClick={() =>
-                                                  handleEditClick(row)
+                                        return (
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span>
+                                              {(parseCurrency(cell) ?? 0).toLocaleString(
+                                                'es-MX',
+                                                {
+                                                  minimumFractionDigits: 2,
+                                                  maximumFractionDigits: 2,
                                                 }
-                                              >
-                                                <Pencil className="h-4 w-4 text-primary" />
-                                              </Button>
-                                            </div>
-                                          );
-                                        }
+                                              )}
+                                            </span>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8"
+                                              onClick={() =>
+                                                handleEditClick(row)
+                                              }
+                                            >
+                                              <Pencil className="h-4 w-4 text-primary" />
+                                            </Button>
+                                          </div>
+                                        );
                                       }
+
+                                      if (editableColsForManualEntry.includes(header) && (cell === null || cell === 0 || cell === '')) {
+                                        return (
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span>{typeof cell === 'number' ? cell.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8"
+                                              onClick={() => handleManualEntryClick(row)}
+                                            >
+                                              <Pencil className="h-4 w-4 text-primary" />
+                                            </Button>
+                                          </div>
+                                        )
+                                      }
+
+
                                       if (header === 'Markup (%)' && typeof cell === 'number') {
                                           return `${cell.toFixed(2)}%`;
                                       }
@@ -2413,6 +2520,64 @@ export default function ExcelVentasPage() {
                     ) : null}
                     Guardar Cambios
                   </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!manualEntryInfo} onOpenChange={(isOpen) => !isOpen && setManualEntryInfo(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Entrada Manual de Costos</DialogTitle>
+              <DialogDescription>
+                Agrega los valores que faltan para la fila de Excel <span className="font-bold">{manualEntryInfo?.rowData[0]}</span>.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...manualEntryForm}>
+              <form onSubmit={manualEntryForm.handleSubmit(onManualEntrySubmit)} className="space-y-4">
+                <FormField
+                  control={manualEntryForm.control}
+                  name="costoVentaML"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Costo de Venta en Mercado Libre</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={manualEntryForm.control}
+                  name="cargoVenta"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cargo por venta e impuestos (MXN)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={manualEntryForm.control}
+                  name="costoEnvio"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Costos de envío (MXN)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="button" variant="ghost" onClick={() => setManualEntryInfo(null)}>Cancelar</Button>
+                  <Button type="submit">Guardar Valores</Button>
                 </DialogFooter>
               </form>
             </Form>
