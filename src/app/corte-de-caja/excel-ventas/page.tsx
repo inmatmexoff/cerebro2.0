@@ -14,6 +14,7 @@ import {
   Filter,
   AlertTriangle,
   ChevronsUpDown,
+  Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -1164,7 +1165,7 @@ export default function ExcelVentasPage() {
               venta_xpublicidad: parseBoolean(row[newIndices.venta_xpublicidad]),
               sku: String(row[newIndices.sku] || ''),
               num_publi: String(row[newIndices.num_publi] || ''),
-              tienda: String(row[newIndices.tienda] || ''),
+              tienda: String(row[COLUMN_MAPPING.S] || ''),
               tip_publi: String(row[newIndices.tip_publi] || ''),
               total_final: parseCurrency(row[newIndices.total_final]),
               markup: parseCurrency(row[newIndices.markup]),
@@ -1392,6 +1393,52 @@ export default function ExcelVentasPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumen Rentabilidad');
     XLSX.writeFile(workbook, 'resumen_rentabilidad.xlsx');
+  };
+
+  const handleDownloadSkuSummaryXLSX = () => {
+    if (skuSummary.length === 0) {
+        toast({ variant: 'destructive', title: 'No hay datos para descargar' });
+        return;
+    }
+
+    const dataToExport = skuSummary.map(item => ({
+        '#': item.isFirstInGroup ? item.groupIndex : '',
+        '# de Publicación': item.isFirstInGroup ? item.pubId : '',
+        'SKU': item.sku,
+        'Unidades': item.unidades,
+        'Total x Unidad': item.totalPorUnidad,
+        'Total': item.total,
+        '% del Total': `${item.porcentajeDelTotal.toFixed(2)}%`,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumen por SKU');
+    XLSX.writeFile(workbook, 'resumen_sku.xlsx');
+  };
+
+  const handleCopyAllPublications = () => {
+    if (filteredPublications.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No hay publicaciones para copiar',
+      });
+      return;
+    }
+    const textToCopy = filteredPublications.join('\n');
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      toast({
+        title: 'Copiado',
+        description: `${filteredPublications.length} números de publicación copiados al portapapeles.`,
+      });
+    }).catch(err => {
+      console.error('Error al copiar publicaciones:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudieron copiar los números de publicación.',
+      });
+    });
   };
 
   return (
@@ -1988,7 +2035,13 @@ export default function ExcelVentasPage() {
                                 <CardContent>
                                     <div className="grid md:grid-cols-2 gap-6">
                                     <div>
-                                        <h4 className="font-semibold mb-2"># de Publicación ({filteredPublications.length})</h4>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="font-semibold"># de Publicación ({filteredPublications.length})</h4>
+                                            <Button variant="outline" size="sm" onClick={handleCopyAllPublications}>
+                                                <Copy className="mr-2 h-4 w-4" />
+                                                Copiar Todos
+                                            </Button>
+                                        </div>
                                         <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
                                         {filteredPublications.map(pubId => (
                                             <div
@@ -2019,7 +2072,13 @@ export default function ExcelVentasPage() {
                                     </div>
                                     </div>
                                     <div className="mt-6 pt-6 border-t">
-                                    <h4 className="font-semibold mb-4">Resumen por SKU</h4>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h4 className="font-semibold">Resumen por SKU</h4>
+                                        <Button variant="outline" size="sm" onClick={handleDownloadSkuSummaryXLSX}>
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Descargar Resumen
+                                        </Button>
+                                    </div>
                                     <div className="border rounded-md max-h-96 overflow-y-auto">
                                         <Table>
                                             <TableHeader>
