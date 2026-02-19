@@ -247,16 +247,16 @@ export default function ExcelVentasPage() {
   const handleEditClick = async (row: any[]) => {
     const skuIndex = headers.indexOf('SKU');
     const landedCostTotalIndex = headers.indexOf('Landed Cost Total');
+    const rowIndex = data.findIndex(d => d[0] === row[0]);
 
-    if (skuIndex === -1 || landedCostTotalIndex === -1) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se encontraron las columnas necesarias.' });
+    if (skuIndex === -1 || landedCostTotalIndex === -1 || rowIndex === -1) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se encontraron las columnas o fila necesarias.' });
       return;
     }
 
     const sku = row[skuIndex];
     const originalLandedCost = row[landedCostTotalIndex] || 0;
-    const rowIndex = data.findIndex(d => d[0] === row[0]);
-
+    
     if (!sku) {
         toast({ variant: 'destructive', title: 'SKU no encontrado', description: 'Esta fila no tiene un SKU para editar.' });
         return;
@@ -1782,7 +1782,7 @@ export default function ExcelVentasPage() {
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-muted-foreground">
-                                  vs Costo Venta ML
+                                  vs Costo de Venta en Mercado Libre
                                 </span>
                                 <span className="font-mono font-semibold">
                                   {unfilteredIngresosPorProductosSum > 0
@@ -1859,26 +1859,31 @@ export default function ExcelVentasPage() {
                                 <div className={cn("w-3 h-3 rounded-full bg-green-200 border border-green-400", markupFilter === 'darkGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.darkGreen}</span>
                                 <span className="text-muted-foreground">{'>'}=30%</span>
+                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '>= 30%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('lightGreen')}>
                                 <div className={cn("w-3 h-3 rounded-full bg-green-100 border border-green-300", markupFilter === 'lightGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.lightGreen}</span>
                                 <span className="text-muted-foreground">20-29.9%</span>
+                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '20-29.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('orange')}>
                                 <div className={cn("w-3 h-3 rounded-full bg-orange-100 border border-orange-300", markupFilter === 'orange' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.orange}</span>
                                 <span className="text-muted-foreground">10-19.9%</span>
+                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '10-19.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('yellow')}>
                                 <div className={cn("w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300", markupFilter === 'yellow' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.yellow}</span>
                                 <span className="text-muted-foreground">5-9.9%</span>
+                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '5-9.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('red')}>
                                 <div className={cn("w-3 h-3 rounded-full bg-red-100 border border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.red}</span>
                                 <span className="text-muted-foreground">{'<'}5%</span>
+                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '< 5%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
                         </div>
                     </div>
