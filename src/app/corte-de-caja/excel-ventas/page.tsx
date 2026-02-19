@@ -687,12 +687,13 @@ export default function ExcelVentasPage() {
 
 
     return data.filter((row) => {
-      const skuMatch =
+      const searchMatch =
         !skuSearchTerm ||
         (skuIndex !== -1 &&
           String(row[skuIndex] || '')
             .toLowerCase()
-            .includes(skuSearchTerm.toLowerCase()));
+            .includes(skuSearchTerm.toLowerCase())) ||
+        (String(row[0] || '').toLowerCase().includes(skuSearchTerm.toLowerCase()));
 
       let utilidadBrutaMatch = true;
       const utilidadBrutaValue = row[utilidadBrutaIndex];
@@ -737,7 +738,7 @@ export default function ExcelVentasPage() {
           }
       }
 
-      return skuMatch && utilidadBrutaMatch && highShippingCostMatch && markupMatch;
+      return searchMatch && utilidadBrutaMatch && highShippingCostMatch && markupMatch;
     });
   }, [
     data,
@@ -1663,7 +1664,7 @@ export default function ExcelVentasPage() {
                         <div className="relative w-full sm:w-auto">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Buscar por SKU..."
+                                placeholder="Buscar por SKU o Fila..."
                                 value={skuSearchTerm}
                                 onChange={(e) => setSkuSearchTerm(e.target.value)}
                                 className="pl-8 w-full sm:w-48 h-9"
@@ -2440,5 +2441,3 @@ export default function ExcelVentasPage() {
     </div>
   );
 }
-
-    
