@@ -57,6 +57,8 @@ type SortDescriptor = {
 
 const ROWS_PER_PAGE = 20;
 type ColorSummarySortKey = 'count' | 'publications' | 'skus' | 'unidades' | 'total' | 'percentageOfTotal';
+type SkuSummarySortKey = 'sku' | 'unidades' | 'totalPorUnidad' | 'total' | 'porcentajeDelTotal';
+
 
 export default function HistorialCortesPage() {
   const [sales, setSales] = useState<SaleRecord[]>([]);
@@ -99,6 +101,7 @@ export default function HistorialCortesPage() {
   const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
   const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
   const [colorSummarySort, setColorSummarySort] = useState<{ key: ColorSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'desc' });
+  const [skuSummarySort, setSkuSummarySort] = React.useState<{ key: SkuSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'asc' });
   const [totalUniquePubs, setTotalUniquePubs] = useState(0);
   const [totalUniqueSkus, setTotalUniqueSkus] = useState(0);
 
@@ -425,42 +428,33 @@ export default function HistorialCortesPage() {
               totalPorUnidad,
               porcentajeDelTotal
           };
-      }).sort((a,b) => a.total - b.total);
+      });
     
-    const groupedByPubId: { [key: string]: typeof enrichedSummary } = {};
-    enrichedSummary.forEach(item => {
-        const pubId = item.pubId;
-        if (!pubId || pubId === '-') return;
-        if (!groupedByPubId[pubId]) {
-            groupedByPubId[pubId] = [];
+      enrichedSummary.sort((a, b) => {
+        const key = skuSummarySort.key;
+        if (!key) return 0;
+        
+        const aValue = a[key as keyof typeof a];
+        const bValue = b[key as keyof typeof b];
+
+        const direction = skuSummarySort.direction === 'asc' ? 1 : -1;
+        
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+            return aValue.localeCompare(bValue) * direction;
         }
-        groupedByPubId[pubId].push(item);
+
+        if (aValue < bValue) return -1 * direction;
+        if (aValue > bValue) return 1 * direction;
+        return 0;
     });
-    
-    const uniquePubsFromSummary = enrichedSummary.filter((v,i,a) => a.findIndex(t=>(t.pubId === v.pubId)) === i).map(i => i.pubId).sort();
-    const uniqueSkusFromSummary = [...new Set(enrichedSummary.map(item => item.sku))].sort();
+
+    const uniquePubsFromSummary = [...new Set(enrichedSummary.map(item => item.pubId))].filter(Boolean).sort();
+    const uniqueSkusFromSummary = [...new Set(enrichedSummary.map(item => item.sku))].filter(Boolean).sort();
+
     setFilteredPublications(uniquePubsFromSummary);
     setFilteredSkus(uniqueSkusFromSummary);
 
-    const sortedGroups = Object.values(groupedByPubId).sort((a, b) => {
-        const totalA = a.reduce((sum, item) => sum + item.total, 0);
-        const totalB = b.reduce((sum, item) => sum + item.total, 0);
-        return totalA - totalB;
-    });
-
-    const summaryArrayForRender: any[] = [];
-    sortedGroups.forEach((group, groupIndex) => {
-        const sortedGroupItems = group.sort((a, b) => a.sku.localeCompare(b.sku));
-        sortedGroupItems.forEach((item, itemIndex) => {
-            summaryArrayForRender.push({
-                ...item,
-                isFirstInGroup: itemIndex === 0,
-                groupSize: group.length,
-                groupIndex: groupIndex + 1,
-            });
-        });
-    });
-    setSkuSummary(summaryArrayForRender);
+    setSkuSummary(enrichedSummary);
 
     const summaryByColor = {
         darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0 },
@@ -505,7 +499,7 @@ export default function HistorialCortesPage() {
 
     setColorSummary(summaryWithPercentage);
 
-  }, [filteredItems, granTotalSum, colorCounters]);
+  }, [filteredItems, granTotalSum, colorCounters, skuSummarySort]);
 
   const handleSort = (column: keyof SaleRecord) => {
     if (sortDescriptor.column === column) {
@@ -572,6 +566,15 @@ export default function HistorialCortesPage() {
         return { key, direction: 'desc' };
     });
   };
+  const handleSkuSummarySort = (key: SkuSummarySortKey) => {
+    setSkuSummarySort(prev => {
+        if (prev.key === key) {
+            return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+        }
+        const newDirection = (key === 'sku') ? 'asc' : 'desc';
+        return { key, direction: newDirection };
+    });
+  };
 
   const sortedColorSummary = React.useMemo(() => {
       if (!colorSummary) return [];
@@ -634,13 +637,12 @@ export default function HistorialCortesPage() {
     }
 
     const dataToExport = skuSummary.map(item => ({
-        '#': item.isFirstInGroup ? item.groupIndex : '',
-        '# de Publicación': item.isFirstInGroup ? item.pubId : '',
         'SKU': item.sku,
         'Unidades': item.unidades,
         'Pérdida x Unidad': item.totalPorUnidad,
         'Pérdida Total': item.total,
         '% del Total': `${item.porcentajeDelTotal.toFixed(2)}%`,
+        '# de Publicación': item.pubId,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -1088,27 +1090,26 @@ export default function HistorialCortesPage() {
                                     <ShadcnTable>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead>#</TableHead>
-                                                <TableHead># de Publicación</TableHead>
-                                                <TableHead>SKU</TableHead>
-                                                <TableHead className="text-right">Unidades</TableHead>
-                                                <TableHead className="text-right">Pérdida x Unidad</TableHead>
-                                                <TableHead className="text-right">Pérdida Total</TableHead>
-                                                <TableHead className="text-right">% del Total</TableHead>
+                                                <TableHead onClick={() => handleSkuSummarySort('sku')} className="cursor-pointer">
+                                                    <div className="flex items-center gap-1">SKU <ChevronsUpDown className="h-4 w-4" /></div>
+                                                </TableHead>
+                                                <TableHead onClick={() => handleSkuSummarySort('unidades')} className="cursor-pointer text-right">
+                                                    <div className="flex items-center justify-end gap-1">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
+                                                </TableHead>
+                                                <TableHead onClick={() => handleSkuSummarySort('totalPorUnidad')} className="cursor-pointer text-right">
+                                                    <div className="flex items-center justify-end gap-1">Pérdida x Unidad <ChevronsUpDown className="h-4 w-4" /></div>
+                                                </TableHead>
+                                                <TableHead onClick={() => handleSkuSummarySort('total')} className="cursor-pointer text-right">
+                                                    <div className="flex items-center justify-end gap-1">Pérdida Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                                </TableHead>
+                                                <TableHead onClick={() => handleSkuSummarySort('porcentajeDelTotal')} className="cursor-pointer text-right">
+                                                    <div className="flex items-center justify-end gap-1">% del Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                                </TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {skuSummary.map((item) => (
                                                 <TableRow key={`${item.pubId}-${item.sku}`}>
-                                                    {item.isFirstInGroup ? (
-                                                        <TableCell rowSpan={item.groupSize}>{item.groupIndex}</TableCell>
-                                                    ) : null}
-                                                    {item.isFirstInGroup ? (
-                                                        <TableCell rowSpan={item.groupSize} className="font-medium">
-                                                            {item.pubId}
-                                                        </TableCell>
-                                                    ) : null}
-
                                                     <TableCell className="font-medium">{item.sku}</TableCell>
                                                     <TableCell className="text-right">{item.unidades}</TableCell>
                                                     <TableCell className="text-right">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
