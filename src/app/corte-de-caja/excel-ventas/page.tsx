@@ -244,6 +244,50 @@ export default function ExcelVentasPage() {
     },
   });
 
+  const handleEditClick = async (row: any[]) => {
+    const skuIndex = headers.indexOf('SKU');
+    const landedCostTotalIndex = headers.indexOf('Landed Cost Total');
+
+    if (skuIndex === -1 || landedCostTotalIndex === -1) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se encontraron las columnas necesarias.' });
+      return;
+    }
+
+    const sku = row[skuIndex];
+    const originalLandedCost = row[landedCostTotalIndex] || 0;
+    const rowIndex = data.findIndex(d => d[0] === row[0]);
+
+    if (!sku) {
+        toast({ variant: 'destructive', title: 'SKU no encontrado', description: 'Esta fila no tiene un SKU para editar.' });
+        return;
+    }
+
+    // Reset form and open dialog immediately
+    form.reset({ sku_mdr: '', cat_mdr: '', landed_cost: 0 });
+    setEditingInfo({ rowIndex, sku, originalLandedCost });
+
+    // Try to fetch details to pre-fill
+    try {
+        const response = await fetch(`/api/sku-details/${sku}`);
+        if (!response.ok) {
+            throw new Error('No se pudieron obtener los detalles del SKU.');
+        }
+        const details = await response.json();
+        form.setValue('sku_mdr', details.sku_mdr || '');
+        form.setValue('cat_mdr', details.cat_mdr || '');
+        if (details.landed_cost) {
+            form.setValue('landed_cost', details.landed_cost);
+        }
+    } catch (e: any) {
+        console.error("Could not fetch SKU details for modal:", e.message);
+        toast({
+          variant: "default",
+          title: "Aviso",
+          description: "No se pudieron precargar los detalles del SKU. Puedes introducirlos manualmente.",
+        });
+    }
+  };
+
   const handleCopyToClipboard = (text: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text).then(() => {
