@@ -50,6 +50,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -1631,36 +1632,36 @@ export default function ExcelVentasPage() {
               <>
                 <Card className="mt-6">
                   <CardHeader>
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="flex-1">
-                            <CardTitle>Vista Previa de Datos</CardTitle>
-                            <CardDescription className="pt-2 text-muted-foreground">
-                                {isFiltered ? (
-                                <>
-                                    Mostrando{' '}
-                                    <span className="font-bold text-lg text-foreground">
-                                    {filteredData.length}
-                                    </span>{' '}
-                                    de {data.length} registros.
-                                    {data.length > 0 && (
-                                        <span className="text-sm text-muted-foreground ml-1">
-                                            ({((filteredData.length / data.length) * 100).toFixed(1)}%)
-                                        </span>
-                                    )}
-                                </>
-                                ) : (
-                                <>
-                                    <span className="font-bold text-lg text-foreground">
-                                    {data.length}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div>
+                        <CardTitle>Vista Previa de Datos</CardTitle>
+                        <CardDescription className="pt-1 text-muted-foreground">
+                            {isFiltered ? (
+                            <>
+                                Mostrando{' '}
+                                <span className="font-semibold text-foreground">
+                                {filteredData.length}
+                                </span>{' '}
+                                de {data.length} registros.
+                                {data.length > 0 && (
+                                    <span className="text-sm text-muted-foreground ml-1">
+                                        ({((filteredData.length / data.length) * 100).toFixed(1)}%)
                                     </span>
-                                    {data.length === 1 ? ' registro' : ' registros'} en
-                                    total.
-                                </>
                                 )}
-                            </CardDescription>
-                        </div>
+                            </>
+                            ) : (
+                            <>
+                                <span className="font-semibold text-foreground">
+                                {data.length}
+                                </span>
+                                {data.length === 1 ? ' registro' : ' registros'} en
+                                total.
+                            </>
+                            )}
+                        </CardDescription>
+                      </div>
 
-                      <div className="flex flex-wrap items-center justify-end gap-2">
+                      <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">
                         <div className="relative w-full sm:w-auto">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -1726,30 +1727,25 @@ export default function ExcelVentasPage() {
                             <Label htmlFor="row-coloring">Colorear Filas</Label>
                         </div>
                         
-                        <Button
-                          onClick={handleDownloadCSV}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          CSV
-                        </Button>
-                        <Button
-                          onClick={handleDownloadXLSX}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          XLSX
-                        </Button>
-                        <Button
-                          onClick={handleDownloadPDF}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          PDF
-                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-9">
+                                <Download className="mr-2 h-4 w-4" />
+                                Descargar
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={handleDownloadCSV}>
+                                CSV
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleDownloadXLSX}>
+                                XLSX
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleDownloadPDF}>
+                                PDF
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                     <div className="pt-4">
@@ -1917,8 +1913,6 @@ export default function ExcelVentasPage() {
                             </div>
                         </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
                     <div className="pt-4 mt-4 border-t">
                       <h4 className="text-lg font-semibold mb-2">KPIs Ejecutivos</h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
@@ -1936,6 +1930,8 @@ export default function ExcelVentasPage() {
                           </div>
                       </div>
                     </div>
+                  </CardHeader>
+                  <CardContent>
                     <div className="h-[70vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mt-6">
                       <Table>
                         <TableHeader className="sticky top-0 bg-background">
@@ -2049,11 +2045,11 @@ export default function ExcelVentasPage() {
                                         const cargoVenta = parseCurrency(row[headers.indexOf('Cargo por venta e impuestos (MXN)')]);
                                         const costoEnvio = parseCurrency(row[headers.indexOf('Costos de envío (MXN)')]);
 
-                                        const isComponentRow = (ingresos === null || ingresos === 0) &&
-                                                               (cargoVenta === null || cargoVenta === 0) &&
-                                                               (costoEnvio === null || costoEnvio === 0);
+                                        const isParentRow = (ingresos !== null && ingresos !== 0) ||
+                                                               (cargoVenta !== null && cargoVenta !== 0) ||
+                                                               (costoEnvio !== null && costoEnvio !== 0);
 
-                                        if (!isComponentRow) {
+                                        if (isParentRow) {
                                           return (
                                             <div className="flex items-center justify-between gap-2">
                                               <span>
