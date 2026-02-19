@@ -1917,6 +1917,23 @@ export default function ExcelVentasPage() {
                             </div>
                         </div>
                     </div>
+                    <div className="pt-4 mt-4 border-t">
+                      <h4 className="text-lg font-semibold mb-2">KPIs Ejecutivos</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                          <div className="p-4 rounded-lg bg-muted/50">
+                              <p className="text-sm text-muted-foreground">Utilidad Promedio por Pedido</p>
+                              <p className="text-2xl font-bold">{executiveKpis.gananciaPromedioPorPedido.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</p>
+                          </div>
+                          <div className="p-4 rounded-lg bg-muted/50">
+                              <p className="text-sm text-muted-foreground">Utilidad Promedio por Unidad</p>
+                              <p className="text-2xl font-bold">{executiveKpis.utilidadPromedioPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</p>
+                          </div>
+                          <div className="p-4 rounded-lg bg-muted/50">
+                              <p className="text-sm text-muted-foreground">% Pedidos con Margen Bajo (&lt;5%)</p>
+                              <p className="text-2xl font-bold">{executiveKpis.porcentajePedidosMargenBajo.toFixed(2)}%</p>
+                          </div>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="h-[70vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -2051,8 +2068,20 @@ export default function ExcelVentasPage() {
                                         
                                         const costIsMissingOrPlaceholder = landedCostPerUnit === 0 || landedCostPerUnit === 1;
 
+                                        const parentTotalValue = parseCurrency(row[headers.indexOf('Total')]) || 0;
+                                        const ingresos = parseCurrency(row[headers.indexOf('Costo de Venta en Mercado Libre')]);
+                                        const cargoVenta = parseCurrency(row[headers.indexOf('Cargo por venta e impuestos (MXN)')]);
+                                        const costoEnvio = parseCurrency(row[headers.indexOf('Costos de envío (MXN)')]);
+
+                                        const isParentRow = (
+                                            (parentTotalValue !== 0) ||
+                                            (ingresos !== null && ingresos !== 0) ||
+                                            (cargoVenta !== null && cargoVenta !== 0) ||
+                                            (costoEnvio !== null && costoEnvio !== 0)
+                                        );
+
                                         if (
-                                          costIsMissingOrPlaceholder || isPackage
+                                          costIsMissingOrPlaceholder || isPackage || isParentRow
                                         ) {
                                           return (
                                             <div className="flex items-center justify-between gap-2">
@@ -2151,26 +2180,6 @@ export default function ExcelVentasPage() {
                   </Card>
                 )}
                 
-                <Card className="mt-6">
-                    <CardHeader>
-                        <CardTitle>KPIs Ejecutivos</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                        <div className="p-4 rounded-lg bg-muted/50">
-                            <p className="text-sm text-muted-foreground">Utilidad Promedio por Pedido</p>
-                            <p className="text-2xl font-bold">{executiveKpis.gananciaPromedioPorPedido.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</p>
-                        </div>
-                        <div className="p-4 rounded-lg bg-muted/50">
-                            <p className="text-sm text-muted-foreground">Utilidad Promedio por Unidad</p>
-                            <p className="text-2xl font-bold">{executiveKpis.utilidadPromedioPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</p>
-                        </div>
-                        <div className="p-4 rounded-lg bg-muted/50">
-                            <p className="text-sm text-muted-foreground">% Pedidos con Margen Bajo (&lt;5%)</p>
-                            <p className="text-2xl font-bold">{executiveKpis.porcentajePedidosMargenBajo.toFixed(2)}%</p>
-                        </div>
-                    </CardContent>
-                </Card>
-
                 {data.length > 0 && (
                   <Tabs 
                     defaultValue="color" 
