@@ -24,6 +24,77 @@ const parseBoolean = (value: any): boolean => {
   return !!value;
 };
 
+const parseSaleDate = (value: any): Date | null => {
+  if (!value) return null;
+
+  // Case 1: Already a Date object
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value;
+  }
+
+  // Case 2: Excel date serial number
+  if (typeof value === 'number') {
+    // 25569 is the serial number for 1970-01-01
+    return new Date(Math.round((value - 25569) * 86400 * 1000));
+  }
+
+  // Case 3: String value
+  if (typeof value === 'string') {
+    // Try parsing Spanish format: "1 de febrero de 2026 23:50 hs."
+    const monthMap: { [key: string]: number } = {
+      enero: 0,
+      febrero: 1,
+      marzo: 2,
+      abril: 3,
+      mayo: 4,
+      junio: 5,
+      julio: 6,
+      agosto: 7,
+      septiembre: 8,
+      octubre: 9,
+      noviembre: 10,
+      diciembre: 11,
+    };
+
+    const cleanedString = value
+      .replace(/\sde\s/g, ' ')
+      .replace(/\s?hs\.?/, '')
+      .toLowerCase()
+      .trim();
+    const parts = cleanedString.split(' '); // e.g., ["1", "febrero", "2026", "23:50"]
+
+    if (parts.length >= 3) {
+      const day = parseInt(parts[0], 10);
+      const monthName = parts[1];
+      const year = parseInt(parts[2], 10);
+      const timeString = parts[3] || '00:00';
+      const timeParts = timeString.split(':');
+      const hours = parseInt(timeParts[0], 10);
+      const minutes = parseInt(timeParts[1], 10);
+      const month = monthMap[monthName];
+
+      if (
+        !isNaN(day) &&
+        month !== undefined &&
+        !isNaN(year) &&
+        !isNaN(hours) &&
+        !isNaN(minutes)
+      ) {
+        const date = new Date(year, month, day, hours, minutes);
+        if (!isNaN(date.getTime())) return date;
+      }
+    }
+
+    // Fallback for other standard date string formats
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
+
 const parseDate = (value: any): Date | null => {
   if (!value) return null;
 
@@ -83,6 +154,27 @@ const parseDate = (value: any): Date | null => {
         const date = new Date(year, month, day, hours, minutes);
         if (!isNaN(date.getTime())) return date;
       }
+    }
+    
+    // Try parsing partial date like "23 de febrero"
+    const partialMatch = value.match(/(\d{1,2})\s+de\s+([a-zA-Z]+)/);
+    if (partialMatch) {
+        const day = parseInt(partialMatch[1], 10);
+        const monthName = partialMatch[2].toLowerCase();
+        const month = monthMap[monthName];
+        
+        if (!isNaN(day) && month !== undefined) {
+            const now = new Date();
+            let year = now.getFullYear();
+            const date = new Date(year, month, day);
+
+            // If date is in the past for the current year, assume next year
+            if (date < now) {
+                year++;
+            }
+            const futureDate = new Date(year, month, day);
+            if (!isNaN(futureDate.getTime())) return futureDate;
+        }
     }
 
     // Fallback for other standard date string formats
@@ -192,10 +284,20 @@ export default function ImportDevolucionesPage() {
                 };
 
                 const extractedData = dataRows.map(row => {
+                    const originalStatus = row[columnMapping.status];
+                    let finalStatus = originalStatus ? String(originalStatus) : null;
+                    
+                    if (finalStatus) {
+                        const prefix = "Te devolveremos el paquete antes del ";
+                        if (finalStatus.startsWith(prefix)) {
+                            finalStatus = finalStatus.substring(prefix.length).trim();
+                        }
+                    }
+
                     return {
                         num_venta: row[columnMapping.num_venta],
                         fecha_venta: row[columnMapping.fecha_venta],
-                        status: row[columnMapping.status],
+                        status: finalStatus,
                         desc_status: row[columnMapping.desc_status],
                         varios_productos: row[columnMapping.varios_productos],
                         kit: row[columnMapping.kit],
