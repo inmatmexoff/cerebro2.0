@@ -10,38 +10,31 @@ import * as XLSX from 'xlsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 
+//Subset of headers for the preview table
 const TABLE_HEADERS = [
-    '# Fila', 'Tienda', '# Venta', 'Fecha Venta', 'Fecha Llegada', 'Producto', 'Motivo Devolución', 'Estado Llegada', 'Reporte', 'Empaquetador', 'Error de Nosotros', 'Observaciones', 'Factura', 'Revisión'
+    '# Venta', 'Fecha Venta', 'Estado', 'SKU', 'Unidades', 'Total (MXN)', 'Tienda', 'Motivo del resultado'
 ];
 
-// Helper to parse boolean values from various string inputs
 const parseBoolean = (value: any): boolean => {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') {
     const lowerValue = value.toLowerCase().trim();
     return ['si', 'sí', 'yes', 'true', '1', 'verdadero'].includes(lowerValue);
   }
-  return !!value; // Fallback for numbers or other truthy values
+  return !!value;
 };
 
-// Helper to parse dates which might be strings or Excel serial numbers
 const parseDate = (value: any): Date | null => {  
     if (!value) return null;
     if (value instanceof Date) return value;
     
-    // Check if it's an Excel serial number
     if (typeof value === 'number') {
-        // Excel's epoch starts on 1900-01-01, but has a bug where it thinks 1900 is a leap year.
-        // The common workaround is to subtract 1 and start from 1900-01-01, but JS epoch is 1970-01-01.
-        // The number of days from 1900-01-01 to 1970-01-01 is 25569.
         const date = new Date(Math.round((value - 25569) * 86400 * 1000));
-        // Check if the year is reasonable (e.g., after 2000)
         if (date.getFullYear() > 2000) {
             return date;
         }
     }
     
-    // Try to parse as a string
     const dateFromStr = new Date(value);
     if (!isNaN(dateFromStr.getTime())) {
         return dateFromStr;
@@ -50,9 +43,21 @@ const parseDate = (value: any): Date | null => {
     return null;
 };
 
+const parseNumber = (value: any, isInt: boolean = false): number | null => {
+    if (value === null || value === undefined || value === '') return null;
+    const valueStr = String(value).trim();
+    if (!valueStr) return null;
+
+    const cleanedValue = valueStr.replace(/[^0-9.-]+/g, "");
+    if (!cleanedValue) return null;
+
+    const num = isInt ? parseInt(cleanedValue, 10) : parseFloat(cleanedValue);
+    return isNaN(num) ? null : num;
+}
+
 
 export default function ImportDevolucionesPage() {
-    const [data, setData] = useState<any[][]>([]);
+    const [data, setData] = useState<any[]>([]);
     const [fileName, setFileName] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -83,60 +88,111 @@ export default function ImportDevolucionesPage() {
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
                 
-                const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
 
-                if (json.length <= 2) {
-                    throw new Error("El archivo está vacío o solo contiene filas de encabezado.");
+                if (json.length <= 1) {
+                    throw new Error("El archivo está vacío o solo contiene la fila de encabezado.");
                 }
-
-                const dataRows = json.slice(2);
+                
+                // Assume headers are on the first row
+                const dataRows = json.slice(1);
                 
                 const columnMapping = {
-                    tienda: 0, // A
-                    num_venta: 1, // B
-                    fecha_venta: 2, // C
-                    fecha_llegada: 3, // D
-                    producto: 5, // F
-                    motivo_devo: 6, // G
-                    estado_llegada: 7, // H
-                    reporte: 8, // I
-                    nombre_despacho: 9, // J
-                    error_prop: 10, // K
-                    observacion: 11, // L
-                    factura: 12, // M
-                    s_revision: 13, // N
+                    num_venta: 0, // A
+                    fecha_venta: 1, // B
+                    status: 2, // C
+                    desc_status: 3, // D
+                    varios_productos: 4, // E
+                    kit: 5, // F
+                    unidades: 6, // G
+                    ing_xunidad: 7, // H
+                    cargo_venta: 8, // I
+                    ing_xenvio: 9, // J
+                    costo_envio: 10, // K
+                    costo_envio_medxpeso: 11, // L
+                    cargo_difpeso: 12, // M
+                    anu_reembolsos: 13, // N
+                    total: 14, // O
+                    venta_xpublicidad: 15, // P
+                    sku: 16, // Q
+                    num_publi: 17, // R
+                    tienda: 18, // S
+                    titulo_publi: 19, // T
+                    variante: 20, // U
+                    precio_uni_venta: 21, // V
+                    tip_publi: 22, // W
+                    form_entrega: 46, // AU
+                    fecha_camino: 47, // AV
+                    fecha_entregado: 48, // AW
+                    transportista: 49, // AX
+                    num_seguimiento: 50, // AY
+                    url_seguimiento: 51, // AZ
+                    revisado_ml: 52, // BA
+                    fecha_revision: 53, // BB
+                    dinero_afavor: 54, // BC
+                    resultado: 55, // BD
+                    destino: 56, // BE
+                    motivo_resultado: 57, // BF
+                    reclamo_abierto: 59, // BH
+                    reclamo_cerrado: 60, // BI
+                    con_mediacion: 61, // BJ
                 };
 
-                const extractedData = dataRows.map((row, index) => [
-                    index + 1, // Add 1-based row number
-                    row[columnMapping.tienda],
-                    row[columnMapping.num_venta],
-                    row[columnMapping.fecha_venta],
-                    row[columnMapping.fecha_llegada],
-                    row[columnMapping.producto],
-                    row[columnMapping.motivo_devo],
-                    row[columnMapping.estado_llegada],
-                    row[columnMapping.reporte],
-                    row[columnMapping.nombre_despacho],
-                    row[columnMapping.error_prop],
-                    row[columnMapping.observacion],
-                    row[columnMapping.factura],
-                    row[columnMapping.s_revision],
-                ]);
+                const extractedData = dataRows.map(row => {
+                    return {
+                        num_venta: row[columnMapping.num_venta],
+                        fecha_venta: row[columnMapping.fecha_venta],
+                        status: row[columnMapping.status],
+                        desc_status: row[columnMapping.desc_status],
+                        varios_productos: row[columnMapping.varios_productos],
+                        kit: row[columnMapping.kit],
+                        unidades: row[columnMapping.unidades],
+                        ing_xunidad: row[columnMapping.ing_xunidad],
+                        cargo_venta: row[columnMapping.cargo_venta],
+                        ing_xenvio: row[columnMapping.ing_xenvio],
+                        costo_envio: row[columnMapping.costo_envio],
+                        costo_envio_medxpeso: row[columnMapping.costo_envio_medxpeso],
+                        cargo_difpeso: row[columnMapping.cargo_difpeso],
+                        anu_reembolsos: row[columnMapping.anu_reembolsos],
+                        total: row[columnMapping.total],
+                        venta_xpublicidad: row[columnMapping.venta_xpublicidad],
+                        sku: row[columnMapping.sku],
+                        num_publi: row[columnMapping.num_publi],
+                        tienda: row[columnMapping.tienda],
+                        titulo_publi: row[columnMapping.titulo_publi],
+                        variante: row[columnMapping.variante],
+                        precio_uni_venta: row[columnMapping.precio_uni_venta],
+                        tip_publi: row[columnMapping.tip_publi],
+                        form_entrega: row[columnMapping.form_entrega],
+                        fecha_camino: row[columnMapping.fecha_camino],
+                        fecha_entregado: row[columnMapping.fecha_entregado],
+                        transportista: row[columnMapping.transportista],
+                        num_seguimiento: row[columnMapping.num_seguimiento],
+                        url_seguimiento: row[columnMapping.url_seguimiento],
+                        revisado_ml: row[columnMapping.revisado_ml],
+                        fecha_revision: row[columnMapping.fecha_revision],
+                        dinero_afavor: row[columnMapping.dinero_afavor],
+                        resultado: row[columnMapping.resultado],
+                        destino: row[columnMapping.destino],
+                        motivo_resultado: row[columnMapping.motivo_resultado],
+                        reclamo_abierto: row[columnMapping.reclamo_abierto],
+                        reclamo_cerrado: row[columnMapping.reclamo_cerrado],
+                        con_mediacion: row[columnMapping.con_mediacion],
+                    }
+                });
 
-                // Filter out rows where the "producto" (now at index 5) is empty.
-                const validatedData = extractedData.filter(row => String(row[5] || '').trim());
+                const validatedData = extractedData.filter(row => String(row.num_venta || '').trim());
                 
                 const skippedCount = extractedData.length - validatedData.length;
 
                 if (validatedData.length === 0) {
-                     throw new Error("No se encontraron registros válidos. Asegúrate de que la columna 'producto' (F) no esté vacía.");
+                     throw new Error("No se encontraron registros válidos. Asegúrate de que la columna '# de venta' (A) no esté vacía.");
                 }
 
                 if (skippedCount > 0) {
                     toast({
                         title: "Registros omitidos",
-                        description: `Se omitieron ${skippedCount} registros porque la columna 'producto' estaba vacía.`
+                        description: `Se omitieron ${skippedCount} registros porque la columna '# de venta' estaba vacía.`
                     });
                 }
                 
@@ -144,7 +200,7 @@ export default function ImportDevolucionesPage() {
 
             } catch (e: any) {
                 console.error(e);
-                setError(e.message || "Hubo un error al procesar el archivo. Asegúrate de que sea un formato de Excel o CSV válido.");
+                setError(e.message || "Hubo un error al procesar el archivo. Asegúrate de que sea un formato de Excel o CSV válido y que sigue el formato esperado.");
             } finally {
                 setIsProcessing(false);
             }
@@ -189,31 +245,48 @@ export default function ImportDevolucionesPage() {
         setError(null);
 
         try {
-            // Mapping frontend display values to database enum values
-            const mapEstadoLlegada = (value: string) => {
-                const upperVal = String(value || '').toUpperCase().trim();
-                if (upperVal === 'DAÑADO') return 'DANIADO';
-                if (upperVal === 'MUY DAÑADO') return 'MUY_DANIADO';
-                return upperVal;
-            };
-
             const recordsToSave = data.map(row => ({
-                tienda: row[1] || null,
-                num_venta: row[2] ? Number(String(row[2]).replace(/[^0-9]/g, '')) : null,
-                fecha_venta: parseDate(row[3]),
-                fecha_llegada: parseDate(row[4]),
-                producto: row[5] || null,
-                motivo_devo: row[6] || null,
-                estado_llegada: mapEstadoLlegada(row[7]),
-                reporte: parseBoolean(row[8]),
-                nombre_despacho: row[9] || null,
-                error_prop: parseBoolean(row[10]),
-                observacion: row[11] || null,
-                factura: parseBoolean(row[12]),
-                s_revision: row[13] || null,
+                num_venta: row.num_venta ? String(row.num_venta) : null,
+                fecha_venta: parseDate(row.fecha_venta),
+                status: row.status ? String(row.status) : null,
+                desc_status: row.desc_status ? String(row.desc_status) : null,
+                varios_productos: parseBoolean(row.varios_productos),
+                kit: parseBoolean(row.kit),
+                unidades: parseNumber(row.unidades, true),
+                ing_xunidad: parseNumber(row.ing_xunidad),
+                cargo_venta: parseNumber(row.cargo_venta),
+                ing_xenvio: parseNumber(row.ing_xenvio),
+                costo_envio: parseNumber(row.costo_envio),
+                costo_envio_medxpeso: parseNumber(row.costo_envio_medxpeso),
+                cargo_difpeso: parseNumber(row.cargo_difpeso),
+                anu_reembolsos: parseNumber(row.anu_reembolsos),
+                total: parseNumber(row.total),
+                venta_xpublicidad: parseBoolean(row.venta_xpublicidad),
+                sku: row.sku ? String(row.sku) : null,
+                num_publi: row.num_publi ? String(row.num_publi) : null,
+                tienda: row.tienda ? String(row.tienda) : null,
+                titulo_publi: row.titulo_publi ? String(row.titulo_publi) : null,
+                variante: row.variante ? String(row.variante) : null,
+                precio_uni_venta: parseNumber(row.precio_uni_venta),
+                tip_publi: row.tip_publi ? String(row.tip_publi) : null,
+                form_entrega: row.form_entrega ? String(row.form_entrega) : null,
+                fecha_camino: parseDate(row.fecha_camino),
+                fecha_entregado: parseDate(row.fecha_entregado),
+                transportista: row.transportista ? String(row.transportista) : null,
+                num_seguimiento: row.num_seguimiento ? String(row.num_seguimiento) : null,
+                url_seguimiento: row.url_seguimiento ? String(row.url_seguimiento) : null,
+                revisado_ml: parseBoolean(row.revisado_ml),
+                fecha_revision: parseDate(row.fecha_revision),
+                dinero_afavor: row.dinero_afavor ? String(row.dinero_afavor) : null,
+                resultado: row.resultado ? String(row.resultado) : null,
+                destino: row.destino ? String(row.destino) : null,
+                motivo_resultado: row.motivo_resultado ? String(row.motivo_resultado) : null,
+                reclamo_abierto: parseBoolean(row.reclamo_abierto),
+                reclamo_cerrado: parseNumber(row.reclamo_cerrado, true),
+                con_mediacion: parseBoolean(row.con_mediacion),
             }));
             
-            const response = await fetch('/api/devoluciones/import', {
+            const response = await fetch('/api/devoluciones/import-ml', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ devoluciones: recordsToSave })
@@ -259,9 +332,9 @@ export default function ImportDevolucionesPage() {
             Volver a Devoluciones
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Importar Excel de Devoluciones</h1>
+            <h1 className="text-3xl font-bold">Importar Devoluciones de Mercado Libre</h1>
             <p className="text-muted-foreground">
-              Sube un archivo para registrar múltiples devoluciones a la vez.
+              Sube el archivo de Excel con el reporte de devoluciones de ML.
             </p>
           </div>
         </header>
@@ -337,16 +410,14 @@ export default function ImportDevolucionesPage() {
                                 <TableBody>
                                     {data.map((row, rowIndex) => (
                                         <TableRow key={rowIndex}>
-                                            {row.map((cell, cellIndex) => {
-                                                let displayValue = String(cell ?? '');
-                                                if (cell instanceof Date) {
-                                                    displayValue = cell.toLocaleDateString('es-MX');
-                                                }
-                                                return (
-                                                <TableCell key={cellIndex}>
-                                                   {displayValue}
-                                                </TableCell>
-                                            )})}
+                                            <TableCell>{row.num_venta}</TableCell>
+                                            <TableCell>{row.fecha_venta ? new Date(row.fecha_venta).toLocaleDateString('es-MX') : '-'}</TableCell>
+                                            <TableCell>{row.status}</TableCell>
+                                            <TableCell>{row.sku}</TableCell>
+                                            <TableCell>{row.unidades}</TableCell>
+                                            <TableCell>{row.total}</TableCell>
+                                            <TableCell>{row.tienda}</TableCell>
+                                            <TableCell>{row.motivo_resultado}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
