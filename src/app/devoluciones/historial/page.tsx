@@ -105,6 +105,16 @@ export default function HistorialDevolucionesPage() {
         direction: "descending",
     });
 
+    const safeParseDate = (dateString: string | null) => {
+        if (!dateString) return null;
+        // If it's a date-only string (YYYY-MM-DD), append time to parse it as local time
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+            return new Date(`${dateString}T00:00:00`);
+        }
+        // Otherwise, parse as-is (likely a timestamptz string)
+        return new Date(dateString);
+    }
+
      useEffect(() => {
         const handler = setTimeout(() => {
             setDebouncedFilterValue(filterValue.trim());
@@ -194,8 +204,8 @@ export default function HistorialDevolucionesPage() {
     
         const returnsToday = returns.filter(r => {
             if (!r.fecha_status) return false;
-            const statusDate = new Date(r.fecha_status);
-            return statusDate.toDateString() === today.toDateString();
+            const statusDate = safeParseDate(r.fecha_status);
+            return statusDate && statusDate.toDateString() === today.toDateString();
         });
     
         const reasonCounts = returns.reduce((acc, curr) => {
@@ -273,7 +283,8 @@ export default function HistorialDevolucionesPage() {
             case "fecha_venta":
             case "fecha_status":
             case "fecha_revision":
-                return cellValue ? new Date(cellValue).toLocaleDateString('es-MX') : '-';
+                const date = safeParseDate(cellValue);
+                return date ? date.toLocaleDateString('es-MX') : '-';
             default:
                 return cellValue;
         }
