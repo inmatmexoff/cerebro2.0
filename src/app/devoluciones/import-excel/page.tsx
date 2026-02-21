@@ -90,12 +90,12 @@ export default function ImportDevolucionesPage() {
                 
                 const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
 
-                if (json.length <= 1) {
-                    throw new Error("El archivo está vacío o solo contiene la fila de encabezado.");
+                if (json.length <= 6) {
+                    throw new Error("El archivo no tiene suficientes filas para extraer datos (se requieren al menos 7).");
                 }
                 
-                // Assume headers are on the first row
-                const dataRows = json.slice(1);
+                // Assume data starts from row 7 (index 6)
+                const dataRows = json.slice(6);
                 
                 const columnMapping = {
                     num_venta: 0, // A
