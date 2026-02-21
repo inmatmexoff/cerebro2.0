@@ -22,7 +22,7 @@ import {
   CardHeader,
   Spinner,
 } from "@nextui-org/react";
-import { ArrowLeft, Package2 } from "lucide-react";
+import { ArrowLeft, Package2, Repeat } from "lucide-react";
 import { supabasePROD } from "@/lib/supabase";
 
 // Helper functions and icons
@@ -194,6 +194,27 @@ export default function DevolucionesPage() {
             const arrivalDate = new Date(r.fecha_llegada);
             return arrivalDate.toDateString() === today.toDateString();
         }).length;
+    }, [returns]);
+
+    const mostFrequentReason = React.useMemo(() => {
+        if (returns.length === 0) {
+            return { reason: "No hay datos", count: 0 };
+        }
+
+        const reasonCounts = returns.reduce((acc, curr) => {
+            if (curr.motivo_devo) {
+                acc[curr.motivo_devo] = (acc[curr.motivo_devo] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+
+        if (Object.keys(reasonCounts).length === 0) {
+            return { reason: "Sin motivo especificado", count: 0 };
+        }
+
+        const mostFrequent = Object.entries(reasonCounts).reduce((a, b) => b[1] > a[1] ? b : a);
+
+        return { reason: mostFrequent[0], count: mostFrequent[1] };
     }, [returns]);
 
     const hasSearchFilter = Boolean(filterValue);
@@ -421,18 +442,32 @@ export default function DevolucionesPage() {
                 </div>
             </header>
             <main>
-                <Card className="mb-6" shadow="sm">
-                    <CardHeader className="flex flex-row items-center justify-between pb-0">
-                        <h4 className="font-bold text-large">Devoluciones de Hoy</h4>
-                        <Package2 className="h-5 w-5 text-default-400" />
-                    </CardHeader>
-                    <CardBody>
-                        <div className="text-3xl font-bold">{isLoading ? <Spinner size="sm"/> : returnsTodayCount}</div>
-                        <p className="text-small text-default-500">
-                            Devoluciones programadas para llegar hoy.
-                        </p>
-                    </CardBody>
-                </Card>
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                    <Card shadow="sm">
+                        <CardHeader className="flex flex-row items-center justify-between pb-0">
+                            <h4 className="font-bold text-large">Devoluciones de Hoy</h4>
+                            <Package2 className="h-5 w-5 text-default-400" />
+                        </CardHeader>
+                        <CardBody>
+                            <div className="text-3xl font-bold">{isLoading ? <Spinner size="sm"/> : returnsTodayCount}</div>
+                            <p className="text-small text-default-500">
+                                Devoluciones programadas para llegar hoy.
+                            </p>
+                        </CardBody>
+                    </Card>
+                    <Card shadow="sm">
+                        <CardHeader className="flex flex-row items-center justify-between pb-0">
+                            <h4 className="font-bold text-large">Motivo Principal</h4>
+                            <Repeat className="h-5 w-5 text-default-400" />
+                        </CardHeader>
+                        <CardBody>
+                            <div className="text-3xl font-bold">{isLoading ? <Spinner size="sm"/> : mostFrequentReason.count}</div>
+                            <p className="text-small text-default-500 truncate" title={mostFrequentReason.reason}>
+                                {mostFrequentReason.reason}
+                            </p>
+                        </CardBody>
+                    </Card>
+                </div>
                 <Table
                     aria-label="Tabla de devoluciones"
                     isHeaderSticky
