@@ -20,8 +20,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Chip } from "@nextui-org/react";
-import { Card, CardBody, CardHeader, Spinner, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Chip, Spinner } from "@nextui-org/react";
+import { Card, CardHeader, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Package2, Repeat, Search, Filter, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { supabasePROD } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
