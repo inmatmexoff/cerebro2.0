@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, ChevronsUpDown, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useForm } from 'react-hook-form';
@@ -15,6 +15,11 @@ import { DatePicker } from '@/components/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { supabasePROD } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 
 const devolucionSchema = z.object({
   tienda: z.string().optional(),
@@ -40,6 +45,9 @@ type DevolucionFormValues = z.infer<typeof devolucionSchema>;
 export default function NuevaDevolucionPage() {
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
+    const [allSkus, setAllSkus] = useState<{ value: string; label: string }[]>([]);
+    const [isLoadingSkus, setIsLoadingSkus] = useState(true);
+    const [skuPopoverOpen, setSkuPopoverOpen] = useState(false);
 
     const form = useForm<DevolucionFormValues>({
         resolver: zodResolver(devolucionSchema),
@@ -62,6 +70,33 @@ export default function NuevaDevolucionPage() {
             revision: '',
         },
     });
+
+    useEffect(() => {
+        const fetchSkus = async () => {
+            setIsLoadingSkus(true);
+            try {
+                const { data, error } = await supabasePROD
+                    .from('sku_alterno')
+                    .select('sku')
+                    .order('sku', { ascending: true });
+
+                if (error) throw error;
+
+                if (data) {
+                    setAllSkus(data.map(item => ({ value: item.sku, label: item.sku })));
+                }
+            } catch (err: any) {
+                toast({
+                    variant: "destructive",
+                    title: "Error al cargar SKUs",
+                    description: "No se pudieron cargar los SKUs para la búsqueda.",
+                });
+            } finally {
+                setIsLoadingSkus(false);
+            }
+        };
+        fetchSkus();
+    }, [toast]);
 
     async function onSubmit(values: DevolucionFormValues) {
         setIsSaving(true);
@@ -115,7 +150,31 @@ export default function NuevaDevolucionPage() {
                             <Form {...form}>
                                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                                     <div className="grid md:grid-cols-3 gap-6">
-                                        <FormField control={form.control} name="tienda" render={({ field }) => (<FormItem><FormLabel>Tienda</FormLabel><FormControl><Input placeholder="Ej. DO MESKA" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField
+                                            control={form.control}
+                                            name="tienda"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Tienda</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona una tienda" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="INMATMEX">Inmatmex</SelectItem>
+                                                            <SelectItem value="TAL COMERCIALIZADORA">TAL COMERCIALIZADORA</SelectItem>
+                                                            <SelectItem value="DO MESKA">DO MESKA</SelectItem>
+                                                            <SelectItem value="HOGARDEN">Hogarden</SelectItem>
+                                                            <SelectItem value="PALO DE ROSA">Palo de Rosa</SelectItem>
+                                                            <SelectItem value="MTM">MTM</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
                                         <FormField control={form.control} name="num_venta" render={({ field }) => (<FormItem><FormLabel># Venta</FormLabel><FormControl><Input type="number" placeholder="Ej. 2000008064..." {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
                                         <FormField control={form.control} name="fecha_venta" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Venta</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                                         
@@ -123,9 +182,116 @@ export default function NuevaDevolucionPage() {
                                         <FormField control={form.control} name="fecha_revision" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha Revisión</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                                         <FormField control={form.control} name="producto" render={({ field }) => (<FormItem><FormLabel>Producto</FormLabel><FormControl><Input placeholder="Nombre del producto" {...field} /></FormControl><FormMessage /></FormItem>)} />
 
-                                        <FormField control={form.control} name="sku" render={({ field }) => (<FormItem><FormLabel>SKU</FormLabel><FormControl><Input placeholder="Ej. INM-ANQ-5N" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name="motivo_devolucion" render={({ field }) => (<FormItem><FormLabel>Motivo Devolución</FormLabel><FormControl><Input placeholder="Ej. Producto dañado" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name="estado_llegada" render={({ field }) => (<FormItem><FormLabel>Estado de Llegada</FormLabel><FormControl><Input placeholder="Ej. Dañado, Buen estado" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField
+                                            control={form.control}
+                                            name="sku"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-col">
+                                                    <FormLabel>SKU</FormLabel>
+                                                    <Popover open={skuPopoverOpen} onOpenChange={setSkuPopoverOpen}>
+                                                        <PopoverTrigger asChild>
+                                                            <FormControl>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    role="combobox"
+                                                                    className={cn(
+                                                                        "w-full justify-between",
+                                                                        !field.value && "text-muted-foreground"
+                                                                    )}
+                                                                    disabled={isLoadingSkus}
+                                                                >
+                                                                    {isLoadingSkus && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                                    {field.value
+                                                                        ? allSkus.find(
+                                                                            (sku) => sku.value === field.value
+                                                                        )?.label
+                                                                        : "Selecciona un SKU"}
+                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                </Button>
+                                                            </FormControl>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                            <Command>
+                                                                <CommandInput placeholder="Buscar SKU..." />
+                                                                <CommandList>
+                                                                    <CommandEmpty>No se encontró SKU.</CommandEmpty>
+                                                                    <CommandGroup>
+                                                                        {allSkus.map((sku) => (
+                                                                            <CommandItem
+                                                                                value={sku.label}
+                                                                                key={sku.value}
+                                                                                onSelect={() => {
+                                                                                    form.setValue("sku", sku.value)
+                                                                                    setSkuPopoverOpen(false)
+                                                                                }}
+                                                                            >
+                                                                                <Check
+                                                                                    className={cn(
+                                                                                        "mr-2 h-4 w-4",
+                                                                                        sku.value === field.value
+                                                                                            ? "opacity-100"
+                                                                                            : "opacity-0"
+                                                                                    )}
+                                                                                />
+                                                                                {sku.label}
+                                                                            </CommandItem>
+                                                                        ))}
+                                                                    </CommandGroup>
+                                                                </CommandList>
+                                                            </Command>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="motivo_devolucion"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Motivo Devolución</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona un motivo" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="Despacho menos cantidad de la solicitada">Despacho menos cantidad de la solicitada</SelectItem>
+                                                            <SelectItem value="Despacho más cantidad de la solicitada">Despacho más cantidad de la solicitada</SelectItem>
+                                                            <SelectItem value="Despacho una variante diferente a la solicitada">Despacho una variante diferente a la solicitada</SelectItem>
+                                                            <SelectItem value="Despacho otro producto diferente al solicitado.">Despacho otro producto diferente al solicitado.</SelectItem>
+                                                            <SelectItem value="Despacho producto dañado o sin verificación">Despacho producto dañado o sin verificación</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="estado_llegada"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Estado de Llegada</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona un estado" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="BUENO">BUENO</SelectItem>
+                                                            <SelectItem value="REGULAR">REGULAR</SelectItem>
+                                                            <SelectItem value="DAÑADO">DAÑADO</SelectItem>
+                                                            <SelectItem value="MUY DAÑADO">MUY DAÑADO</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
 
                                         <FormField control={form.control} name="empaquetador" render={({ field }) => (<FormItem><FormLabel>Empaquetador (Despacho)</FormLabel><FormControl><Input placeholder="Nombre de quien empacó" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                         <FormField control={form.control} name="supervisado_por" render={({ field }) => (<FormItem><FormLabel>Supervisado por (Revisión)</FormLabel><FormControl><Input placeholder="Nombre de quien revisó" {...field} /></FormControl><FormMessage /></FormItem>)} />
