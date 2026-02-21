@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Chip, Spinner } from "@nextui-org/react";
 import { Card, CardHeader, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Package2, Repeat, Search, Filter, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { ArrowLeft, Package2, Repeat, Search, Filter, ChevronDown, ChevronsUpDown, AlertTriangle } from "lucide-react";
 import { supabasePROD } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { CompanySelect } from "@/components/company-select";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const capitalize = (str: string) => {
@@ -144,15 +145,12 @@ export default function DevolucionesPage() {
         setIsLoading(true);
         setError(null);
         try {
-            const from = (page - 1) * ROWS_PER_PAGE;
-            const to = from + ROWS_PER_PAGE - 1;
-
             let query = supabasePROD
               .from('devoluciones')
               .select('*', { count: 'exact' });
     
-            if(debouncedFilterValue) {
-                if(/^[0-9]+$/.test(debouncedFilterValue)) {
+            if (debouncedFilterValue) {
+                if (/^[0-9]+$/.test(debouncedFilterValue)) {
                     query = query.or(`num_venta.eq.${debouncedFilterValue},producto.ilike.%${debouncedFilterValue}%,sku.ilike.%${debouncedFilterValue}%`);
                 } else {
                     query = query.or(`producto.ilike.%${debouncedFilterValue}%,sku.ilike.%${debouncedFilterValue}%`);
@@ -183,7 +181,7 @@ export default function DevolucionesPage() {
                 query = query.lte(dateColumn, endOfDay.toISOString());
             }
 
-            query = query.order(sortDescriptor.column, { ascending: sortDescriptor.direction === 'ascending' }).range(from, to);
+            query = query.order(sortDescriptor.column, { ascending: sortDescriptor.direction === 'ascending' });
 
             const { data, error: dbError, count } = await query;
 
@@ -200,43 +198,79 @@ export default function DevolucionesPage() {
           } finally {
             setIsLoading(false);
           }
-    }, [page, debouncedFilterValue, appliedFilters, sortDescriptor, toast]);
+    }, [debouncedFilterValue, appliedFilters, sortDescriptor, toast]);
 
     useEffect(() => {
         fetchReturns();
     }, [fetchReturns]);
 
-    const returnsTodayCount = React.useMemo(() => {
+    const stats = React.useMemo(() => {
+        if (isLoading) {
+            return {
+                today: '...',
+                topReason: { reason: '...', count: '...' },
+                errors: '...',
+                byStatus: { BUENO: '...', REGULAR: '...', DANIADO: '...', MUY_DANIADO: '...' },
+                byCompanyToday: [],
+            };
+        }
+    
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-
-        return returns.filter(r => {
+    
+        const returnsToday = returns.filter(r => {
             if (!r.fecha_llegada) return false;
             const arrivalDate = new Date(r.fecha_llegada);
             return arrivalDate.toDateString() === today.toDateString();
-        }).length;
-    }, [returns]);
-
-    const mostFrequentReason = React.useMemo(() => {
-        if (returns.length === 0) {
-            return { reason: "No hay datos", count: 0 };
-        }
-
+        });
+    
         const reasonCounts = returns.reduce((acc, curr) => {
             if (curr.motivo_devo) {
                 acc[curr.motivo_devo] = (acc[curr.motivo_devo] || 0) + 1;
             }
             return acc;
         }, {} as Record<string, number>);
+    
+        const topReason = Object.keys(reasonCounts).length > 0
+            ? Object.entries(reasonCounts).reduce((a, b) => b[1] > a[1] ? b : a)
+            : ["Sin motivo", 0];
+    
+        const errorCount = returns.filter(r => r.error_prop).length;
+    
+        const statusCounts = returns.reduce((acc, curr) => {
+            if (curr.estado_llegada) {
+                acc[curr.estado_llegada] = (acc[curr.estado_llegada] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+    
+        const companyTodayCounts = returnsToday.reduce((acc, curr) => {
+            if (curr.tienda) {
+                acc[curr.tienda] = (acc[curr.tienda] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+    
+        return {
+            today: returnsToday.length,
+            topReason: { reason: topReason[0], count: topReason[1] },
+            errors: errorCount,
+            byStatus: {
+                BUENO: statusCounts['BUENO'] || 0,
+                REGULAR: statusCounts['REGULAR'] || 0,
+                DANIADO: statusCounts['DANIADO'] || 0,
+                MUY_DANIADO: statusCounts['MUY_DANIADO'] || 0,
+            },
+            byCompanyToday: Object.entries(companyTodayCounts).sort((a,b) => b[1] - a[1]),
+        };
+    }, [returns, isLoading]);
 
-        if (Object.keys(reasonCounts).length === 0) {
-            return { reason: "Sin motivo especificado", count: 0 };
-        }
+    const paginatedReturns = React.useMemo(() => {
+        const start = (page - 1) * ROWS_PER_PAGE;
+        const end = start + ROWS_PER_PAGE;
+        return returns.slice(start, end);
+    }, [page, returns]);
 
-        const mostFrequent = Object.entries(reasonCounts).reduce((a, b) => b[1] > a[1] ? b : a);
-
-        return { reason: mostFrequent[0], count: mostFrequent[1] };
-    }, [returns]);
 
     const headerColumns = React.useMemo(() => {
         if (visibleColumns.size === columns.length) return columns;
@@ -326,14 +360,23 @@ export default function DevolucionesPage() {
                 </div>
             </header>
             <main>
-                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium">Devoluciones de Hoy</CardTitle>
                             <Package2 className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{isLoading ? <Spinner size="sm"/> : returnsTodayCount}</div>
+                            <div className="text-2xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.today}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">Errores de Nosotros</CardTitle>
+                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.errors}</div>
                         </CardContent>
                     </Card>
                     <Card>
@@ -342,13 +385,64 @@ export default function DevolucionesPage() {
                             <Repeat className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                          <CardContent>
-                            <div className="text-2xl font-bold">{isLoading ? <Spinner size="sm"/> : mostFrequentReason.count}</div>
-                            <p className="text-xs text-muted-foreground truncate" title={mostFrequentReason.reason}>
-                                {mostFrequentReason.reason}
+                            <div className="text-2xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.topReason.count}</div>
+                            <p className="text-xs text-muted-foreground truncate" title={stats.topReason.reason}>
+                                {stats.topReason.reason}
                             </p>
                         </CardContent>
                     </Card>
                 </div>
+
+                <Card className="mb-6">
+                    <CardHeader>
+                        <CardTitle className="text-base">Desglose de Devoluciones (Filtrado)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Tabs defaultValue="estado">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="estado">Por Estado</TabsTrigger>
+                                <TabsTrigger value="empresa">Por Empresa (Hoy)</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="estado" className="pt-4">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                                    <div className="p-2 bg-muted/50 rounded-md">
+                                        <p className="text-sm text-muted-foreground">Bueno</p>
+                                        <p className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.BUENO}</p>
+                                    </div>
+                                    <div className="p-2 bg-muted/50 rounded-md">
+                                        <p className="text-sm text-muted-foreground">Regular</p>
+                                        <p className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.REGULAR}</p>
+                                    </div>
+                                    <div className="p-2 bg-muted/50 rounded-md">
+                                        <p className="text-sm text-muted-foreground">Dañado</p>
+                                        <p className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.DANIADO}</p>
+                                    </div>
+                                    <div className="p-2 bg-muted/50 rounded-md">
+                                        <p className="text-sm text-muted-foreground">Muy Dañado</p>
+                                        <p className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.MUY_DANIADO}</p>
+                                    </div>
+                                </div>
+                            </TabsContent>
+                            <TabsContent value="empresa" className="pt-4">
+                                {isLoading ? <div className="flex justify-center"><Spinner size="sm"/></div> : (
+                                    stats.byCompanyToday.length > 0 ? (
+                                        <ul className="space-y-2">
+                                        {stats.byCompanyToday.map(([company, count]) => (
+                                            <li key={company} className="flex justify-between items-center text-sm p-2 bg-muted/50 rounded-md">
+                                                <span className="font-medium text-muted-foreground">{company}</span>
+                                                <span className="font-bold text-lg">{count}</span>
+                                            </li>
+                                        ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground text-center py-4">No hay devoluciones hoy.</p>
+                                    )
+                                )}
+                            </TabsContent>
+                        </Tabs>
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader>
                         <CardTitle>Lista de Devoluciones</CardTitle>
@@ -504,14 +598,14 @@ export default function DevolucionesPage() {
                                                 <Spinner label="Cargando..." />
                                             </TableCell>
                                         </TableRow>
-                                    ) : returns.length === 0 ? (
+                                    ) : paginatedReturns.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={headerColumns.length} className="h-24 text-center">
                                                 No se encontraron devoluciones.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        returns.map((item) => (
+                                        paginatedReturns.map((item) => (
                                             <TableRow key={item.id}>
                                                 {headerColumns.map((column) => (
                                                      <TableCell key={column.uid}>
