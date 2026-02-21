@@ -5,106 +5,35 @@ import Link from 'next/link';
 import {
   Table,
   TableHeader,
-  TableColumn,
   TableBody,
   TableRow,
   TableCell,
-  Input,
-  Button,
-  DropdownTrigger,
-  Dropdown,
+  TableHead
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
   DropdownMenu,
-  DropdownItem,
-  Chip,
-  Pagination,
-  Card,
-  CardBody,
-  CardHeader,
-  Spinner,
-} from "@nextui-org/react";
-import { ArrowLeft, Package2, Repeat } from "lucide-react";
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Chip } from "@nextui-org/react";
+import { Card, CardBody, CardHeader, Spinner, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Package2, Repeat, Search, Filter, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { supabasePROD } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Label } from "@/components/ui/label";
+import { CompanySelect } from "@/components/company-select";
+import { cn } from "@/lib/utils";
 
-// Helper functions and icons
 const capitalize = (str: string) => {
   if (!str) return "";
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
-
-const PlusIcon = (props: any) => (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      focusable="false"
-      height="1em"
-      role="presentation"
-      viewBox="0 0 24 24"
-      width="1em"
-      {...props}
-    >
-      <g
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-      >
-        <path d="M6 12h12" />
-        <path d="M12 18V6" />
-      </g>
-    </svg>
-);
-
-const SearchIcon = (props: any) => (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      focusable="false"
-      height="1em"
-      role="presentation"
-      viewBox="0 0 24 24"
-      width="1em"
-      {...props}
-    >
-      <path
-        d="M11.5 21C16.7467 21 21 16.7467 21 11.5C21 6.25329 16.7467 2 11.5 2C6.25329 2 2 6.25329 2 11.5C2 16.7467 6.25329 21 11.5 21Z"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-      />
-      <path
-        d="M22 22L20 20"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-      />
-    </svg>
-);
-
-const ChevronDownIcon = ({strokeWidth = 1.5, ...otherProps}) => (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      focusable="false"
-      height="1em"
-      role="presentation"
-      viewBox="0 0 24 24"
-      width="1em"
-      {...otherProps}
-    >
-      <path
-        d="m19.92 8.95-6.52 6.52c-.77.77-2.03.77-2.8 0L4.08 8.95"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeMiterlimit={10}
-        strokeWidth={strokeWidth}
-      />
-    </svg>
-);
-
 
 const columns = [
   {name: "TIENDA", uid: "tienda", sortable: true},
@@ -125,6 +54,19 @@ const columns = [
   {name: "REVISIÓN", uid: "s_revision"},
 ];
 
+const statusOptions = [
+    { name: "Bueno", uid: "BUENO" },
+    { name: "Regular", uid: "REGULAR" },
+    { name: "Dañado", uid: "DANIADO" },
+    { name: "Muy Dañado", uid: "MUY_DANIADO" },
+];
+
+const errorNosotrosOptions = [
+    { name: "Sí", uid: "si" },
+    { name: "No", uid: "no" },
+];
+
+
 const statusColorMap: Record<string, "success" | "warning" | "danger" | "default"> = {
   BUENO: "success",
   REGULAR: "warning",
@@ -136,54 +78,121 @@ const statusColorMap: Record<string, "success" | "warning" | "danger" | "default
 const INITIAL_VISIBLE_COLUMNS = [
     "tienda", 
     "num_venta", 
-    "fecha_venta", 
+    "fecha_llegada", 
     "producto",
     "sku",
-    "motivo_devolucion",
     "estado_llegada",
     "error_prop",
 ];
 
+const ROWS_PER_PAGE = 10;
 
 export default function DevolucionesPage() {
     const [returns, setReturns] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { toast } = useToast();
 
+    // FILTERS
     const [filterValue, setFilterValue] = useState("");
-    const [selectedKeys, setSelectedKeys] = useState<any>(new Set([]));
-    const [visibleColumns, setVisibleColumns] = useState<any>(new Set(INITIAL_VISIBLE_COLUMNS));
-    const [rowsPerPage, setRowsPerPage] = useState(5);
-    const [sortDescriptor, setSortDescriptor] = useState<any>({
+    const [debouncedFilterValue, setDebouncedFilterValue] = useState("");
+    const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
+    const [errorFilter, setErrorFilter] = useState<string>("all");
+    const [startDate, setStartDate] = useState<Date | null>(null);
+    const [endDate, setEndDate] = useState<Date | null>(null);
+    const [company, setCompany] = useState<string | undefined>();
+    const [appliedFilters, setAppliedFilters] = useState<{
+        startDate: Date | null;
+        endDate: Date | null;
+        company: string | undefined;
+        status: Set<string>;
+        error: string;
+    }>({
+        startDate: null,
+        endDate: null,
+        company: undefined,
+        status: new Set(),
+        error: "all",
+    });
+
+    // TABLE STATE
+    const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(INITIAL_VISIBLE_COLUMNS));
+    const [page, setPage] = useState(1);
+    const [totalRows, setTotalRows] = useState(0);
+    const [sortDescriptor, setSortDescriptor] = useState({
         column: "fecha_llegada",
         direction: "descending",
     });
-    const [page, setPage] = useState(1);
 
-    useEffect(() => {
-        const fetchReturns = async () => {
-          setIsLoading(true);
-          setError(null);
-          try {
-            const { data, error: dbError } = await supabasePROD
+     useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedFilterValue(filterValue);
+        }, 500);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [filterValue]);
+
+    const fetchReturns = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const from = (page - 1) * ROWS_PER_PAGE;
+            const to = from + ROWS_PER_PAGE - 1;
+
+            let query = supabasePROD
               .from('devoluciones')
-              .select('*')
-              .order('fecha_llegada', { ascending: false });
+              .select('*', { count: 'exact' });
     
+            if(debouncedFilterValue) {
+                query = query.or(`num_venta.ilike.%${debouncedFilterValue}%,producto.ilike.%${debouncedFilterValue}%,sku.ilike.%${debouncedFilterValue}%`);
+            }
+
+            if(appliedFilters.company && appliedFilters.company !== 'all') {
+                query = query.eq('tienda', appliedFilters.company);
+            }
+
+            if(appliedFilters.status.size > 0) {
+                query = query.in('estado_llegada', Array.from(appliedFilters.status));
+            }
+
+            if(appliedFilters.error !== 'all') {
+                query = query.eq('error_prop', appliedFilters.error === 'si');
+            }
+
+            if(appliedFilters.startDate) {
+                query = query.gte('fecha_llegada', appliedFilters.startDate.toISOString());
+            }
+
+            if(appliedFilters.endDate) {
+                const endOfDay = new Date(appliedFilters.endDate);
+                endOfDay.setHours(23, 59, 59, 999);
+                query = query.lte('fecha_llegada', endOfDay.toISOString());
+            }
+
+            query = query.order(sortDescriptor.column, { ascending: sortDescriptor.direction === 'ascending' }).range(from, to);
+
+            const { data, error: dbError, count } = await query;
+
             if (dbError) {
               throw dbError;
             }
             setReturns(data || []);
+            setTotalRows(count || 0);
+
           } catch (err: any) {
             setError("No se pudieron cargar las devoluciones.");
             console.error("Error fetching returns:", err.message);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las devoluciones.' });
           } finally {
             setIsLoading(false);
           }
-        };
-    
+    }, [page, debouncedFilterValue, appliedFilters, sortDescriptor]);
+
+    useEffect(() => {
         fetchReturns();
-    }, []);
+    }, [fetchReturns]);
 
     const returnsTodayCount = React.useMemo(() => {
         const today = new Date();
@@ -217,45 +226,12 @@ export default function DevolucionesPage() {
         return { reason: mostFrequent[0], count: mostFrequent[1] };
     }, [returns]);
 
-    const hasSearchFilter = Boolean(filterValue);
-
     const headerColumns = React.useMemo(() => {
-        if (visibleColumns === "all") return columns;
-
-        return columns.filter((column) => Array.from(visibleColumns).includes(column.uid));
+        if (visibleColumns.size === columns.length) return columns;
+        return columns.filter((column) => visibleColumns.has(column.uid));
     }, [visibleColumns]);
 
-    const filteredItems = React.useMemo(() => {
-        let filteredReturns = [...returns];
-
-        if (hasSearchFilter) {
-        filteredReturns = filteredReturns.filter((ret) =>
-            Object.values(ret).some(val => 
-                String(val).toLowerCase().includes(filterValue.toLowerCase())
-            )
-        );
-        }
-        return filteredReturns;
-    }, [returns, filterValue]);
-
-    const pages = Math.ceil(filteredItems.length / rowsPerPage) || 1;
-
-    const items = React.useMemo(() => {
-        const start = (page - 1) * rowsPerPage;
-        const end = start + rowsPerPage;
-
-        return filteredItems.slice(start, end);
-    }, [page, filteredItems, rowsPerPage]);
-
-    const sortedItems = React.useMemo(() => {
-        return [...items].sort((a: any, b: any) => {
-            const first = a[sortDescriptor.column];
-            const second = b[sortDescriptor.column];
-            const cmp = first < second ? -1 : first > second ? 1 : 0;
-
-            return sortDescriptor.direction === "descending" ? -cmp : cmp;
-        });
-    }, [sortDescriptor, items]);
+    const totalPages = Math.ceil(totalRows / ROWS_PER_PAGE) || 1;
 
     const renderCell = React.useCallback((item: any, columnKey: string) => {
         const cellValue = item[columnKey];
@@ -288,139 +264,34 @@ export default function DevolucionesPage() {
                 return cellValue;
         }
     }, []);
-    
-    const onNextPage = React.useCallback(() => {
-        if (page < pages) {
-        setPage(page + 1);
-        }
-    }, [page, pages]);
 
-    const onPreviousPage = React.useCallback(() => {
-        if (page > 1) {
-        setPage(page - 1);
-        }
-    }, [page]);
-
-    const onRowsPerPageChange = React.useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-        setRowsPerPage(Number(e.target.value));
+    const handleApplyFilters = () => {
         setPage(1);
-    }, []);
+        setAppliedFilters({ startDate, endDate, company, status: statusFilter, error: errorFilter });
+    };
 
-    const onSearchChange = React.useCallback((value?: string) => {
-        if (value) {
-            setFilterValue(value);
-            setPage(1);
-        } else {
-            setFilterValue("");
-        }
-    }, []);
-
-    const onClear = React.useCallback(() => {
+    const handleClearFilters = () => {
         setFilterValue("");
+        setDebouncedFilterValue("");
+        setStartDate(null);
+        setEndDate(null);
+        setCompany(undefined);
+        setStatusFilter(new Set());
+        setErrorFilter("all");
         setPage(1);
-    }, []);
+        setAppliedFilters({ startDate: null, endDate: null, company: undefined, status: new Set(), error: "all" });
+    };
 
-
-    const topContent = React.useMemo(() => {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row justify-between gap-3 items-end">
-          <Input
-            isClearable
-            className="w-full md:max-w-xs"
-            placeholder="Buscar en devoluciones..."
-            startContent={<SearchIcon />}
-            value={filterValue}
-            onClear={() => onClear()}
-            onValueChange={onSearchChange}
-          />
-          <div className="flex gap-3">
-            <Dropdown>
-              <DropdownTrigger className="hidden md:flex">
-                <Button endContent={<ChevronDownIcon className="text-small" />} variant="flat">
-                  Columnas
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu
-                disallowEmptySelection
-                aria-label="Table Columns"
-                closeOnSelect={false}
-                selectedKeys={visibleColumns}
-                selectionMode="multiple"
-                onSelectionChange={setVisibleColumns}
-              >
-                {columns.map((column) => (
-                  <DropdownItem key={column.uid} className="capitalize">
-                    {capitalize(column.name)}
-                  </DropdownItem>
-                ))}
-              </DropdownMenu>
-            </Dropdown>
-            <Link href="/devoluciones/import-excel">
-              <Button variant="flat">
-                Importar Excel
-              </Button>
-            </Link>
-            <Link href="/devoluciones/nueva">
-              <Button color="primary" endContent={<PlusIcon />}>
-                Nueva Devolución
-              </Button>
-            </Link>
-          </div>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-default-400 text-small">Total {returns.length} devoluciones</span>
-          <label className="flex items-center text-default-400 text-small">
-            Filas por página:
-            <select
-              className="bg-transparent outline-none text-default-400 text-small"
-              onChange={onRowsPerPageChange}
-            >
-              <option value="5">5</option>
-              <option value="10">10</option>
-              <option value="15">15</option>
-            </select>
-          </label>
-        </div>
-      </div>
-    );
-  }, [
-    filterValue,
-    visibleColumns,
-    onRowsPerPageChange,
-    onSearchChange,
-    onClear,
-    returns.length,
-  ]);
-
-  const bottomContent = React.useMemo(() => {
-    return (
-      <div className="py-2 px-2 flex justify-between items-center">
-        <span className="w-[30%] text-small text-default-400">
-          {selectedKeys === "all"
-            ? "Todos seleccionados"
-            : `${selectedKeys.size} de ${filteredItems.length} seleccionados`}
-        </span>
-        <Pagination
-          isCompact
-          showControls
-          showShadow
-          color="primary"
-          page={page}
-          total={pages}
-          onChange={setPage}
-        />
-        <div className="hidden md:flex w-[30%] justify-end gap-2">
-          <Button isDisabled={pages === 1} size="sm" variant="flat" onPress={onPreviousPage}>
-            Anterior
-          </Button>
-          <Button isDisabled={pages === 1} size="sm" variant="flat" onPress={onNextPage}>
-            Siguiente
-          </Button>
-        </div>
-      </div>
-    );
-  }, [selectedKeys, page, pages, filteredItems.length, onPreviousPage, onNextPage]);
+    const handleSort = (columnUid: string) => {
+        if (sortDescriptor.column === columnUid) {
+            setSortDescriptor({
+                ...sortDescriptor,
+                direction: sortDescriptor.direction === 'ascending' ? 'descending' : 'ascending',
+            });
+        } else {
+            setSortDescriptor({ column: columnUid, direction: 'ascending' });
+        }
+    }
 
 
   return (
@@ -443,71 +314,206 @@ export default function DevolucionesPage() {
             </header>
             <main>
                 <div className="grid md:grid-cols-2 gap-6 mb-6">
-                    <Card shadow="sm">
-                        <CardHeader className="flex flex-row items-center justify-between pb-0">
-                            <h4 className="font-bold text-large">Devoluciones de Hoy</h4>
-                            <Package2 className="h-5 w-5 text-default-400" />
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">Devoluciones de Hoy</CardTitle>
+                            <Package2 className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
-                        <CardBody>
-                            <div className="text-3xl font-bold">{isLoading ? <Spinner size="sm"/> : returnsTodayCount}</div>
-                            <p className="text-small text-default-500">
-                                Devoluciones programadas para llegar hoy.
-                            </p>
-                        </CardBody>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{isLoading ? <Spinner size="sm"/> : returnsTodayCount}</div>
+                        </CardContent>
                     </Card>
-                    <Card shadow="sm">
-                        <CardHeader className="flex flex-row items-center justify-between pb-0">
-                            <h4 className="font-bold text-large">Motivo Principal</h4>
-                            <Repeat className="h-5 w-5 text-default-400" />
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                             <CardTitle className="text-sm font-medium">Motivo Principal</CardTitle>
+                            <Repeat className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
-                        <CardBody>
-                            <div className="text-3xl font-bold">{isLoading ? <Spinner size="sm"/> : mostFrequentReason.count}</div>
-                            <p className="text-small text-default-500 truncate" title={mostFrequentReason.reason}>
+                         <CardContent>
+                            <div className="text-2xl font-bold">{isLoading ? <Spinner size="sm"/> : mostFrequentReason.count}</div>
+                            <p className="text-xs text-muted-foreground truncate" title={mostFrequentReason.reason}>
                                 {mostFrequentReason.reason}
                             </p>
-                        </CardBody>
+                        </CardContent>
                     </Card>
                 </div>
-                <Table
-                    aria-label="Tabla de devoluciones"
-                    isHeaderSticky
-                    bottomContent={bottomContent}
-                    bottomContentPlacement="outside"
-                    classNames={{
-                        wrapper: "max-h-[500px]",
-                    }}
-                    selectedKeys={selectedKeys}
-                    selectionMode="multiple"
-                    sortDescriptor={sortDescriptor}
-                    topContent={topContent}
-                    topContentPlacement="outside"
-                    onSelectionChange={setSelectedKeys}
-                    onSortChange={setSortDescriptor}
-                    >
-                    <TableHeader columns={headerColumns}>
-                        {(column) => (
-                        <TableColumn
-                            key={column.uid}
-                            align={column.uid === "actions" ? "center" : "start"}
-                            allowsSorting={column.sortable}
-                        >
-                            {column.name}
-                        </TableColumn>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Lista de Devoluciones</CardTitle>
+                        <CardDescription>
+                            Mostrando {returns.length} de {totalRows} devoluciones.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex flex-col gap-4">
+                             <div className="flex flex-col md:flex-row justify-between gap-3 items-end">
+                                <div className="relative w-full md:max-w-xs">
+                                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                     <Input
+                                        placeholder="Buscar por # venta, producto..."
+                                        value={filterValue}
+                                        onChange={(e) => setFilterValue(e.target.value)}
+                                        className="pl-8 w-full"
+                                    />
+                                </div>
+                                <div className="flex gap-3">
+                                    <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline">
+                                            Columnas <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        {columns.map((column) => (
+                                        <DropdownMenuCheckboxItem
+                                            key={column.uid}
+                                            className="capitalize"
+                                            checked={visibleColumns.has(column.uid)}
+                                            onCheckedChange={(checked) => {
+                                                setVisibleColumns(prev => {
+                                                    const next = new Set(prev);
+                                                    if(checked) {
+                                                        next.add(column.uid);
+                                                    } else {
+                                                        next.delete(column.uid);
+                                                    }
+                                                    return next;
+                                                })
+                                            }}
+                                        >
+                                            {column.name}
+                                        </DropdownMenuCheckboxItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                    </DropdownMenu>
+                                     <Link href="/devoluciones/import-excel">
+                                        <Button variant="outline">
+                                            Importar Excel
+                                        </Button>
+                                    </Link>
+                                    <Link href="/devoluciones/nueva">
+                                    <Button>
+                                        Nueva Devolución
+                                    </Button>
+                                    </Link>
+                                </div>
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:flex-wrap items-end gap-4 border-t pt-4">
+                                <div className="grid gap-1.5 flex-grow min-w-[180px]">
+                                    <Label>Fecha Inicio</Label>
+                                    <DatePicker value={startDate} onChange={setStartDate} />
+                                </div>
+                                <div className="grid gap-1.5 flex-grow min-w-[180px]">
+                                    <Label>Fecha Fin</Label>
+                                    <DatePicker value={endDate} onChange={setEndDate} />
+                                </div>
+                                <div className="grid gap-1.5 flex-grow min-w-[180px]">
+                                    <Label>Empresa</Label>
+                                    <CompanySelect value={company} onValueChange={setCompany} />
+                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="h-9">
+                                            <Filter className="w-4 h-4 mr-2"/>
+                                            Filtros
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-56">
+                                        <DropdownMenuLabel>Estado de Llegada</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {statusOptions.map((option) => (
+                                            <DropdownMenuCheckboxItem
+                                                key={option.uid}
+                                                checked={statusFilter.has(option.uid)}
+                                                onCheckedChange={(checked) => {
+                                                    setStatusFilter(prev => {
+                                                        const next = new Set(prev);
+                                                        if (checked) next.add(option.uid);
+                                                        else next.delete(option.uid);
+                                                        return next;
+                                                    })
+                                                }}
+                                            >{option.name}</DropdownMenuCheckboxItem>
+                                        ))}
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuLabel>Error de Nosotros</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {errorNosotrosOptions.map((option) => (
+                                             <DropdownMenuCheckboxItem
+                                                key={option.uid}
+                                                checked={errorFilter === option.uid}
+                                                onCheckedChange={(checked) => setErrorFilter(checked ? option.uid : 'all')}
+                                            >{option.name}</DropdownMenuCheckboxItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <div className="flex gap-2">
+                                    <Button size="sm" onClick={handleApplyFilters}>Aplicar</Button>
+                                    <Button size="sm" variant="ghost" onClick={handleClearFilters}>Limpiar</Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="border rounded-md">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        {headerColumns.map((column) => (
+                                             <TableHead key={column.uid} 
+                                                className={cn(column.sortable && "cursor-pointer")}
+                                                onClick={() => column.sortable && handleSort(column.uid)}
+                                             >
+                                                <div className="flex items-center gap-2">
+                                                    {column.name}
+                                                    {sortDescriptor.column === column.uid && (
+                                                        <ChevronsUpDown className="h-4 w-4" />
+                                                    )}
+                                                </div>
+                                             </TableHead>
+                                        ))}
+                                    </TableRow>
+                                </TableHeader>
+                                 <TableBody>
+                                    {isLoading ? (
+                                        <TableRow>
+                                            <TableCell colSpan={headerColumns.length} className="h-24 text-center">
+                                                <Spinner label="Cargando..." />
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : returns.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={headerColumns.length} className="h-24 text-center">
+                                                No se encontraron devoluciones.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        returns.map((item) => (
+                                            <TableRow key={item.id}>
+                                                {headerColumns.map((column) => (
+                                                     <TableCell key={column.uid}>
+                                                        {renderCell(item, column.uid)}
+                                                     </TableCell>
+                                                ))}
+                                            </TableRow>
+                                        ))
+                                    )}
+                                 </TableBody>
+                            </Table>
+                        </div>
+                         {totalPages > 1 && (
+                            <div className="flex items-center justify-between mt-4">
+                                <p className="text-sm text-muted-foreground">Página {page} de {totalPages}</p>
+                                <div className="flex gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1 || isLoading}>
+                                        Anterior
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || isLoading}>
+                                        Siguiente
+                                    </Button>
+                                </div>
+                            </div>
                         )}
-                    </TableHeader>
-                    <TableBody 
-                        isLoading={isLoading}
-                        loadingContent={<Spinner label="Cargando..." />}
-                        emptyContent={!isLoading && "No se encontraron devoluciones"} 
-                        items={sortedItems}
-                    >
-                        {(item) => (
-                        <TableRow key={item.id}>
-                            {(columnKey) => <TableCell>{renderCell(item, columnKey as string)}</TableCell>}
-                        </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                    </CardContent>
+                </Card>
             </main>
         </div>
     </div>
