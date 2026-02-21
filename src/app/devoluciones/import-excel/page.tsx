@@ -35,58 +35,57 @@ const parseDate = (value: any): Date | null => {
   // Case 2: Excel date serial number
   if (typeof value === 'number') {
     // 25569 is the serial number for 1970-01-01
-    const date = new Date(Math.round((value - 25569) * 86400 * 1000));
-     if (!isNaN(date.getTime())) {
-        return date;
-    }
+    return new Date(Math.round((value - 25569) * 86400 * 1000));
   }
 
   // Case 3: String value
   if (typeof value === 'string') {
+    // Try parsing Spanish format: "1 de febrero de 2026 23:50 hs."
     const monthMap: { [key: string]: number } = {
-      enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5,
-      julio: 6, agosto: 7, septiembre: 8, octubre: 9, noviembre: 10, diciembre: 11,
+      enero: 0,
+      febrero: 1,
+      marzo: 2,
+      abril: 3,
+      mayo: 4,
+      junio: 5,
+      julio: 6,
+      agosto: 7,
+      septiembre: 8,
+      octubre: 9,
+      noviembre: 10,
+      diciembre: 11,
     };
-    
-    // Attempt 1: Full Spanish format "17 de febrero de 2026 11:04 hs."
-    const fullDateMatch = value.toLowerCase().match(/(\d{1,2})\s+de\s+([a-záéíóúñ]+)\s+de\s+(\d{4})(?:.*?(\d{1,2}):(\d{2}))?/);
-    if (fullDateMatch) {
-      const day = parseInt(fullDateMatch[1], 10);
-      const monthName = fullDateMatch[2];
-      const year = parseInt(fullDateMatch[3], 10);
-      const hours = fullDateMatch[4] ? parseInt(fullDateMatch[4], 10) : 0;
-      const minutes = fullDateMatch[5] ? parseInt(fullDateMatch[5], 10) : 0;
-      const month = monthMap[monthName as keyof typeof monthMap];
 
-      if (!isNaN(day) && month !== undefined && !isNaN(year)) {
+    const cleanedString = value
+      .replace(/\sde\s/g, ' ')
+      .replace(/\s?hs\.?/, '')
+      .toLowerCase()
+      .trim();
+    const parts = cleanedString.split(' '); // e.g., ["1", "febrero", "2026", "23:50"]
+
+    if (parts.length >= 3) {
+      const day = parseInt(parts[0], 10);
+      const monthName = parts[1];
+      const year = parseInt(parts[2], 10);
+      const timeString = parts[3] || '00:00';
+      const timeParts = timeString.split(':');
+      const hours = parseInt(timeParts[0], 10);
+      const minutes = parseInt(timeParts[1], 10);
+      const month = monthMap[monthName];
+
+      if (
+        !isNaN(day) &&
+        month !== undefined &&
+        !isNaN(year) &&
+        !isNaN(hours) &&
+        !isNaN(minutes)
+      ) {
         const date = new Date(year, month, day, hours, minutes);
         if (!isNaN(date.getTime())) return date;
       }
     }
-    
-    // Attempt 2: Short Spanish format inside a string "... 23 de febrero ..."
-    const descriptiveDateMatch = value.toLowerCase().match(/(\d{1,2})\s+de\s+([a-záéíóúñ]+)/);
-    if (descriptiveDateMatch) {
-        const day = parseInt(descriptiveDateMatch[1], 10);
-        const monthName = descriptiveDateMatch[2];
-        const month = monthMap[monthName as keyof typeof monthMap];
-        
-        if (!isNaN(day) && month !== undefined) {
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const date = new Date(currentYear, month, day);
-            
-            if (!isNaN(date.getTime())) {
-                // If date is in the past, assume it's for next year.
-                if (date < now) {
-                    date.setFullYear(currentYear + 1);
-                }
-                return date;
-            }
-        }
-    }
 
-    // Attempt 3: Standard JS Date parsing as a fallback
+    // Fallback for other standard date string formats
     const parsed = new Date(value);
     if (!isNaN(parsed.getTime())) {
       return parsed;
