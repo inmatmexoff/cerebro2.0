@@ -16,6 +16,7 @@ export async function POST(request: Request) {
             fecha_venta: body.fecha_venta || null,
             fecha_llegada: body.fecha_llegada || null,
             producto: body.producto || null,
+            sku: body.sku || null,
             motivo_devo: body.motivo_devolucion || null,
             estado_llegada: body.estado_llegada || null,
             reporte: body.reporte,
