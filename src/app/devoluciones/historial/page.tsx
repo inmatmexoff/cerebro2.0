@@ -34,8 +34,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const columns = [
+  {name: "#", uid: "rowIndex", sortable: false},
   {name: "# VENTA", uid: "num_venta", sortable: true},
   {name: "FECHA DE VENTA", uid: "fecha_venta", sortable: true},
+  {name: "FECHA ESTADO", uid: "fecha_status", sortable: true},
   {name: "ESTADO", uid: "status", sortable: true},
   {name: "TIENDA", uid: "tienda", sortable: true},
   {name: "SKU", uid: "sku"},
@@ -45,13 +47,14 @@ const columns = [
   {name: "RESULTADO", uid: "resultado", sortable: true},
   {name: "MOTIVO DEL RESULTADO", uid: "motivo_resultado"},
   {name: "RECLAMO ABIERTO", uid: "reclamo_abierto", sortable: true},
-  {name: "FECHA ESTADO", uid: "fecha_status", sortable: true},
   {name: "FECHA REVISIÓN", uid: "fecha_revision", sortable: true},
 ];
 
 const INITIAL_VISIBLE_COLUMNS = [
+    "rowIndex",
     "num_venta", 
     "fecha_venta", 
+    "fecha_status",
     "status",
     "tienda",
     "sku",
@@ -524,13 +527,13 @@ export default function HistorialDevolucionesPage() {
                             </div>
                         </div>
 
-                        <div className="border rounded-md">
+                        <div className="border rounded-md overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
                                         {headerColumns.map((column) => (
                                              <TableHead key={column.uid} 
-                                                className={cn(column.sortable && "cursor-pointer")}
+                                                className={cn(column.sortable && "cursor-pointer", "whitespace-nowrap")}
                                                 onClick={() => column.sortable && handleSort(column.uid)}
                                              >
                                                 <div className="flex items-center gap-2">
@@ -557,11 +560,14 @@ export default function HistorialDevolucionesPage() {
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        paginatedReturns.map((item) => (
+                                        paginatedReturns.map((item, index) => (
                                             <TableRow key={item.id}>
                                                 {headerColumns.map((column) => (
-                                                     <TableCell key={column.uid}>
-                                                        {renderCell(item, column.uid)}
+                                                     <TableCell key={column.uid} className="whitespace-nowrap">
+                                                         {column.uid === 'rowIndex' 
+                                                            ? (page - 1) * ROWS_PER_PAGE + index + 1 
+                                                            : renderCell(item, column.uid)
+                                                        }
                                                      </TableCell>
                                                 ))}
                                             </TableRow>
