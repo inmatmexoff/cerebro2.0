@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 //Subset of headers for the preview table
 const TABLE_HEADERS = [
-    '# Venta', 'Fecha Venta', 'Estado', 'Fecha Estado', 'SKU', 'Unidades', 'Total (MXN)', 'Tienda', 'Motivo del resultado'
+    '#', '# Venta', 'Fecha Venta', 'Estado', 'Fecha Estado', 'SKU', 'Unidades', 'Total (MXN)', 'Tienda', 'Motivo del resultado'
 ];
 
 const parseBoolean = (value: any): boolean => {
@@ -497,6 +497,7 @@ export default function ImportDevolucionesPage() {
                                 <TableBody>
                                     {data.map((row, rowIndex) => (
                                         <TableRow key={rowIndex}>
+                                            <TableCell>{rowIndex + 1}</TableCell>
                                             <TableCell>{row.num_venta}</TableCell>
                                             <TableCell>{row.fecha_venta ? (parseSaleDate(row.fecha_venta)?.toLocaleDateString('es-MX') || 'Fecha Inválida') : '-'}</TableCell>
                                             <TableCell>{row.status}</TableCell>
