@@ -5,6 +5,11 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         
+        let finalObservacion = body.observaciones || '';
+        if (body.factura && body.num_factura) {
+            finalObservacion = `Factura: ${body.num_factura}. ${finalObservacion}`.trim();
+        }
+
         const recordToInsert = {
             tienda: body.tienda || null,
             num_venta: body.num_venta || null,
@@ -17,7 +22,7 @@ export async function POST(request: Request) {
             nombre_despacho: body.empaquetador || null,
             nombre_revision: body.supervisado_por || null,
             error_prop: body.error_nosotros,
-            observacion: body.observaciones || null,
+            observacion: finalObservacion || null,
             factura: body.factura,
             s_revision: body.revision || null,
         };

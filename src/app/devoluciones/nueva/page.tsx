@@ -36,6 +36,7 @@ const devolucionSchema = z.object({
   error_nosotros: z.boolean().default(false),
   observaciones: z.string().optional(),
   factura: z.boolean().default(false),
+  num_factura: z.string().optional(),
   revision: z.string().optional(),
 });
 
@@ -66,9 +67,12 @@ export default function NuevaDevolucionPage() {
             error_nosotros: false,
             observaciones: '',
             factura: false,
+            num_factura: '',
             revision: '',
         },
     });
+
+    const watchFactura = form.watch('factura');
 
     useEffect(() => {
         const fetchSkus = async () => {
@@ -338,26 +342,43 @@ export default function NuevaDevolucionPage() {
                                                 </FormItem>
                                             )}
                                         />
-                                        <FormField
-                                            control={form.control}
-                                            name="factura"
-                                            render={({ field }) => (
-                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
-                                                    <div className="space-y-1">
-                                                        <FormLabel>Factura</FormLabel>
-                                                        <FormDescription className={cn(field.value ? 'text-primary font-semibold' : 'text-muted-foreground')}>
-                                                            {field.value ? 'Sí, incluye factura' : 'No'}
-                                                        </FormDescription>
-                                                    </div>
-                                                    <FormControl>
-                                                        <Switch
-                                                            checked={field.value}
-                                                            onCheckedChange={field.onChange}
-                                                        />
-                                                    </FormControl>
-                                                </FormItem>
+                                        <div className="space-y-4">
+                                            <FormField
+                                                control={form.control}
+                                                name="factura"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                                                        <div className="space-y-1">
+                                                            <FormLabel>Factura</FormLabel>
+                                                            <FormDescription className={cn(field.value ? 'text-primary font-semibold' : 'text-muted-foreground')}>
+                                                                {field.value ? 'Sí, incluye factura' : 'No'}
+                                                            </FormDescription>
+                                                        </div>
+                                                        <FormControl>
+                                                            <Switch
+                                                                checked={field.value}
+                                                                onCheckedChange={field.onChange}
+                                                            />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            {watchFactura && (
+                                                <FormField
+                                                    control={form.control}
+                                                    name="num_factura"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Número de Factura</FormLabel>
+                                                            <FormControl>
+                                                                <Input placeholder="Digite el número de factura" {...field} value={field.value ?? ''} />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
                                             )}
-                                        />
+                                        </div>
                                     </div>
 
                                     <Button type="submit" disabled={isSaving}>
