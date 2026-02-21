@@ -43,22 +43,36 @@ const parseDate = (value: any): Date | null => {
 
   // Case 3: String value
   if (typeof value === 'string') {
-    // Try parsing Spanish format: "1 de febrero de 2026 23:50 hs."
     const monthMap: { [key: string]: number } = {
-      enero: 0,
-      febrero: 1,
-      marzo: 2,
-      abril: 3,
-      mayo: 4,
-      junio: 5,
-      julio: 6,
-      agosto: 7,
-      septiembre: 8,
-      octubre: 9,
-      noviembre: 10,
-      diciembre: 11,
+      enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5,
+      julio: 6, agosto: 7, septiembre: 8, octubre: 9, noviembre: 10, diciembre: 11,
     };
-
+    
+    // Check for a 4-digit year. If not present, try to parse descriptive date like "23 de febrero".
+    if (!/\d{4}/.test(value)) {
+        const descriptiveDateMatch = value.toLowerCase().match(/(\d{1,2})\s+de\s+([a-záéíóúñ]+)/);
+        if (descriptiveDateMatch) {
+            const day = parseInt(descriptiveDateMatch[1], 10);
+            const monthName = descriptiveDateMatch[2];
+            const month = monthMap[monthName as keyof typeof monthMap];
+            
+            if (!isNaN(day) && month !== undefined) {
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const date = new Date(currentYear, month, day);
+                
+                if (!isNaN(date.getTime())) {
+                    // If the resulting date is in the past (e.g. it's December and date is February), assume it's for the next year.
+                    if (date < now && now.getMonth() > date.getMonth()) {
+                        date.setFullYear(currentYear + 1);
+                    }
+                    return date;
+                }
+            }
+        }
+    }
+    
+    // Try parsing Spanish format with year: "1 de febrero de 2026 23:50 hs."
     const cleanedString = value
       .replace(/\sde\s/g, ' ')
       .replace(/\s?hs\.?/, '')
@@ -74,16 +88,14 @@ const parseDate = (value: any): Date | null => {
       const timeParts = timeString.split(':');
       const hours = parseInt(timeParts[0], 10);
       const minutes = parseInt(timeParts[1], 10);
-      const month = monthMap[monthName];
+      const month = monthMap[monthName as keyof typeof monthMap];
 
       if (
         !isNaN(day) &&
         month !== undefined &&
-        !isNaN(year) &&
-        !isNaN(hours) &&
-        !isNaN(minutes)
+        !isNaN(year)
       ) {
-        const date = new Date(year, month, day, hours, minutes);
+        const date = new Date(year, month, day, isNaN(hours) ? 0 : hours, isNaN(minutes) ? 0 : minutes);
         if (!isNaN(date.getTime())) return date;
       }
     }
