@@ -575,7 +575,7 @@ export default function HistorialDevolucionesPage() {
                                             const today = new Date();
                                             today.setHours(0, 0, 0, 0);
 
-                                            const isNotDelivered = !item.fecha_entregado;
+                                            const isNotDelivered = !item.entregado;
                                             const statusDate = safeParseDate(item.fecha_status);
                                             const isStatusDatePast = statusDate ? statusDate < today : false;
 
