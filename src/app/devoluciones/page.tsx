@@ -1,6 +1,6 @@
 'use client';
 
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from 'next/link';
 import {
   Table,
@@ -20,8 +20,10 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Spinner,
 } from "@nextui-org/react";
 import { ArrowLeft, Package2 } from "lucide-react";
+import { supabasePROD } from "@/lib/supabase";
 
 // Helper functions and icons from the same style as /src/components/users-table.tsx
 const capitalize = (str: string) => {
@@ -130,69 +132,25 @@ const columns = [
   {name: "FECHA REVISIÓN", uid: "fecha_revision", sortable: true},
   {name: "PRODUCTO", uid: "producto"},
   {name: "SKU", uid: "sku"},
-  {name: "MOTIVO DEVOLUCIÓN", uid: "motivo_devolucion"},
+  {name: "MOTIVO DEVOLUCIÓN", uid: "motivo_devo"},
   {name: "ESTADO DE LLEGADA", uid: "estado_llegada", sortable: true},
   {name: "REPORTE", uid: "reporte", sortable: true},
-  {name: "EMPAQUETADOR", uid: "empaquetador"},
-  {name: "SUPERVISADO POR", uid: "supervisado_por"},
-  {name: "ERROR DE NOSOTROS", uid: "error_nosotros", sortable: true},
-  {name: "OBSERVACIONES", uid: "observaciones"},
+  {name: "EMPAQUETADOR", uid: "nombre_despacho"},
+  {name: "SUPERVISADO POR", uid: "nombre_revision"},
+  {name: "ERROR DE NOSOTROS", uid: "error_prop", sortable: true},
+  {name: "OBSERVACIONES", uid: "observacion"},
   {name: "FACTURA", uid: "factura"},
-  {name: "REVISIÓN", uid: "revision"},
+  {name: "REVISIÓN", uid: "s_revision"},
   {name: "ACTIONS", uid: "actions"},
 ];
 
-const mockReturns = [
-  {
-    id: 1,
-    tienda: "DO MESKA",
-    num_venta: "2000008064970425",
-    fecha_venta: "2024-05-10",
-    fecha_llegada: "2024-05-15",
-    fecha_revision: "2024-05-16",
-    producto: "Anaquel Metalico 5 Niveles",
-    sku: "INM-ANQ-5N",
-    motivo_devolucion: "Producto dañado",
-    estado_llegada: "Dañado",
-    reporte: "Sí",
-    empaquetador: "Juan Pérez",
-    supervisado_por: "Ana Gómez",
-    error_nosotros: "No",
-    observaciones: "El cliente reporta que llegó con un golpe en una esquina.",
-    factura: "F-12345",
-    revision: "Completa",
-  },
-  {
-    id: 2,
-    tienda: "INMATMEX",
-    num_venta: "2000008064970426",
-    fecha_venta: "2024-05-11",
-    fecha_llegada: "2024-05-16",
-    fecha_revision: "2024-05-17",
-    producto: "Exhibidor de alambre",
-    sku: "INM-EXH-ALM",
-    motivo_devolucion: "No era lo que esperaba",
-    estado_llegada: "Buen estado",
-    reporte: "No",
-    empaquetador: "Maria Rodriguez",
-    supervisado_por: "Ana Gómez",
-    error_nosotros: "No",
-    observaciones: "El producto está en perfectas condiciones, se puede re-almacenar.",
-    factura: "F-12346",
-    revision: "Completa",
-  },
-];
-
-const statusColorMap: Record<string, "danger" | "success" | "warning"> = {
-  "dañado": "danger",
-  "buen estado": "success",
-  "incompleto": "warning",
+const statusColorMap: Record<string, "success" | "warning" | "danger" | "default"> = {
+  BUENO: "success",
+  REGULAR: "warning",
+  DANIADO: "danger",
+  MUY_DANIADO: "danger",
 };
 
-const booleanColorMap: Record<string, "success" | "danger"> = {
-    "sí": "success",
-    "no": "danger",
-}
 
 const INITIAL_VISIBLE_COLUMNS = [
     "tienda", 
@@ -202,33 +160,61 @@ const INITIAL_VISIBLE_COLUMNS = [
     "sku",
     "motivo_devolucion",
     "estado_llegada",
-    "error_nosotros",
+    "error_prop",
     "actions"
 ];
 
 
 export default function DevolucionesPage() {
-    const [filterValue, setFilterValue] = React.useState("");
-    const [selectedKeys, setSelectedKeys] = React.useState<any>(new Set([]));
-    const [visibleColumns, setVisibleColumns] = React.useState<any>(new Set(INITIAL_VISIBLE_COLUMNS));
-    const [statusFilter, setStatusFilter] = React.useState<any>("all");
-    const [rowsPerPage, setRowsPerPage] = React.useState(5);
-    const [sortDescriptor, setSortDescriptor] = React.useState<any>({
+    const [returns, setReturns] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const [filterValue, setFilterValue] = useState("");
+    const [selectedKeys, setSelectedKeys] = useState<any>(new Set([]));
+    const [visibleColumns, setVisibleColumns] = useState<any>(new Set(INITIAL_VISIBLE_COLUMNS));
+    const [rowsPerPage, setRowsPerPage] = useState(5);
+    const [sortDescriptor, setSortDescriptor] = useState<any>({
         column: "fecha_llegada",
         direction: "descending",
     });
-    const [page, setPage] = React.useState(1);
+    const [page, setPage] = useState(1);
+
+    useEffect(() => {
+        const fetchReturns = async () => {
+          setIsLoading(true);
+          setError(null);
+          try {
+            const { data, error: dbError } = await supabasePROD
+              .from('devoluciones')
+              .select('*')
+              .order('fecha_llegada', { ascending: false });
+    
+            if (dbError) {
+              throw dbError;
+            }
+            setReturns(data || []);
+          } catch (err: any) {
+            setError("No se pudieron cargar las devoluciones.");
+            console.error("Error fetching returns:", err.message);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+    
+        fetchReturns();
+    }, []);
 
     const returnsTodayCount = React.useMemo(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        return mockReturns.filter(r => {
-            const [year, month, day] = r.fecha_llegada.split('-').map(Number);
-            const arrivalDate = new Date(year, month - 1, day);
-            return arrivalDate.getTime() === today.getTime();
+        return returns.filter(r => {
+            if (!r.fecha_llegada) return false;
+            const arrivalDate = new Date(r.fecha_llegada);
+            return arrivalDate.toDateString() === today.toDateString();
         }).length;
-    }, []);
+    }, [returns]);
 
     const hasSearchFilter = Boolean(filterValue);
 
@@ -239,7 +225,7 @@ export default function DevolucionesPage() {
     }, [visibleColumns]);
 
     const filteredItems = React.useMemo(() => {
-        let filteredReturns = [...mockReturns];
+        let filteredReturns = [...returns];
 
         if (hasSearchFilter) {
         filteredReturns = filteredReturns.filter((ret) =>
@@ -249,7 +235,7 @@ export default function DevolucionesPage() {
         );
         }
         return filteredReturns;
-    }, [filterValue]);
+    }, [returns, filterValue]);
 
     const pages = Math.ceil(filteredItems.length / rowsPerPage) || 1;
 
@@ -276,22 +262,27 @@ export default function DevolucionesPage() {
         switch (columnKey) {
             case "estado_llegada":
                 return (
-                <Chip className="capitalize" color={statusColorMap[item.estado_llegada.toLowerCase()]} size="sm" variant="flat">
-                    {cellValue}
+                <Chip className="capitalize" color={statusColorMap[cellValue] || 'default'} size="sm" variant="flat">
+                    {cellValue ? String(cellValue).replace(/_/g, ' ').toLowerCase() : '-'}
                 </Chip>
                 );
-            case "error_nosotros":
-                 return (
-                <Chip className="capitalize" color={booleanColorMap[item.error_nosotros.toLowerCase()]} size="sm" variant="flat">
-                    {cellValue}
-                </Chip>
+            case "error_prop":
+                return (
+                    <Chip className="capitalize" color={cellValue ? "danger" : "default"} size="sm" variant="flat">
+                        {cellValue ? 'Sí' : 'No'}
+                    </Chip>
                 );
             case "reporte":
-                 return (
-                <Chip className="capitalize" color={booleanColorMap[item.reporte.toLowerCase()]} size="sm" variant="flat">
-                    {cellValue}
-                </Chip>
+            case "factura":
+                return (
+                    <Chip className="capitalize" color={cellValue ? "success" : "default"} size="sm" variant="flat">
+                        {cellValue ? 'Sí' : 'No'}
+                    </Chip>
                 );
+            case "fecha_venta":
+            case "fecha_llegada":
+            case "fecha_revision":
+                return cellValue ? new Date(cellValue).toLocaleDateString('es-MX') : '-';
             case "actions":
                 return (
                 <div className="relative flex items-center gap-2">
@@ -393,7 +384,7 @@ export default function DevolucionesPage() {
           </div>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-default-400 text-small">Total {mockReturns.length} devoluciones</span>
+          <span className="text-default-400 text-small">Total {returns.length} devoluciones</span>
           <label className="flex items-center text-default-400 text-small">
             Filas por página:
             <select
@@ -414,6 +405,7 @@ export default function DevolucionesPage() {
     onRowsPerPageChange,
     onSearchChange,
     onClear,
+    returns.length,
   ]);
 
   const bottomContent = React.useMemo(() => {
@@ -471,7 +463,7 @@ export default function DevolucionesPage() {
                         <Package2 className="h-5 w-5 text-default-400" />
                     </CardHeader>
                     <CardBody>
-                        <div className="text-3xl font-bold">{returnsTodayCount}</div>
+                        <div className="text-3xl font-bold">{isLoading ? <Spinner size="sm"/> : returnsTodayCount}</div>
                         <p className="text-small text-default-500">
                             Devoluciones programadas para llegar hoy.
                         </p>
@@ -504,7 +496,12 @@ export default function DevolucionesPage() {
                         </TableColumn>
                         )}
                     </TableHeader>
-                    <TableBody emptyContent={"No se encontraron devoluciones"} items={sortedItems}>
+                    <TableBody 
+                        isLoading={isLoading}
+                        loadingContent={<Spinner label="Cargando..." />}
+                        emptyContent={!isLoading && "No se encontraron devoluciones"} 
+                        items={sortedItems}
+                    >
                         {(item) => (
                         <TableRow key={item.id}>
                             {(columnKey) => <TableCell>{renderCell(item, columnKey as string)}</TableCell>}
