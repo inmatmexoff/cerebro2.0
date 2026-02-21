@@ -85,11 +85,11 @@ export default function ImportDevolucionesPage() {
                 
                 const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
-                if (json.length <= 1) {
-                    throw new Error("El archivo está vacío o solo contiene la fila de encabezado.");
+                if (json.length <= 2) {
+                    throw new Error("El archivo está vacío o solo contiene filas de encabezado.");
                 }
 
-                const dataRows = json.slice(1);
+                const dataRows = json.slice(2);
                 
                 const columnMapping = {
                     tienda: 0, // A
@@ -108,7 +108,7 @@ export default function ImportDevolucionesPage() {
                 };
 
                 const extractedData = dataRows.map((row, index) => [
-                    index + 2, // Add Excel row number
+                    index + 1, // Add 1-based row number
                     row[columnMapping.tienda],
                     row[columnMapping.num_venta],
                     row[columnMapping.fecha_venta],
