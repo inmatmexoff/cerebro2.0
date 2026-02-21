@@ -132,7 +132,7 @@ export default function DevolucionesPage() {
 
      useEffect(() => {
         const handler = setTimeout(() => {
-            setDebouncedFilterValue(filterValue);
+            setDebouncedFilterValue(filterValue.trim());
         }, 500);
 
         return () => {
