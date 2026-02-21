@@ -25,7 +25,7 @@ import {
 import { ArrowLeft, Package2 } from "lucide-react";
 import { supabasePROD } from "@/lib/supabase";
 
-// Helper functions and icons from the same style as /src/components/users-table.tsx
+// Helper functions and icons
 const capitalize = (str: string) => {
   if (!str) return "";
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -52,24 +52,6 @@ const PlusIcon = (props: any) => (
         <path d="M6 12h12" />
         <path d="M12 18V6" />
       </g>
-    </svg>
-);
-
-const VerticalDotsIcon = ({size = 24, width, height, ...props}) => (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      focusable="false"
-      height={size || height}
-      role="presentation"
-      viewBox="0 0 24 24"
-      width={size || width}
-      {...props}
-    >
-      <path
-        d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 12c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
-        fill="currentColor"
-      />
     </svg>
 );
 
@@ -141,7 +123,6 @@ const columns = [
   {name: "OBSERVACIONES", uid: "observacion"},
   {name: "FACTURA", uid: "factura"},
   {name: "REVISIÓN", uid: "s_revision"},
-  {name: "ACTIONS", uid: "actions"},
 ];
 
 const statusColorMap: Record<string, "success" | "warning" | "danger" | "default"> = {
@@ -161,7 +142,6 @@ const INITIAL_VISIBLE_COLUMNS = [
     "motivo_devolucion",
     "estado_llegada",
     "error_prop",
-    "actions"
 ];
 
 
@@ -283,22 +263,6 @@ export default function DevolucionesPage() {
             case "fecha_llegada":
             case "fecha_revision":
                 return cellValue ? new Date(cellValue).toLocaleDateString('es-MX') : '-';
-            case "actions":
-                return (
-                <div className="relative flex items-center gap-2">
-                    <Dropdown>
-                    <DropdownTrigger>
-                        <Button isIconOnly size="sm" variant="light">
-                        <VerticalDotsIcon className="text-default-300" />
-                        </Button>
-                    </DropdownTrigger>
-                    <DropdownMenu>
-                        <DropdownItem key="view">Ver Detalle</DropdownItem>
-                        <DropdownItem key="edit">Editar</DropdownItem>
-                    </DropdownMenu>
-                    </Dropdown>
-                </div>
-                );
             default:
                 return cellValue;
         }
@@ -364,7 +328,7 @@ export default function DevolucionesPage() {
                 selectionMode="multiple"
                 onSelectionChange={setVisibleColumns}
               >
-                {columns.filter(c => c.uid !== 'actions').map((column) => (
+                {columns.map((column) => (
                   <DropdownItem key={column.uid} className="capitalize">
                     {capitalize(column.name)}
                   </DropdownItem>
