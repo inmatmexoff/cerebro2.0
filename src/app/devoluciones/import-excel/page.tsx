@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 //Subset of headers for the preview table
 const TABLE_HEADERS = [
-    '#', '# Venta', 'Fecha Venta', 'Estado', 'Fecha Estado', 'SKU', 'Unidades', 'Total (MXN)', 'Tienda', 'Motivo del resultado'
+    '#', '# Venta', 'Fecha Venta', 'Fecha Estado', 'Estado', 'SKU', 'Unidades', 'Total (MXN)', 'Tienda', 'Motivo del resultado'
 ];
 
 const parseBoolean = (value: any): boolean => {
@@ -215,6 +215,7 @@ export default function ImportDevolucionesPage() {
                 const extractedData = dataRows.map(row => {
                     const originalStatus = row[columnMapping.status] ? String(row[columnMapping.status]) : null;
                     let fechaStatusValue = null;
+                    let finalStatus = originalStatus;
 
                     if (originalStatus) {
                         const prefix1 = "Te devolveremos el paquete antes del ";
@@ -223,16 +224,18 @@ export default function ImportDevolucionesPage() {
                         if (originalStatus.startsWith(prefix1)) {
                             const dateString = originalStatus.substring(prefix1.length).trim();
                             fechaStatusValue = parseSaleDate(dateString);
+                            finalStatus = dateString;
                         } else if (originalStatus.startsWith(prefix2)) {
                             const dateString = originalStatus.substring(prefix2.length).trim();
                             fechaStatusValue = parseSaleDate(dateString);
+                            finalStatus = `Llegará el ${dateString}`;
                         }
                     }
 
                     return {
                         num_venta: row[columnMapping.num_venta],
                         fecha_venta: row[columnMapping.fecha_venta],
-                        status: originalStatus,
+                        status: finalStatus,
                         fecha_status: fechaStatusValue,
                         desc_status: row[columnMapping.desc_status],
                         varios_productos: row[columnMapping.varios_productos],
@@ -505,8 +508,8 @@ export default function ImportDevolucionesPage() {
                                             <TableCell>{rowIndex + 1}</TableCell>
                                             <TableCell>{row.num_venta}</TableCell>
                                             <TableCell>{row.fecha_venta ? (parseSaleDate(row.fecha_venta)?.toLocaleDateString('es-MX') || 'Fecha Inválida') : '-'}</TableCell>
-                                            <TableCell>{row.status}</TableCell>
                                             <TableCell>{row.fecha_status ? (row.fecha_status.toLocaleDateString('es-MX')) : '-'}</TableCell>
+                                            <TableCell>{row.status}</TableCell>
                                             <TableCell>{row.sku}</TableCell>
                                             <TableCell>{row.unidades}</TableCell>
                                             <TableCell>{row.total}</TableCell>
