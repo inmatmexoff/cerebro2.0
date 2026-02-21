@@ -407,19 +407,19 @@ export default function DevolucionesPage() {
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                                     <div className="p-2 bg-muted/50 rounded-md">
                                         <p className="text-sm text-muted-foreground">Bueno</p>
-                                        <p className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.BUENO}</p>
+                                        <div className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.BUENO}</div>
                                     </div>
                                     <div className="p-2 bg-muted/50 rounded-md">
                                         <p className="text-sm text-muted-foreground">Regular</p>
-                                        <p className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.REGULAR}</p>
+                                        <div className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.REGULAR}</div>
                                     </div>
                                     <div className="p-2 bg-muted/50 rounded-md">
                                         <p className="text-sm text-muted-foreground">Dañado</p>
-                                        <p className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.DANIADO}</p>
+                                        <div className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.DANIADO}</div>
                                     </div>
                                     <div className="p-2 bg-muted/50 rounded-md">
                                         <p className="text-sm text-muted-foreground">Muy Dañado</p>
-                                        <p className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.MUY_DANIADO}</p>
+                                        <div className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.MUY_DANIADO}</div>
                                     </div>
                                 </div>
                             </TabsContent>
