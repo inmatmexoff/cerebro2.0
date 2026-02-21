@@ -217,9 +217,14 @@ export default function ImportDevolucionesPage() {
                     let fechaStatusValue = null;
 
                     if (originalStatus) {
-                        const prefix = "Te devolveremos el paquete antes del ";
-                        if (originalStatus.startsWith(prefix)) {
-                            const dateString = originalStatus.substring(prefix.length).trim();
+                        const prefix1 = "Te devolveremos el paquete antes del ";
+                        const prefix2 = "Devolución en camino. Llegará el ";
+                        
+                        if (originalStatus.startsWith(prefix1)) {
+                            const dateString = originalStatus.substring(prefix1.length).trim();
+                            fechaStatusValue = parseSaleDate(dateString);
+                        } else if (originalStatus.startsWith(prefix2)) {
+                            const dateString = originalStatus.substring(prefix2.length).trim();
                             fechaStatusValue = parseSaleDate(dateString);
                         }
                     }
