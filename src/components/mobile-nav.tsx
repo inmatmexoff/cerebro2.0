@@ -16,6 +16,7 @@ import {
   Barcode,
   ChevronRight,
   Cable,
+  ArchiveRestore,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -74,6 +75,12 @@ function MobileNavMenu() {
           <Link href="/analisis-sku" className={cn("flex items-center gap-3 rounded-lg px-3 py-3", pathname === '/analisis-sku' && "bg-muted text-primary")}>
             <Barcode className="w-5 h-5" />
             <span>Análisis por SKU</span>
+          </Link>
+        </SheetClose>
+        <SheetClose asChild>
+          <Link href="/devoluciones" className={cn("flex items-center gap-3 rounded-lg px-3 py-3", pathname.startsWith('/devoluciones') && "bg-muted text-primary")}>
+            <ArchiveRestore className="w-5 h-5" />
+            <span>Devoluciones</span>
           </Link>
         </SheetClose>
         <SheetClose asChild>

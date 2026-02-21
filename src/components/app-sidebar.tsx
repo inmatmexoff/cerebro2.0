@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   Cable,
+  ArchiveRestore,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -113,6 +114,17 @@ export function AppSidebar() {
         >
           <Barcode className="h-4 w-4 shrink-0" />
            <span className={cn(isCollapsed && 'hidden')}>Análisis por SKU</span>
+        </Link>
+        <Link
+          href="/devoluciones"
+          className={cn(
+            'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary font-medium',
+            pathname.startsWith('/devoluciones') && 'bg-muted text-primary',
+            isCollapsed && 'justify-center'
+          )}
+        >
+          <ArchiveRestore className="h-4 w-4 shrink-0" />
+          <span className={cn(isCollapsed && 'hidden')}>Devoluciones</span>
         </Link>
         <Link
           href="/mercadolibre"
