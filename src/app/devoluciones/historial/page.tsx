@@ -193,9 +193,9 @@ export default function HistorialDevolucionesPage() {
         today.setHours(0, 0, 0, 0);
     
         const returnsToday = returns.filter(r => {
-            if (!r.fecha_venta) return false;
-            const arrivalDate = new Date(r.fecha_venta);
-            return arrivalDate.toDateString() === today.toDateString();
+            if (!r.fecha_status) return false;
+            const statusDate = new Date(r.fecha_status);
+            return statusDate.toDateString() === today.toDateString();
         });
     
         const reasonCounts = returns.reduce((acc, curr) => {
