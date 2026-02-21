@@ -25,6 +25,9 @@ export async function POST(request: Request) {
              if (error.code === '22P02') { // invalid text representation for a data type
                  return NextResponse.json({ message: `Error de formato en los datos. Revisa que los números y fechas sean correctos. Detalles: ${error.details}` }, { status: 400 });
             }
+             if (error.message.includes('column "fecha_status" of relation "devoluciones_ml" does not exist')) {
+                return NextResponse.json({ message: 'La columna "fecha_status" no existe en la base de datos. Por favor, añádela antes de importar.' }, { status: 400 });
+            }
             throw new Error(`Error en la base de datos: ${error.message}`);
         }
 

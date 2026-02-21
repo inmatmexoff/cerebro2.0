@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 //Subset of headers for the preview table
 const TABLE_HEADERS = [
-    '# Venta', 'Fecha Venta', 'Estado', 'SKU', 'Unidades', 'Total (MXN)', 'Tienda', 'Motivo del resultado'
+    '# Venta', 'Fecha Venta', 'Estado', 'Fecha Estado', 'SKU', 'Unidades', 'Total (MXN)', 'Tienda', 'Motivo del resultado'
 ];
 
 const parseBoolean = (value: any): boolean => {
@@ -25,77 +25,6 @@ const parseBoolean = (value: any): boolean => {
 };
 
 const parseSaleDate = (value: any): Date | null => {
-  if (!value) return null;
-
-  // Case 1: Already a Date object
-  if (value instanceof Date && !isNaN(value.getTime())) {
-    return value;
-  }
-
-  // Case 2: Excel date serial number
-  if (typeof value === 'number') {
-    // 25569 is the serial number for 1970-01-01
-    return new Date(Math.round((value - 25569) * 86400 * 1000));
-  }
-
-  // Case 3: String value
-  if (typeof value === 'string') {
-    // Try parsing Spanish format: "1 de febrero de 2026 23:50 hs."
-    const monthMap: { [key: string]: number } = {
-      enero: 0,
-      febrero: 1,
-      marzo: 2,
-      abril: 3,
-      mayo: 4,
-      junio: 5,
-      julio: 6,
-      agosto: 7,
-      septiembre: 8,
-      octubre: 9,
-      noviembre: 10,
-      diciembre: 11,
-    };
-
-    const cleanedString = value
-      .replace(/\sde\s/g, ' ')
-      .replace(/\s?hs\.?/, '')
-      .toLowerCase()
-      .trim();
-    const parts = cleanedString.split(' '); // e.g., ["1", "febrero", "2026", "23:50"]
-
-    if (parts.length >= 3) {
-      const day = parseInt(parts[0], 10);
-      const monthName = parts[1];
-      const year = parseInt(parts[2], 10);
-      const timeString = parts[3] || '00:00';
-      const timeParts = timeString.split(':');
-      const hours = parseInt(timeParts[0], 10);
-      const minutes = parseInt(timeParts[1], 10);
-      const month = monthMap[monthName];
-
-      if (
-        !isNaN(day) &&
-        month !== undefined &&
-        !isNaN(year) &&
-        !isNaN(hours) &&
-        !isNaN(minutes)
-      ) {
-        const date = new Date(year, month, day, hours, minutes);
-        if (!isNaN(date.getTime())) return date;
-      }
-    }
-
-    // Fallback for other standard date string formats
-    const parsed = new Date(value);
-    if (!isNaN(parsed.getTime())) {
-      return parsed;
-    }
-  }
-
-  return null;
-};
-
-const parseDate = (value: any): Date | null => {
   if (!value) return null;
 
   // Case 1: Already a Date object
@@ -284,20 +213,22 @@ export default function ImportDevolucionesPage() {
                 };
 
                 const extractedData = dataRows.map(row => {
-                    const originalStatus = row[columnMapping.status];
-                    let finalStatus = originalStatus ? String(originalStatus) : null;
-                    
-                    if (finalStatus) {
+                    const originalStatus = row[columnMapping.status] ? String(row[columnMapping.status]) : null;
+                    let fechaStatusValue = null;
+
+                    if (originalStatus) {
                         const prefix = "Te devolveremos el paquete antes del ";
-                        if (finalStatus.startsWith(prefix)) {
-                            finalStatus = finalStatus.substring(prefix.length).trim();
+                        if (originalStatus.startsWith(prefix)) {
+                            const dateString = originalStatus.substring(prefix.length).trim();
+                            fechaStatusValue = parseSaleDate(dateString);
                         }
                     }
 
                     return {
                         num_venta: row[columnMapping.num_venta],
                         fecha_venta: row[columnMapping.fecha_venta],
-                        status: finalStatus,
+                        status: originalStatus,
+                        fecha_status: fechaStatusValue,
                         desc_status: row[columnMapping.desc_status],
                         varios_productos: row[columnMapping.varios_productos],
                         kit: row[columnMapping.kit],
@@ -402,8 +333,9 @@ export default function ImportDevolucionesPage() {
         try {
             const recordsToSave = data.map(row => ({
                 num_venta: row.num_venta ? String(row.num_venta) : null,
-                fecha_venta: parseDate(row.fecha_venta),
+                fecha_venta: parseSaleDate(row.fecha_venta),
                 status: row.status ? String(row.status) : null,
+                fecha_status: row.fecha_status,
                 desc_status: row.desc_status ? String(row.desc_status) : null,
                 varios_productos: parseBoolean(row.varios_productos),
                 kit: parseBoolean(row.kit),
@@ -425,13 +357,13 @@ export default function ImportDevolucionesPage() {
                 precio_uni_venta: parseNumber(row.precio_uni_venta),
                 tip_publi: row.tip_publi ? String(row.tip_publi) : null,
                 form_entrega: row.form_entrega ? String(row.form_entrega) : null,
-                fecha_camino: parseDate(row.fecha_camino),
-                fecha_entregado: parseDate(row.fecha_entregado),
+                fecha_camino: parseSaleDate(row.fecha_camino),
+                fecha_entregado: parseSaleDate(row.fecha_entregado),
                 transportista: row.transportista ? String(row.transportista) : null,
                 num_seguimiento: row.num_seguimiento ? String(row.num_seguimiento) : null,
                 url_seguimiento: row.url_seguimiento ? String(row.url_seguimiento) : null,
                 revisado_ml: parseBoolean(row.revisado_ml),
-                fecha_revision: parseDate(row.fecha_revision),
+                fecha_revision: parseSaleDate(row.fecha_revision),
                 dinero_afavor: row.dinero_afavor ? String(row.dinero_afavor) : null,
                 resultado: row.resultado ? String(row.resultado) : null,
                 destino: row.destino ? String(row.destino) : null,
@@ -566,8 +498,9 @@ export default function ImportDevolucionesPage() {
                                     {data.map((row, rowIndex) => (
                                         <TableRow key={rowIndex}>
                                             <TableCell>{row.num_venta}</TableCell>
-                                            <TableCell>{row.fecha_venta ? (parseDate(row.fecha_venta)?.toLocaleDateString('es-MX') || 'Fecha Inválida') : '-'}</TableCell>
+                                            <TableCell>{row.fecha_venta ? (parseSaleDate(row.fecha_venta)?.toLocaleDateString('es-MX') || 'Fecha Inválida') : '-'}</TableCell>
                                             <TableCell>{row.status}</TableCell>
+                                            <TableCell>{row.fecha_status ? (row.fecha_status.toLocaleDateString('es-MX')) : '-'}</TableCell>
                                             <TableCell>{row.sku}</TableCell>
                                             <TableCell>{row.unidades}</TableCell>
                                             <TableCell>{row.total}</TableCell>
