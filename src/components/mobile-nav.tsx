@@ -56,6 +56,7 @@ function MobileNavMenu() {
     const pathname = usePathname();
     const [corteDeCajaOpen, setCorteDeCajaOpen] = React.useState(pathname.startsWith('/corte-de-caja') || pathname.startsWith('/configuracion'));
     const [configuracionOpen, setConfiguracionOpen] = React.useState(pathname.startsWith('/configuracion'));
+    const [devolucionesOpen, setDevolucionesOpen] = React.useState(pathname.startsWith('/devoluciones'));
 
     return (
       <nav className="flex flex-col gap-1 mt-6 text-lg font-medium">
@@ -77,12 +78,22 @@ function MobileNavMenu() {
             <span>Análisis por SKU</span>
           </Link>
         </SheetClose>
-        <SheetClose asChild>
-          <Link href="/devoluciones" className={cn("flex items-center gap-3 rounded-lg px-3 py-3", pathname.startsWith('/devoluciones') && "bg-muted text-primary")}>
-            <ArchiveRestore className="w-5 h-5" />
-            <span>Devoluciones</span>
-          </Link>
-        </SheetClose>
+        <Collapsible open={devolucionesOpen} onOpenChange={setDevolucionesOpen} className="w-full">
+          <CollapsibleTrigger className='w-full'>
+            <div className={cn("flex items-center justify-between w-full rounded-lg px-3 py-3", pathname.startsWith('/devoluciones') && 'text-primary')}>
+              <div className="flex items-center gap-3">
+                <ArchiveRestore className="w-5 h-5" />
+                <span>Devoluciones</span>
+              </div>
+              <ChevronRight className={cn('h-5 w-5 shrink-0 transition-transform', devolucionesOpen && 'rotate-90')} />
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pl-8 mt-1 space-y-1 text-base">
+            <SheetClose asChild><Link href="/devoluciones" className={cn("block rounded-md p-2", pathname === '/devoluciones' && "bg-muted text-primary")}>Listado</Link></SheetClose>
+            <SheetClose asChild><Link href="/devoluciones/nueva" className={cn("block rounded-md p-2", pathname === '/devoluciones/nueva' && "bg-muted text-primary")}>Nueva Devolución</Link></SheetClose>
+            <SheetClose asChild><Link href="/devoluciones/import-excel" className={cn("block rounded-md p-2", pathname === '/devoluciones/import-excel' && "bg-muted text-primary")}>Importar Excel</Link></SheetClose>
+          </CollapsibleContent>
+        </Collapsible>
         <SheetClose asChild>
           <Link href="/mercadolibre" className={cn("flex items-center gap-3 rounded-lg px-3 py-3", pathname === '/mercadolibre' && "bg-muted text-primary")}>
             <Cable className="w-5 h-5" />

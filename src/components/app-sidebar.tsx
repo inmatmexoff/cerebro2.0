@@ -67,11 +67,15 @@ export function AppSidebar() {
   const [configuracionOpen, setConfiguracionOpen] = React.useState(
     pathname.startsWith('/configuracion')
   );
+  const [devolucionesOpen, setDevolucionesOpen] = React.useState(
+    pathname.startsWith('/devoluciones')
+  );
 
   React.useEffect(() => {
     if (isCollapsed) {
         setCorteDeCajaOpen(false);
         setConfiguracionOpen(false);
+        setDevolucionesOpen(false);
     }
   }, [isCollapsed]);
 
@@ -115,17 +119,22 @@ export function AppSidebar() {
           <Barcode className="h-4 w-4 shrink-0" />
            <span className={cn(isCollapsed && 'hidden')}>Análisis por SKU</span>
         </Link>
-        <Link
-          href="/devoluciones"
-          className={cn(
-            'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary font-medium',
-            pathname.startsWith('/devoluciones') && 'bg-muted text-primary',
-            isCollapsed && 'justify-center'
-          )}
-        >
-          <ArchiveRestore className="h-4 w-4 shrink-0" />
-          <span className={cn(isCollapsed && 'hidden')}>Devoluciones</span>
-        </Link>
+        <Collapsible open={devolucionesOpen} onOpenChange={setDevolucionesOpen}>
+            <CollapsibleTrigger disabled={isCollapsed} className='w-full'>
+                <div className={cn("flex items-center w-full rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary font-medium", pathname.startsWith('/devoluciones') && 'text-primary bg-muted', isCollapsed ? 'justify-center' : 'justify-between')}>
+                    <div className="flex items-center gap-3">
+                       <ArchiveRestore className="h-4 w-4 shrink-0" />
+                       <span className={cn(isCollapsed && 'hidden')}>Devoluciones</span>
+                    </div>
+                   <ChevronRight className={cn('h-4 w-4 shrink-0 transition-transform', isCollapsed && 'hidden', devolucionesOpen && 'rotate-90')} />
+                </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pl-10 mt-1 space-y-1">
+                 <Link href="/devoluciones" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/devoluciones' && "text-primary")}>Listado</Link>
+                 <Link href="/devoluciones/nueva" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/devoluciones/nueva' && "text-primary")}>Nueva Devolución</Link>
+                 <Link href="/devoluciones/import-excel" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/devoluciones/import-excel' && "text-primary")}>Importar Excel</Link>
+            </CollapsibleContent>
+        </Collapsible>
         <Link
           href="/mercadolibre"
           className={cn(

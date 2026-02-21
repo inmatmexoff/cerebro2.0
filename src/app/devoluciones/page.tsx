@@ -381,9 +381,14 @@ export default function DevolucionesPage() {
               </DropdownMenu>
             </Dropdown>
             <Link href="/devoluciones/import-excel">
-                <Button color="primary" endContent={<PlusIcon />}>
-                    Importar Excel
-                </Button>
+              <Button variant="flat">
+                Importar Excel
+              </Button>
+            </Link>
+            <Link href="/devoluciones/nueva">
+              <Button color="primary" endContent={<PlusIcon />}>
+                Nueva Devolución
+              </Button>
             </Link>
           </div>
         </div>
