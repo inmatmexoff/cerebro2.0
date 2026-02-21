@@ -17,8 +17,11 @@ import {
   DropdownItem,
   Chip,
   Pagination,
+  Card,
+  CardBody,
+  CardHeader,
 } from "@nextui-org/react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Package2 } from "lucide-react";
 
 // Helper functions and icons from the same style as /src/components/users-table.tsx
 const capitalize = (str: string) => {
@@ -215,6 +218,17 @@ export default function DevolucionesPage() {
         direction: "descending",
     });
     const [page, setPage] = React.useState(1);
+
+    const returnsTodayCount = React.useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        return mockReturns.filter(r => {
+            const [year, month, day] = r.fecha_llegada.split('-').map(Number);
+            const arrivalDate = new Date(year, month - 1, day);
+            return arrivalDate.getTime() === today.getTime();
+        }).length;
+    }, []);
 
     const hasSearchFilter = Boolean(filterValue);
 
@@ -446,6 +460,18 @@ export default function DevolucionesPage() {
                 </div>
             </header>
             <main>
+                <Card className="mb-6" shadow="sm">
+                    <CardHeader className="flex flex-row items-center justify-between pb-0">
+                        <h4 className="font-bold text-large">Devoluciones de Hoy</h4>
+                        <Package2 className="h-5 w-5 text-default-400" />
+                    </CardHeader>
+                    <CardBody>
+                        <div className="text-3xl font-bold">{returnsTodayCount}</div>
+                        <p className="text-small text-default-500">
+                            Devoluciones programadas para llegar hoy.
+                        </p>
+                    </CardBody>
+                </Card>
                 <Table
                     aria-label="Tabla de devoluciones"
                     isHeaderSticky
