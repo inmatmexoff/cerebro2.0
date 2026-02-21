@@ -48,59 +48,45 @@ const parseDate = (value: any): Date | null => {
       julio: 6, agosto: 7, septiembre: 8, octubre: 9, noviembre: 10, diciembre: 11,
     };
     
-    // Check for a 4-digit year. If not present, try to parse descriptive date like "23 de febrero".
-    if (!/\d{4}/.test(value)) {
-        const descriptiveDateMatch = value.toLowerCase().match(/(\d{1,2})\s+de\s+([a-záéíóúñ]+)/);
-        if (descriptiveDateMatch) {
-            const day = parseInt(descriptiveDateMatch[1], 10);
-            const monthName = descriptiveDateMatch[2];
-            const month = monthMap[monthName as keyof typeof monthMap];
-            
-            if (!isNaN(day) && month !== undefined) {
-                const now = new Date();
-                const currentYear = now.getFullYear();
-                const date = new Date(currentYear, month, day);
-                
-                if (!isNaN(date.getTime())) {
-                    // If the resulting date is in the past (e.g. it's December and date is February), assume it's for the next year.
-                    if (date < now && now.getMonth() > date.getMonth()) {
-                        date.setFullYear(currentYear + 1);
-                    }
-                    return date;
-                }
-            }
-        }
-    }
-    
-    // Try parsing Spanish format with year: "1 de febrero de 2026 23:50 hs."
-    const cleanedString = value
-      .replace(/\sde\s/g, ' ')
-      .replace(/\s?hs\.?/, '')
-      .toLowerCase()
-      .trim();
-    const parts = cleanedString.split(' '); // e.g., ["1", "febrero", "2026", "23:50"]
-
-    if (parts.length >= 3) {
-      const day = parseInt(parts[0], 10);
-      const monthName = parts[1];
-      const year = parseInt(parts[2], 10);
-      const timeString = parts[3] || '00:00';
-      const timeParts = timeString.split(':');
-      const hours = parseInt(timeParts[0], 10);
-      const minutes = parseInt(timeParts[1], 10);
+    // Attempt 1: Full Spanish format "17 de febrero de 2026 11:04 hs."
+    const fullDateMatch = value.toLowerCase().match(/(\d{1,2})\s+de\s+([a-záéíóúñ]+)\s+de\s+(\d{4})(?:.*?(\d{1,2}):(\d{2}))?/);
+    if (fullDateMatch) {
+      const day = parseInt(fullDateMatch[1], 10);
+      const monthName = fullDateMatch[2];
+      const year = parseInt(fullDateMatch[3], 10);
+      const hours = fullDateMatch[4] ? parseInt(fullDateMatch[4], 10) : 0;
+      const minutes = fullDateMatch[5] ? parseInt(fullDateMatch[5], 10) : 0;
       const month = monthMap[monthName as keyof typeof monthMap];
 
-      if (
-        !isNaN(day) &&
-        month !== undefined &&
-        !isNaN(year)
-      ) {
-        const date = new Date(year, month, day, isNaN(hours) ? 0 : hours, isNaN(minutes) ? 0 : minutes);
+      if (!isNaN(day) && month !== undefined && !isNaN(year)) {
+        const date = new Date(year, month, day, hours, minutes);
         if (!isNaN(date.getTime())) return date;
       }
     }
+    
+    // Attempt 2: Short Spanish format inside a string "... 23 de febrero ..."
+    const descriptiveDateMatch = value.toLowerCase().match(/(\d{1,2})\s+de\s+([a-záéíóúñ]+)/);
+    if (descriptiveDateMatch) {
+        const day = parseInt(descriptiveDateMatch[1], 10);
+        const monthName = descriptiveDateMatch[2];
+        const month = monthMap[monthName as keyof typeof monthMap];
+        
+        if (!isNaN(day) && month !== undefined) {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const date = new Date(currentYear, month, day);
+            
+            if (!isNaN(date.getTime())) {
+                // If date is in the past, assume it's for next year.
+                if (date < now) {
+                    date.setFullYear(currentYear + 1);
+                }
+                return date;
+            }
+        }
+    }
 
-    // Fallback for other standard date string formats
+    // Attempt 3: Standard JS Date parsing as a fallback
     const parsed = new Date(value);
     if (!isNaN(parsed.getTime())) {
       return parsed;
@@ -479,7 +465,7 @@ export default function ImportDevolucionesPage() {
                                     {data.map((row, rowIndex) => (
                                         <TableRow key={rowIndex}>
                                             <TableCell>{row.num_venta}</TableCell>
-                                            <TableCell>{row.fecha_venta ? new Date(row.fecha_venta).toLocaleDateString('es-MX') : '-'}</TableCell>
+                                            <TableCell>{row.fecha_venta ? (parseDate(row.fecha_venta)?.toLocaleDateString('es-MX') || 'Fecha Inválida') : '-'}</TableCell>
                                             <TableCell>{row.status}</TableCell>
                                             <TableCell>{row.sku}</TableCell>
                                             <TableCell>{row.unidades}</TableCell>
