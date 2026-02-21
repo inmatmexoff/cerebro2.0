@@ -90,6 +90,7 @@ function MobileNavMenu() {
           </CollapsibleTrigger>
           <CollapsibleContent className="pl-8 mt-1 space-y-1 text-base">
             <SheetClose asChild><Link href="/devoluciones" className={cn("block rounded-md p-2", pathname === '/devoluciones' && "bg-muted text-primary")}>Listado</Link></SheetClose>
+            <SheetClose asChild><Link href="/devoluciones/historial" className={cn("block rounded-md p-2", pathname === '/devoluciones/historial' && "bg-muted text-primary")}>Historial ML</Link></SheetClose>
             <SheetClose asChild><Link href="/devoluciones/nueva" className={cn("block rounded-md p-2", pathname === '/devoluciones/nueva' && "bg-muted text-primary")}>Nueva Devolución</Link></SheetClose>
             <SheetClose asChild><Link href="/devoluciones/import-excel" className={cn("block rounded-md p-2", pathname === '/devoluciones/import-excel' && "bg-muted text-primary")}>Importar Excel</Link></SheetClose>
           </CollapsibleContent>
