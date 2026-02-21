@@ -152,7 +152,7 @@ export default function DevolucionesPage() {
               .select('*', { count: 'exact' });
     
             if(debouncedFilterValue) {
-                query = query.or(`num_venta::text.ilike.%${debouncedFilterValue}%,producto.ilike.%${debouncedFilterValue}%,sku.ilike.%${debouncedFilterValue}%`);
+                query = query.or(`num_venta::text.like.%${debouncedFilterValue}%,producto.ilike.%${debouncedFilterValue}%,sku.ilike.%${debouncedFilterValue}%`);
             }
 
             if(appliedFilters.company && appliedFilters.company !== 'all') {
