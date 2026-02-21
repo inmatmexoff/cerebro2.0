@@ -146,7 +146,7 @@ export default function DevolucionesPage() {
               .select('*', { count: 'exact' });
     
             if(debouncedFilterValue) {
-                query = query.or(`num_venta.ilike.%${debouncedFilterValue}%,producto.ilike.%${debouncedFilterValue}%,sku.ilike.%${debouncedFilterValue}%`);
+                query = query.or(`num_venta::text.ilike.%${debouncedFilterValue}%,producto.ilike.%${debouncedFilterValue}%,sku.ilike.%${debouncedFilterValue}%`);
             }
 
             if(appliedFilters.company && appliedFilters.company !== 'all') {
@@ -188,7 +188,7 @@ export default function DevolucionesPage() {
           } finally {
             setIsLoading(false);
           }
-    }, [page, debouncedFilterValue, appliedFilters, sortDescriptor]);
+    }, [page, debouncedFilterValue, appliedFilters, sortDescriptor, toast]);
 
     useEffect(() => {
         fetchReturns();
