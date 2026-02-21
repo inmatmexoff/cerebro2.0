@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 
 const TABLE_HEADERS = [
-    'Tienda', '# Venta', 'Fecha Venta', 'Fecha Llegada', 'Producto', 'Motivo Devolución', 'Estado Llegada', 'Reporte', 'Empaquetador', 'Error de Nosotros', 'Observaciones', 'Factura', 'Revisión'
+    '# Fila', 'Tienda', '# Venta', 'Fecha Venta', 'Fecha Llegada', 'Producto', 'Motivo Devolución', 'Estado Llegada', 'Reporte', 'Empaquetador', 'Error de Nosotros', 'Observaciones', 'Factura', 'Revisión'
 ];
 
 // Helper to parse boolean values from various string inputs
@@ -107,7 +107,8 @@ export default function ImportDevolucionesPage() {
                     s_revision: 13, // N
                 };
 
-                const extractedData = dataRows.map(row => [
+                const extractedData = dataRows.map((row, index) => [
+                    index + 2, // Add Excel row number
                     row[columnMapping.tienda],
                     row[columnMapping.num_venta],
                     row[columnMapping.fecha_venta],
@@ -123,8 +124,8 @@ export default function ImportDevolucionesPage() {
                     row[columnMapping.s_revision],
                 ]);
 
-                // Filter out rows where the "producto" (column F) is empty, as it's a required field.
-                const validatedData = extractedData.filter(row => String(row[4] || '').trim());
+                // Filter out rows where the "producto" (now at index 5) is empty.
+                const validatedData = extractedData.filter(row => String(row[5] || '').trim());
                 
                 const skippedCount = extractedData.length - validatedData.length;
 
@@ -197,19 +198,19 @@ export default function ImportDevolucionesPage() {
             };
 
             const recordsToSave = data.map(row => ({
-                tienda: row[0] || null,
-                num_venta: row[1] ? Number(String(row[1]).replace(/[^0-9]/g, '')) : null,
-                fecha_venta: parseDate(row[2]),
-                fecha_llegada: parseDate(row[3]),
-                producto: row[4] || null,
-                motivo_devo: row[5] || null,
-                estado_llegada: mapEstadoLlegada(row[6]),
-                reporte: parseBoolean(row[7]),
-                nombre_despacho: row[8] || null,
-                error_prop: parseBoolean(row[9]),
-                observacion: row[10] || null,
-                factura: parseBoolean(row[11]),
-                s_revision: row[12] || null,
+                tienda: row[1] || null,
+                num_venta: row[2] ? Number(String(row[2]).replace(/[^0-9]/g, '')) : null,
+                fecha_venta: parseDate(row[3]),
+                fecha_llegada: parseDate(row[4]),
+                producto: row[5] || null,
+                motivo_devo: row[6] || null,
+                estado_llegada: mapEstadoLlegada(row[7]),
+                reporte: parseBoolean(row[8]),
+                nombre_despacho: row[9] || null,
+                error_prop: parseBoolean(row[10]),
+                observacion: row[11] || null,
+                factura: parseBoolean(row[12]),
+                s_revision: row[13] || null,
             }));
             
             const response = await fetch('/api/devoluciones/import', {
