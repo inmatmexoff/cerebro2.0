@@ -8,13 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { DatePicker } from '@/components/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -299,9 +298,66 @@ export default function NuevaDevolucionPage() {
 
                                         <FormField control={form.control} name="observaciones" render={({ field }) => (<FormItem className="md:col-span-3"><FormLabel>Observaciones</FormLabel><FormControl><Textarea placeholder="Añade cualquier observación relevante..." {...field} /></FormControl><FormMessage /></FormItem>)} />
 
-                                        <FormField control={form.control} name="reporte" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><Label>Reporte</Label></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-                                        <FormField control={form.control} name="error_nosotros" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><Label>Error de Nosotros</Label></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-                                        <FormField control={form.control} name="factura" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><Label>Factura</Label></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+                                        <FormField
+                                            control={form.control}
+                                            name="reporte"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                                                    <div className="space-y-1">
+                                                        <FormLabel>Reporte</FormLabel>
+                                                        <FormDescription className={cn(field.value ? 'text-primary font-semibold' : 'text-muted-foreground')}>
+                                                            {field.value ? 'Sí, requiere reporte' : 'No'}
+                                                        </FormDescription>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={field.value}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="error_nosotros"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                                                    <div className="space-y-1">
+                                                        <FormLabel>Error de Nosotros</FormLabel>
+                                                        <FormDescription className={cn(field.value ? 'text-destructive font-semibold' : 'text-muted-foreground')}>
+                                                            {field.value ? 'Sí, fue nuestro error' : 'No'}
+                                                        </FormDescription>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={field.value}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="factura"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                                                    <div className="space-y-1">
+                                                        <FormLabel>Factura</FormLabel>
+                                                        <FormDescription className={cn(field.value ? 'text-primary font-semibold' : 'text-muted-foreground')}>
+                                                            {field.value ? 'Sí, incluye factura' : 'No'}
+                                                        </FormDescription>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={field.value}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
                                     </div>
 
                                     <Button type="submit" disabled={isSaving}>
