@@ -571,18 +571,29 @@ export default function HistorialDevolucionesPage() {
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        paginatedReturns.map((item, index) => (
-                                            <TableRow key={item.id}>
-                                                {headerColumns.map((column) => (
-                                                     <TableCell key={column.uid} className="whitespace-nowrap">
-                                                         {column.uid === 'rowIndex' 
-                                                            ? (page - 1) * ROWS_PER_PAGE + index + 1 
-                                                            : renderCell(item, column.uid)
-                                                        }
-                                                     </TableCell>
-                                                ))}
-                                            </TableRow>
-                                        ))
+                                        paginatedReturns.map((item, index) => {
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+
+                                            const isNotDelivered = !item.fecha_entregado;
+                                            const statusDate = safeParseDate(item.fecha_status);
+                                            const isStatusDatePast = statusDate ? statusDate < today : false;
+
+                                            const highlightRow = isNotDelivered && isStatusDatePast;
+
+                                            return (
+                                                <TableRow key={item.id} className={cn(highlightRow && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200')}>
+                                                    {headerColumns.map((column) => (
+                                                         <TableCell key={column.uid} className="whitespace-nowrap">
+                                                             {column.uid === 'rowIndex' 
+                                                                ? (page - 1) * ROWS_PER_PAGE + index + 1 
+                                                                : renderCell(item, column.uid)
+                                                            }
+                                                         </TableCell>
+                                                    ))}
+                                                </TableRow>
+                                            );
+                                        })
                                     )}
                                  </TableBody>
                             </Table>
