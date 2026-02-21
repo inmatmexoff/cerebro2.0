@@ -575,14 +575,21 @@ export default function HistorialDevolucionesPage() {
                                             const today = new Date();
                                             today.setHours(0, 0, 0, 0);
 
+                                            const isDelivered = item.entregado === true;
                                             const isNotDelivered = !item.entregado;
                                             const statusDate = safeParseDate(item.fecha_status);
                                             const isStatusDatePast = statusDate ? statusDate < today : false;
 
-                                            const highlightRow = isNotDelivered && isStatusDatePast;
+                                            const highlightRed = isNotDelivered && isStatusDatePast;
 
                                             return (
-                                                <TableRow key={item.id} className={cn(highlightRow && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200')}>
+                                                <TableRow
+                                                    key={item.id}
+                                                    className={cn({
+                                                        'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': highlightRed,
+                                                        'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': isDelivered,
+                                                    })}
+                                                >
                                                     {headerColumns.map((column) => (
                                                          <TableCell key={column.uid} className="whitespace-nowrap">
                                                              {column.uid === 'rowIndex' 
