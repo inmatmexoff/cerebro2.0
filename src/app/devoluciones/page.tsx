@@ -29,6 +29,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { CompanySelect } from "@/components/company-select";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 const capitalize = (str: string) => {
   if (!str) return "";
@@ -101,18 +103,22 @@ export default function DevolucionesPage() {
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [endDate, setEndDate] = useState<Date | null>(null);
     const [company, setCompany] = useState<string | undefined>();
+    const [dateFilterType, setDateFilterType] = useState<'fecha_llegada' | 'fecha_venta'>('fecha_llegada');
+
     const [appliedFilters, setAppliedFilters] = useState<{
         startDate: Date | null;
         endDate: Date | null;
         company: string | undefined;
         status: Set<string>;
         error: string;
+        dateType: 'fecha_llegada' | 'fecha_venta';
     }>({
         startDate: null,
         endDate: null,
         company: undefined,
         status: new Set(),
         error: "all",
+        dateType: 'fecha_llegada',
     });
 
     // TABLE STATE
@@ -161,14 +167,16 @@ export default function DevolucionesPage() {
                 query = query.eq('error_prop', appliedFilters.error === 'si');
             }
 
+            const dateColumn = appliedFilters.dateType;
+
             if(appliedFilters.startDate) {
-                query = query.gte('fecha_llegada', appliedFilters.startDate.toISOString());
+                query = query.gte(dateColumn, appliedFilters.startDate.toISOString());
             }
 
             if(appliedFilters.endDate) {
                 const endOfDay = new Date(appliedFilters.endDate);
                 endOfDay.setHours(23, 59, 59, 999);
-                query = query.lte('fecha_llegada', endOfDay.toISOString());
+                query = query.lte(dateColumn, endOfDay.toISOString());
             }
 
             query = query.order(sortDescriptor.column, { ascending: sortDescriptor.direction === 'ascending' }).range(from, to);
@@ -267,7 +275,7 @@ export default function DevolucionesPage() {
 
     const handleApplyFilters = () => {
         setPage(1);
-        setAppliedFilters({ startDate, endDate, company, status: statusFilter, error: errorFilter });
+        setAppliedFilters({ startDate, endDate, company, status: statusFilter, error: errorFilter, dateType: dateFilterType });
     };
 
     const handleClearFilters = () => {
@@ -278,8 +286,9 @@ export default function DevolucionesPage() {
         setCompany(undefined);
         setStatusFilter(new Set());
         setErrorFilter("all");
+        setDateFilterType('fecha_llegada');
         setPage(1);
-        setAppliedFilters({ startDate: null, endDate: null, company: undefined, status: new Set(), error: "all" });
+        setAppliedFilters({ startDate: null, endDate: null, company: undefined, status: new Set(), error: "all", dateType: 'fecha_llegada' });
     };
 
     const handleSort = (columnUid: string) => {
@@ -398,6 +407,18 @@ export default function DevolucionesPage() {
                                 </div>
                             </div>
                             <div className="flex flex-col sm:flex-row sm:flex-wrap items-end gap-4 border-t pt-4">
+                                <div className="grid gap-1.5 flex-grow min-w-[180px]">
+                                    <Label>Tipo de Fecha</Label>
+                                    <Select value={dateFilterType} onValueChange={(value) => setDateFilterType(value as 'fecha_llegada' | 'fecha_venta')}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="fecha_llegada">Fecha de Llegada</SelectItem>
+                                            <SelectItem value="fecha_venta">Fecha de Venta</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                                 <div className="grid gap-1.5 flex-grow min-w-[180px]">
                                     <Label>Fecha Inicio</Label>
                                     <DatePicker value={startDate} onChange={setStartDate} />
