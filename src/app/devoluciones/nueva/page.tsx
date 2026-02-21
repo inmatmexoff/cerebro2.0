@@ -284,8 +284,8 @@ export default function NuevaDevolucionPage() {
                                                         <SelectContent>
                                                             <SelectItem value="BUENO">BUENO</SelectItem>
                                                             <SelectItem value="REGULAR">REGULAR</SelectItem>
-                                                            <SelectItem value="DAÑADO">DAÑADO</SelectItem>
-                                                            <SelectItem value="MUY DAÑADO">MUY DAÑADO</SelectItem>
+                                                            <SelectItem value="DANIADO">DAÑADO</SelectItem>
+                                                            <SelectItem value="MUY_DANIADO">MUY DAÑADO</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                     <FormMessage />
