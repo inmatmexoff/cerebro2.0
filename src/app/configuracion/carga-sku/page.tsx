@@ -25,12 +25,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 
 // Define column headers for the preview table
-const TABLE_HEADERS = ['sku', 'NOMBRE MADRE', 'Categoría Madre', 'landed_cost', 'piezas_xcontenedor', 'esti_time', 'piezas_por_sku', 'proveedor'];
+const TABLE_HEADERS = ['sku', 'NOMBRE MADRE', 'Categoría Madre', 'Sub-Categoría', 'landed_cost', 'piezas_xcontenedor', 'esti_time', 'piezas_por_sku', 'proveedor'];
 
 const manualSkuSchema = z.object({
     sku: z.string().min(1, { message: "SKU es requerido." }),
     sku_mdr: z.string().min(1, { message: "NOMBRE MADRE es requerido." }),
     cat_mdr: z.string().min(1, { message: "Categoría Madre es requerida." }),
+    sub_categoria: z.string().optional().nullable(),
     landed_cost: z.coerce.number().optional().nullable(),
     proveedor: z.string().optional().nullable(),
     piezas_xcontenedor: z.coerce.number().int({ message: "Debe ser un número entero." }).positive({ message: "Debe ser un número positivo."}).optional().nullable(),
@@ -54,6 +55,7 @@ export default function CargaSkuPage() {
             sku: '',
             sku_mdr: '',
             cat_mdr: '',
+            sub_categoria: '',
             landed_cost: null,
             proveedor: '',
             piezas_xcontenedor: null,
@@ -67,11 +69,12 @@ export default function CargaSkuPage() {
             'sku',                // A
             'cat_mdr',            // B
             'sku_mdr',            // C
-            'landed_cost',        // D
-            'piezas_por_sku',     // E
-            'esti_time',          // F
-            'piezas_xcontenedor', // G
-            'proveedor',          // H
+            'sub_categoria',      // D
+            'landed_cost',        // E
+            'piezas_por_sku',     // F
+            'esti_time',          // G
+            'piezas_xcontenedor', // H
+            'proveedor',          // I
         ];
         const ws = XLSX.utils.aoa_to_sheet([headers]);
         const wb = XLSX.utils.book_new();
@@ -141,8 +144,8 @@ export default function CargaSkuPage() {
                 }
 
                 const dataRows = json.slice(1);
-                // Mapeo de columnas: sku (A->0), NOMBRE MADRE (C->2), Categoría Madre (B->1), landed_cost (D->3), piezas_xcontenedor (G->6), esti_time (F->5), piezas_por_sku (E->4), proveedor (H->7)
-                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[6], row[5], row[4], row[7]]);
+                // Mapeo de columnas: sku (A->0), NOMBRE MADRE (C->2), Categoría Madre (B->1), Sub-Categoría (D->3), landed_cost (E->4), piezas_xcontenedor (H->7), esti_time (G->6), piezas_por_sku (F->5), proveedor (I->8)
+                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[4], row[7], row[6], row[5], row[8]]);
                 
                 // Filter out rows where essential columns are empty
                 const validatedData = extractedData.filter(row => 
@@ -219,11 +222,12 @@ export default function CargaSkuPage() {
                 sku: String(row[0] || '').trim(),
                 sku_mdr: String(row[1] || '').trim(),
                 cat_mdr: String(row[2] || '').trim(),
-                landed_cost: row[3], // Send raw value, server will parse
-                piezas_xcontenedor: row[4], // Send raw value, server will parse
-                proveedor: row[7] || null,
-                esti_time: row[5],
-                piezas_por_sku: row[6],
+                sub_categoria: String(row[3] || '').trim(),
+                landed_cost: row[4], 
+                piezas_xcontenedor: row[5],
+                proveedor: row[8] || null,
+                esti_time: row[6],
+                piezas_por_sku: row[7],
             }));
 
             const response = await fetch('/api/skus/upload', {
@@ -348,6 +352,19 @@ export default function CargaSkuPage() {
                                                     <FormLabel>Categoría Madre</FormLabel>
                                                     <FormControl>
                                                         <Input placeholder="Ej. RACKS" {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={manualForm.control}
+                                            name="sub_categoria"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Sub-Categoría</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="Ej. Accesorios" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''}/>
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
