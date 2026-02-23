@@ -1,11 +1,7 @@
 
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
-// Using public credentials. This might be blocked by Row-Level Security.
-// The secure way is to use a service role key from environment variables.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_PROD_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PROD_ANON_KEY;
+import { NextResponse } from 'next/server';
+import { supabasePROD } from '@/lib/supabase';
 
 const parseNumeric = (value: any, isInt: boolean = false): number | null => {
     if (value === null || value === undefined || value === '') return null;
@@ -21,10 +17,7 @@ const parseNumeric = (value: any, isInt: boolean = false): number | null => {
 
 
 export async function POST(request: Request) {
-    if (!supabaseUrl || !supabaseKey) {
-        return NextResponse.json({ message: 'Server is not configured for database access. Supabase URL or Anon Key is missing.' }, { status: 500 });
-    }
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = supabasePROD;
 
     try {
         const body = await request.json();
