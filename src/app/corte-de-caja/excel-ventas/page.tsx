@@ -892,8 +892,8 @@ export default function ExcelVentasPage() {
       const markupIndex = headers.indexOf('Markup (%)');
       const idIndex = headers.indexOf('ID');
   
-      if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && utilidadBrutaIndex > -1 && markupIndex > -1 && idIndex > -1) {
-          const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; num_ventas: string[] } } = {};
+      if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && utilidadBrutaIndex > -1 && markupIndex > -1) {
+          const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
           const dataToSummarize = markupFilter === 'all' ? filteredData : filteredData.filter(row => {
             const markupValue = row[markupIndex];
             const utilidadBruta = row[utilidadBrutaIndex];
@@ -914,17 +914,15 @@ export default function ExcelVentasPage() {
           dataToSummarize.forEach(row => {
               const pubId = String(row[pubIndex] || '').trim();
               const sku = String(row[skuIndex] || '').trim();
-              const numVenta = String(row[idIndex] || '').trim();
               if (pubId || sku) {
                   const key = `${pubId}|${sku}`;
                   if (!summary[key]) {
-                      summary[key] = { pubId: pubId || '-', sku: sku || '-', unidades: 0, total: 0, num_ventas: [] };
+                      summary[key] = { pubId: pubId || '-', sku: sku || '-', unidades: 0, total: 0 };
                   }
                   const unidades = parseInt(String(row[unidadesIndex])) || 0;
                   const total = row[utilidadBrutaIndex] as number || 0;
                   summary[key].unidades += unidades;
                   summary[key].total += total;
-                  if (numVenta) summary[key].num_ventas.push(numVenta);
               }
           });
   
@@ -2349,9 +2347,9 @@ export default function ExcelVentasPage() {
                                                     <TableRow key={`${item.pubId}-${item.sku}`}>
                                                         <TableCell className="font-medium">
                                                             <div>{item.sku}</div>
-                                                            {item.num_ventas && item.num_ventas.length > 0 && (
+                                                            {item.pubId && (
                                                                 <div className="text-xs text-muted-foreground">
-                                                                    Ventas: {item.num_ventas.join(', ')}
+                                                                    Publicación: {item.pubId}
                                                                 </div>
                                                             )}
                                                         </TableCell>
