@@ -35,6 +35,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'No data provided.' }, { status: 400 });
         }
         
+        // Validation for 'oficial' upload type
         if (uploadType === 'oficial') {
             const skuMdrCounts = new Map<string, number>();
             data.forEach(row => {
@@ -59,110 +60,138 @@ export async function POST(request: Request) {
             }
         }
 
-        // 1. De-duplicate for sku_m
-        const skuMdrMap = new Map<string, { sku: string, cat_mdr: string, esti_time: any, piezas_por_sku: any }>();
+        // --- Fetch existing data for comparison ---
+        const allSkusFromFile = [...new Set(data.map(r => String(r.sku || '').trim()).filter(Boolean))];
+        const allMdrFromFile = [...new Set(data.map(r => String(r.sku_mdr || '').trim()).filter(Boolean))];
+
+        const { data: existingMData, error: mError } = await supabase
+            .from('sku_m')
+            .select('sku_mdr, sku, cat_mdr, esti_time, piezas_por_sku')
+            .in('sku_mdr', allMdrFromFile);
+
+        if (mError) throw new Error(`Error fetching existing sku_m data: ${mError.message}`);
+
+        const { data: existingAlternoData, error: alternoError } = await supabase
+            .from('sku_alterno')
+            .select('sku, sku_mdr')
+            .in('sku', allSkusFromFile);
+            
+        if (alternoError) throw new Error(`Error fetching existing sku_alterno data: ${alternoError.message}`);
+
+        const existingMMap = new Map((existingMData || []).map(r => [r.sku_mdr, r]));
+        const existingAlternoMap = new Map((existingAlternoData || []).map(r => [r.sku, r.sku_mdr]));
+
+
+        // --- Prepare records for DB operations ---
+        const skuMRecordsToUpsert: any[] = [];
+        const skuAlternoRecordsToUpsert: any[] = [];
+        const skuCostosRecordsToInsert: any[] = [];
+
+        // De-duplicate incoming data to process each sku_mdr and sku once
+        const uniqueMdrData = new Map<string, any>();
+        const uniqueAlternoData = new Map<string, string>();
+        
         data.forEach(row => {
             const sku_mdr = String(row.sku_mdr || '').trim();
-            if (sku_mdr && !skuMdrMap.has(sku_mdr)) {
-                skuMdrMap.set(sku_mdr, {
-                    sku: String(row.sku || '').trim(), // Always get first SKU as potential official SKU
-                    cat_mdr: String(row.cat_mdr || '').trim(),
-                    esti_time: row.esti_time,
-                    piezas_por_sku: row.piezas_por_sku,
-                });
+            const sku = String(row.sku || '').trim();
+
+            if (sku_mdr && !uniqueMdrData.has(sku_mdr)) {
+                uniqueMdrData.set(sku_mdr, row);
+            }
+            if (sku && sku_mdr && !uniqueAlternoData.has(sku)) {
+                uniqueAlternoData.set(sku, sku_mdr);
             }
         });
-        const skuMRecords = Array.from(skuMdrMap.entries()).map(([sku_mdr, values]) => {
-            const record: any = {
+
+
+        // 1. Process sku_m records
+        uniqueMdrData.forEach((row, sku_mdr) => {
+            const newRecord = {
                 sku_mdr,
-                cat_mdr: values.cat_mdr || null,
-                esti_time: parseNumeric(values.esti_time, true),
-                piezas_por_sku: parseNumeric(values.piezas_por_sku, true),
+                cat_mdr: row.cat_mdr || null,
+                esti_time: parseNumeric(row.esti_time, true),
+                piezas_por_sku: parseNumeric(row.piezas_por_sku, true),
+                ...(uploadType === 'oficial' && { sku: String(row.sku || '').trim() }),
             };
 
-            if (uploadType === 'oficial') {
-                record.sku = values.sku;
-            }
+            const existingRecord = existingMMap.get(sku_mdr);
 
-            return record;
+            if (!existingRecord) {
+                skuMRecordsToUpsert.push(newRecord);
+            } else {
+                const hasChanged = 
+                    existingRecord.cat_mdr !== newRecord.cat_mdr ||
+                    existingRecord.esti_time !== newRecord.esti_time ||
+                    existingRecord.piezas_por_sku !== newRecord.piezas_por_sku ||
+                    (uploadType === 'oficial' && existingRecord.sku !== newRecord.sku);
+                
+                if (hasChanged) {
+                    skuMRecordsToUpsert.push(newRecord);
+                }
+            }
         });
 
-
-        // 2. De-duplicate for sku_alterno: take one sku_mdr per sku
-        const skuMap = new Map<string, string>();
+        // 2. Process sku_alterno records (only for 'alterno' type)
+        if (uploadType === 'alterno') {
+            uniqueAlternoData.forEach((sku_mdr, sku) => {
+                const existingMdr = existingAlternoMap.get(sku);
+                if (!existingMdr || existingMdr !== sku_mdr) {
+                    skuAlternoRecordsToUpsert.push({ sku, sku_mdr });
+                }
+            });
+        }
+        
+        // 3. Process sku_costos (always append for history)
         data.forEach(row => {
-            const sku = String(row.sku || '').trim();
-            const sku_mdr = String(row.sku_mdr || '').trim();
-            if (sku && sku_mdr) { // ensure both exist
-                skuMap.set(sku, sku_mdr);
-            }
-        });
-        const skuAlternoRecords = Array.from(skuMap.entries()).map(([sku, sku_mdr]) => ({
-            sku,
-            sku_mdr,
-        }));
-
-        // 3. Prepare for sku_costos (no de-duplication needed, it's a log)
-        const skuCostosRecords = data.map(row => {
             const sku_mdr = String(row.sku_mdr || '').trim();
             const landed_cost = parseNumeric(row.landed_cost);
             
             if (sku_mdr && landed_cost !== null) {
-                return {
+                skuCostosRecordsToInsert.push({
                     sku_mdr,
                     landed_cost,
                     proveedor: row.proveedor || null,
                     piezas_xcontenedor: parseNumeric(row.piezas_xcontenedor, true),
-                };
+                });
             }
-            return null;
-        }).filter((r): r is NonNullable<typeof r> => r !== null);
+        });
 
 
         // --- DB Operations ---
-        const errors = [];
+        const errors: string[] = [];
+        let mCount = 0, alternoCount = 0, costosCount = 0;
 
-        // Step 1: Insert into sku_m first to satisfy foreign keys
-        if (skuMRecords.length > 0) {
-            const { error: skuMError } = await supabase.from('sku_m').upsert(skuMRecords, { onConflict: 'sku_mdr' });
+        if (skuMRecordsToUpsert.length > 0) {
+            const { error: skuMError, count } = await supabase.from('sku_m').upsert(skuMRecordsToUpsert, { onConflict: 'sku_mdr', count: 'exact' });
             if (skuMError) {
                 errors.push(`Error en sku_m: ${skuMError.message}`);
-                // If sku_m fails, we cannot proceed with child tables
                 throw new Error(errors.join('; '));
             }
+            mCount = count ?? 0;
         }
 
-        // Step 2: Insert into sku_alterno only for 'alterno' uploads
-        if (uploadType === 'alterno' && skuAlternoRecords.length > 0) {
-            const { error: skuAlternoError } = await supabase.from('sku_alterno').upsert(skuAlternoRecords, { onConflict: 'sku' });
+        if (skuAlternoRecordsToUpsert.length > 0) {
+            const { error: skuAlternoError, count } = await supabase.from('sku_alterno').upsert(skuAlternoRecordsToUpsert, { onConflict: 'sku', count: 'exact' });
             if (skuAlternoError) errors.push(`Error en sku_alterno: ${skuAlternoError.message}`);
+            alternoCount = count ?? 0;
         }
 
-        // Step 3: Insert into sku_costos
-        if (skuCostosRecords.length > 0) {
-            const { error: skuCostosError } = await supabase.from('sku_costos').insert(skuCostosRecords);
+        if (skuCostosRecordsToInsert.length > 0) {
+            const { error: skuCostosError, count } = await supabase.from('sku_costos').insert(skuCostosRecordsToInsert, { count: 'exact' });
             if (skuCostosError) errors.push(`Error en sku_costos: ${skuCostosError.message}`);
+            costosCount = count ?? 0;
         }
 
         if (errors.length > 0) {
             throw new Error(errors.join('; '));
         }
         
-        const alternoCount = uploadType === 'alterno' ? skuAlternoRecords.length : 0;
-
-        let message = `Procesamiento completado: Se guardaron ${skuMRecords.length} registros maestros (sku_m) y ${skuCostosRecords.length} registros de costos.`;
+        let message = `Procesamiento completado. Registros maestros (sku_m) actualizados/insertados: ${mCount}. Nuevos registros de costos: ${costosCount}.`;
         if (uploadType === 'alterno') {
-            message = `Procesamiento completado: Se guardaron ${skuMRecords.length} registros maestros (sku_m), ${alternoCount} registros alternos y ${skuCostosRecords.length} registros de costos.`;
+            message = `Procesamiento completado. Registros maestros (sku_m) actualizados/insertados: ${mCount}. Registros alternos actualizados/insertados: ${alternoCount}. Nuevos registros de costos: ${costosCount}.`;
         }
 
-        const costDifference = skuMRecords.length - skuCostosRecords.length;
-        if (costDifference > 0) {
-            message += ` Se omitieron ${costDifference} registros de costo porque el campo 'landed_cost' estaba vacío o no era válido.`;
-        }
-
-        return NextResponse.json({
-            message
-        }, { status: 200 });
+        return NextResponse.json({ message }, { status: 200 });
 
     } catch (e: any) {
         console.error('API Error:', e.message);
