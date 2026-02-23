@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         const allSkusFromFile = [...new Set(data.map(r => String(r.sku || '').trim()).filter(Boolean))];
         const allMdrFromFile = [...new Set(data.map(r => String(r.sku_mdr || '').trim()).filter(Boolean))];
         
-        const CHUNK_SIZE = 500;
+        const CHUNK_SIZE = 200;
         let existingMData: any[] = [];
         let existingAlternoData: any[] = [];
 
