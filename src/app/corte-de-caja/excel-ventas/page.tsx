@@ -786,6 +786,7 @@ export default function ExcelVentasPage() {
 
   const filteredData = React.useMemo(() => {
     const skuIndex = headers.indexOf('SKU');
+    const pubIndex = headers.indexOf('# de publicación');
     const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
     const markupIndex = headers.indexOf('Markup (%)');
 
@@ -795,6 +796,10 @@ export default function ExcelVentasPage() {
         !skuSearchTerm ||
         (skuIndex !== -1 &&
           String(row[skuIndex] || '')
+            .toLowerCase()
+            .includes(skuSearchTerm.toLowerCase())) ||
+        (pubIndex !== -1 &&
+          String(row[pubIndex] || '')
             .toLowerCase()
             .includes(skuSearchTerm.toLowerCase())) ||
         (String(row[0] || '').toLowerCase().includes(skuSearchTerm.toLowerCase()));
@@ -1768,7 +1773,7 @@ export default function ExcelVentasPage() {
                         <div className="relative w-full sm:w-auto">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Buscar por SKU o Fila..."
+                                placeholder="Buscar por SKU, Fila o Pub..."
                                 value={skuSearchTerm}
                                 onChange={(e) => setSkuSearchTerm(e.target.value)}
                                 className="pl-8 w-full sm:w-48 h-9"
