@@ -250,6 +250,17 @@ export default function ExcelVentasPage() {
     porcentajePedidosMargenBajo: 0,
   });
 
+  const groupedSkuSummary = React.useMemo(() => {
+    if (!skuSummary) return {};
+    return skuSummary.reduce((acc, item) => {
+        const sku = item.sku;
+        if (!acc[sku]) {
+            acc[sku] = [];
+        }
+        acc[sku].push(item);
+        return acc;
+    }, {} as {[key: string]: typeof skuSummary});
+  }, [skuSummary]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -2343,22 +2354,41 @@ export default function ExcelVentasPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {skuSummary.map((item) => (
-                                                    <TableRow key={`${item.pubId}-${item.sku}`}>
-                                                        <TableCell className="font-medium">
-                                                            <div>{item.sku}</div>
-                                                            {item.pubId && (
-                                                                <div className="text-xs text-muted-foreground">
-                                                                    Publicación: {item.pubId}
-                                                                </div>
-                                                            )}
+                                              {Object.entries(groupedSkuSummary).map(([sku, items]) => {
+                                                  const typedItems = items as { unidades: number, total: number, porcentajeDelTotal: number, totalPorUnidad: number, pubId: string }[];
+                                                  const totalUnidades = typedItems.reduce((sum, item) => sum + item.unidades, 0);
+                                                  const totalTotal = typedItems.reduce((sum, item) => sum + item.total, 0);
+                                                  const totalPorcentaje = typedItems.reduce((sum, item) => sum + item.porcentajeDelTotal, 0);
+                                                  const totalPorUnidad = totalUnidades > 0 ? totalTotal / totalUnidades : 0;
+
+                                                  return (
+                                                    <React.Fragment key={sku}>
+                                                      <TableRow className="bg-muted/50 font-semibold hover:bg-muted/60">
+                                                        <TableCell>
+                                                          <div>{sku}</div>
+                                                          <div className="text-xs font-normal text-muted-foreground">{typedItems.length} {typedItems.length === 1 ? 'publicación' : 'publicaciones'}</div>
                                                         </TableCell>
-                                                        <TableCell className="text-right">{item.unidades}</TableCell>
-                                                        <TableCell className="text-right">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                        <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                        <TableCell className="text-right font-mono">{item.porcentajeDelTotal.toFixed(2)}%</TableCell>
-                                                    </TableRow>
-                                                ))}
+                                                        <TableCell className="text-right">{totalUnidades}</TableCell>
+                                                        <TableCell className="text-right">{totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                        <TableCell className={cn("text-right font-bold", totalTotal >= 0 ? "text-green-800" : "text-red-800")}>
+                                                          {totalTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                                                        </TableCell>
+                                                        <TableCell className="text-right font-mono font-bold">{totalPorcentaje.toFixed(2)}%</TableCell>
+                                                      </TableRow>
+                                                      {typedItems.map((item) => (
+                                                        <TableRow key={item.pubId} className="hover:bg-transparent">
+                                                          <TableCell className="pl-10 font-mono text-xs text-muted-foreground">
+                                                            Pub: {item.pubId}
+                                                          </TableCell>
+                                                          <TableCell className="text-right text-muted-foreground">{item.unidades}</TableCell>
+                                                          <TableCell className="text-right text-muted-foreground">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                          <TableCell className={cn("text-right text-sm", item.total >= 0 ? "text-green-700" : "text-red-700")}>{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                          <TableCell className="text-right font-mono text-sm text-muted-foreground">{item.porcentajeDelTotal.toFixed(2)}%</TableCell>
+                                                        </TableRow>
+                                                      ))}
+                                                    </React.Fragment>
+                                                  );
+                                              })}
                                             </TableBody>
                                         </Table>
                                     </div>
