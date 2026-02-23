@@ -63,20 +63,30 @@ export async function POST(request: Request) {
         // --- Fetch existing data for comparison ---
         const allSkusFromFile = [...new Set(data.map(r => String(r.sku || '').trim()).filter(Boolean))];
         const allMdrFromFile = [...new Set(data.map(r => String(r.sku_mdr || '').trim()).filter(Boolean))];
+        
+        const CHUNK_SIZE = 500;
+        let existingMData: any[] = [];
+        let existingAlternoData: any[] = [];
 
-        const { data: existingMData, error: mError } = await supabase
-            .from('sku_m')
-            .select('sku_mdr, sku, cat_mdr, esti_time, piezas_por_sku')
-            .in('sku_mdr', allMdrFromFile);
+        for (let i = 0; i < allMdrFromFile.length; i += CHUNK_SIZE) {
+            const chunk = allMdrFromFile.slice(i, i + CHUNK_SIZE);
+            const { data: mChunk, error: mError } = await supabase
+                .from('sku_m')
+                .select('sku_mdr, sku, cat_mdr, esti_time, piezas_por_sku')
+                .in('sku_mdr', chunk);
+            if (mError) throw new Error(`Error fetching existing sku_m data: ${mError.message}`);
+            if (mChunk) existingMData.push(...mChunk);
+        }
 
-        if (mError) throw new Error(`Error fetching existing sku_m data: ${mError.message}`);
-
-        const { data: existingAlternoData, error: alternoError } = await supabase
-            .from('sku_alterno')
-            .select('sku, sku_mdr')
-            .in('sku', allSkusFromFile);
-            
-        if (alternoError) throw new Error(`Error fetching existing sku_alterno data: ${alternoError.message}`);
+        for (let i = 0; i < allSkusFromFile.length; i += CHUNK_SIZE) {
+            const chunk = allSkusFromFile.slice(i, i + CHUNK_SIZE);
+            const { data: alternoChunk, error: alternoError } = await supabase
+                .from('sku_alterno')
+                .select('sku, sku_mdr')
+                .in('sku', chunk);
+            if (alternoError) throw new Error(`Error fetching existing sku_alterno data: ${alternoError.message}`);
+            if (alternoChunk) existingAlternoData.push(...alternoChunk);
+        }
 
         const existingMMap = new Map((existingMData || []).map(r => [r.sku_mdr, r]));
         const existingAlternoMap = new Map((existingAlternoData || []).map(r => [r.sku, r.sku_mdr]));
