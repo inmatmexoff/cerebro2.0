@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter, PackageSearch, Download, Copy } from 'lucide-react';
+import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter, PackageSearch, Download, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CompanySelect } from '@/components/company-select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 
 // Expanded SaleRecord to include more columns
@@ -78,6 +80,7 @@ export default function HistorialCortesPage() {
   const [company, setCompany] = useState<string | undefined>();
   const [subCategoryFilter, setSubCategoryFilter] = useState<Set<string>>(new Set());
   const [allSubCategories, setAllSubCategories] = useState<string[]>([]);
+  const [subCategorySearch, setSubCategorySearch] = useState('');
 
   const [appliedFilters, setAppliedFilters] = useState<{
     startDate: Date | null;
@@ -232,6 +235,13 @@ export default function HistorialCortesPage() {
     setSubCategoryFilter(new Set());
     setAppliedFilters({ startDate: null, endDate: null, company: undefined, subCategory: new Set() });
   };
+
+  const filteredSubCategories = React.useMemo(() => {
+    if (!subCategorySearch) return allSubCategories;
+    return allSubCategories.filter(subCat =>
+      subCat.toLowerCase().includes(subCategorySearch.toLowerCase())
+    );
+  }, [allSubCategories, subCategorySearch]);
 
   const handleCopyToClipboard = (text: string) => {
     if (!text) return;
@@ -1023,32 +1033,46 @@ export default function HistorialCortesPage() {
                     </div>
                     <div className="grid gap-1.5 flex-grow min-w-[180px]">
                         <Label>Subcategoría</Label>
-                        <DropdownMenu>
+                        <DropdownMenu onOpenChange={(open) => !open && setSubCategorySearch('')}>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" className="w-full justify-between font-normal">
                                     <span>{subCategoryFilter.size > 0 ? `${subCategoryFilter.size} seleccionada(s)` : 'Seleccionar'}</span>
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-56" align="start">
-                                <DropdownMenuLabel>Filtrar por Subcategoría</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {allSubCategories.map((subCat) => (
-                                  <DropdownMenuCheckboxItem
-                                      key={subCat}
-                                      checked={subCategoryFilter.has(subCat)}
-                                      onCheckedChange={(checked) => {
-                                          setSubCategoryFilter(prev => {
-                                              const next = new Set(prev);
-                                              if (checked) next.add(subCat);
-                                              else next.delete(subCat);
-                                              return next;
-                                          })
-                                      }}
-                                  >
-                                      {subCat}
-                                  </DropdownMenuCheckboxItem>
-                                ))}
+                            <DropdownMenuContent className="w-64 p-0" align="start">
+                                <div className="p-2 border-b">
+                                    <Input
+                                        autoFocus
+                                        placeholder="Buscar..."
+                                        value={subCategorySearch}
+                                        onChange={(e) => setSubCategorySearch(e.target.value)}
+                                        className="h-8"
+                                    />
+                                </div>
+                                <div className="max-h-[200px] overflow-y-auto">
+                                    {filteredSubCategories.length > 0 ? filteredSubCategories.map((subCat) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={subCat}
+                                        checked={subCategoryFilter.has(subCat)}
+                                        onCheckedChange={(checked) => {
+                                            setSubCategoryFilter(prev => {
+                                                const next = new Set(prev);
+                                                if (checked) next.add(subCat);
+                                                else next.delete(subCat);
+                                                return next;
+                                            })
+                                        }}
+                                        onSelect={(e) => e.preventDefault()}
+                                    >
+                                        {subCat}
+                                    </DropdownMenuCheckboxItem>
+                                    )) : (
+                                        <div className="p-4 text-center text-sm text-muted-foreground">
+                                            No se encontraron resultados.
+                                        </div>
+                                    )}
+                                </div>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
