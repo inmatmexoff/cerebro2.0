@@ -301,171 +301,190 @@ export default function HistorialCortesPage() {
     setError(null);
 
     try {
-      let query = supabasePROD.from('ml_sales').select('*', { count: 'exact' });
+        let subCategorySkus: string[] | undefined;
+        if (appliedFilters.subCategory.size > 0) {
+            const { data: skuMData, error: skuMError } = await supabasePROD
+                .from('sku_m')
+                .select('sku_mdr, sku')
+                .in('sub_cat', Array.from(appliedFilters.subCategory));
 
-      if (appliedFilters.subCategory.size > 0) {
-        const { data: skuMData, error: skuMError } = await supabasePROD
-          .from('sku_m')
-          .select('sku_mdr, sku')
-          .in('sub_cat', Array.from(appliedFilters.subCategory));
-  
-        if (skuMError) throw skuMError;
-  
-        if (skuMData && skuMData.length > 0) {
-          const skuMdrFromSubCat = skuMData.map(item => item.sku_mdr).filter(Boolean);
-          const skusFromSkuM = skuMData.map(item => item.sku).filter(Boolean);
-          let allSkusForSubCat = [...skusFromSkuM];
-  
-          if (skuMdrFromSubCat.length > 0) {
-            const { data: skuAlternoData, error: skuAlternoError } = await supabasePROD
-              .from('sku_alterno')
-              .select('sku')
-              .in('sku_mdr', skuMdrFromSubCat);
-            if (skuAlternoError) throw skuAlternoError;
-            if (skuAlternoData) {
-              allSkusForSubCat = [...new Set([...allSkusForSubCat, ...skuAlternoData.map(item => item.sku)])];
+            if (skuMError) throw skuMError;
+
+            if (!skuMData || skuMData.length === 0) {
+                setSales([]);
+                setTotalRows(0);
+                setIsLoading(false);
+                return;
             }
-          }
-  
-          if (allSkusForSubCat.length > 0) {
-            query = query.in('sku', allSkusForSubCat);
-          } else {
+            
+            const skuMdrFromSubCat = skuMData.map(item => item.sku_mdr).filter(Boolean);
+            const skusFromSkuM = skuMData.map(item => item.sku).filter(Boolean);
+            let allSkusForSubCat = [...skusFromSkuM];
+
+            if (skuMdrFromSubCat.length > 0) {
+                const { data: skuAlternoData, error: skuAlternoError } = await supabasePROD
+                    .from('sku_alterno')
+                    .select('sku')
+                    .in('sku_mdr', skuMdrFromSubCat);
+                if (skuAlternoError) throw skuAlternoError;
+                if (skuAlternoData) {
+                    allSkusForSubCat = [...new Set([...allSkusForSubCat, ...skuAlternoData.map(item => item.sku)])];
+                }
+            }
+
+            if (allSkusForSubCat.length === 0) {
+                setSales([]);
+                setTotalRows(0);
+                setIsLoading(false);
+                return;
+            }
+            subCategorySkus = allSkusForSubCat;
+        }
+
+        let query = supabasePROD.from('ml_sales').select('*', { count: 'exact' });
+
+        if (subCategorySkus) {
+            query = query.in('sku', subCategorySkus);
+        }
+
+        if (debouncedSearchTerm) {
+            query = query.or(
+                `sku.ilike.%${debouncedSearchTerm}%,num_venta.ilike.%${debouncedSearchTerm}%,status.ilike.%${debouncedSearchTerm}%,num_publi.ilike.%${debouncedSearchTerm}%`
+            );
+        }
+
+        if (appliedFilters.startDate) {
+            const startOfDay = new Date(appliedFilters.startDate);
+            startOfDay.setHours(0, 0, 0, 0);
+            query = query.gte('fecha_venta', startOfDay.toISOString());
+        }
+        if (appliedFilters.endDate) {
+            const endOfDay = new Date(appliedFilters.endDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            query = query.lte('fecha_venta', endOfDay.toISOString());
+        }
+        
+        if (appliedFilters.company && appliedFilters.company !== 'all') {
+            const companyFilterValue = appliedFilters.company.replace(/-/g, ' ').toUpperCase();
+            query = query.eq('tienda', companyFilterValue);
+        }
+
+        const { data: initialData, error: initialError, count } = await query.range(0, 0);
+        if (initialError) throw initialError;
+        
+        const totalRecords = count || 0;
+        setTotalRows(totalRecords);
+        if (totalRecords === 0) {
             setSales([]);
-            setTotalRows(0);
             setIsLoading(false);
             return;
-          }
-        } else {
-          setSales([]);
-          setTotalRows(0);
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      if (debouncedSearchTerm) {
-        query = query.or(
-          `sku.ilike.%${debouncedSearchTerm}%,num_venta.ilike.%${debouncedSearchTerm}%,status.ilike.%${debouncedSearchTerm}%,num_publi.ilike.%${debouncedSearchTerm}%`
-        );
-      }
-
-      if (appliedFilters.startDate) {
-        const startOfDay = new Date(appliedFilters.startDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        query = query.gte('fecha_venta', startOfDay.toISOString());
-      }
-      if (appliedFilters.endDate) {
-        const endOfDay = new Date(appliedFilters.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        query = query.lte('fecha_venta', endOfDay.toISOString());
-      }
-      
-      if (appliedFilters.company && appliedFilters.company !== 'all') {
-        const companyFilterValue = appliedFilters.company.replace(/-/g, ' ').toUpperCase();
-        query = query.eq('tienda', companyFilterValue);
-      }
-      
-      const { data: salesData, error, count } = await query;
-      
-      if (error) {
-        throw error;
-      }
-
-      const skusInPage = [...new Set(salesData.map(s => s.sku).filter(Boolean))];
-      const skuToMdrMap = new Map();
-      const mdrToSubCatMap = new Map();
-      const mdrToPriceMap = new Map();
-
-      if (skusInPage.length > 0) {
-        const { data: skuAlternoData, error: skuAlternoError } = await supabasePROD
-          .from('sku_alterno')
-          .select('sku, sku_mdr')
-          .in('sku', skusInPage);
-        if (skuAlternoError) throw skuAlternoError;
-        skuAlternoData.forEach((item) => skuToMdrMap.set(item.sku, item.sku_mdr));
-
-        const foundSkus = new Set(skuAlternoData.map(item => item.sku));
-        const remainingSkus = skusInPage.filter(sku => !foundSkus.has(sku));
-
-        if (remainingSkus.length > 0) {
-          const { data: skuMData, error: skuMError } = await supabasePROD
-            .from('sku_m')
-            .select('sku, sku_mdr')
-            .in('sku', remainingSkus);
-          if (skuMError) throw skuMError;
-          skuMData.forEach((item) => skuToMdrMap.set(item.sku, item.sku_mdr));
         }
 
-        const mdrs = [...new Set(Array.from(skuToMdrMap.values()))].filter(Boolean);
-        if (mdrs.length > 0) {
-          const { data: skuMSubCatData, error: skuMSubCatError } = await supabasePROD
-            .from('sku_m')
-            .select('sku_mdr, sub_cat')
-            .in('sku_mdr', mdrs);
-          if (skuMSubCatError) throw skuMSubCatError;
-          if (skuMSubCatData) {
-            skuMSubCatData.forEach(item => {
-              if(item.sub_cat) mdrToSubCatMap.set(item.sku_mdr, item.sub_cat);
-            });
-          }
-
-          const { data: skuCostosData, error: skuCostosError } = await supabasePROD
-            .from('sku_costos')
-            .select('sku_mdr, landed_cost, id')
-            .in('sku_mdr', mdrs)
-            .order('id', { ascending: false });
-
-          if (skuCostosError) throw skuCostosError;
-          if (skuCostosData) {
-            for (const item of skuCostosData) {
-              if (!mdrToPriceMap.has(item.sku_mdr)) {
-                mdrToPriceMap.set(item.sku_mdr, item.landed_cost);
-              }
-            }
-          }
+        const allData = [];
+        const CHUNK_SIZE = 1000;
+        for (let i = 0; i < totalRecords; i += CHUNK_SIZE) {
+            const { data: chunk, error: chunkError } = await query.range(i, i + CHUNK_SIZE - 1);
+            if (chunkError) throw chunkError;
+            if (chunk) allData.push(...chunk);
         }
-      }
-
-      const enrichedData = salesData.map(sale => {
-        const unidades = sale.unidades || 1;
-        const skuMdr = skuToMdrMap.get(sale.sku);
-        const subCat = skuMdr ? mdrToSubCatMap.get(skuMdr) : null;
-        const landedCostPerUnit = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
-        const totalLandedCost = landedCostPerUnit * unidades;
-        const totalFromDb = sale.total || 0;
-        let utilidadBruta = totalFromDb - totalLandedCost;
         
-        const saleStatus = sale.status || '';
-        if (totalFromDb === 0 && !saleStatus.toLowerCase().startsWith('paquete de')) {
-            utilidadBruta = 0;
+        const salesData = allData;
+
+        const skusInPage = [...new Set(salesData.map(s => s.sku).filter(Boolean))];
+        const skuToMdrMap = new Map();
+        const mdrToSubCatMap = new Map();
+        const mdrToPriceMap = new Map();
+
+        if (skusInPage.length > 0) {
+            const { data: skuAlternoData, error: skuAlternoError } = await supabasePROD
+                .from('sku_alterno')
+                .select('sku, sku_mdr')
+                .in('sku', skusInPage);
+            if (skuAlternoError) throw skuAlternoError;
+            skuAlternoData.forEach((item) => skuToMdrMap.set(item.sku, item.sku_mdr));
+
+            const foundSkus = new Set(skuAlternoData.map(item => item.sku));
+            const remainingSkus = skusInPage.filter(sku => !foundSkus.has(sku));
+
+            if (remainingSkus.length > 0) {
+                const { data: skuMData, error: skuMError } = await supabasePROD
+                    .from('sku_m')
+                    .select('sku, sku_mdr')
+                    .in('sku', remainingSkus);
+                if (skuMError) throw skuMError;
+                skuMData.forEach((item) => skuToMdrMap.set(item.sku, item.sku_mdr));
+            }
+
+            const mdrs = [...new Set(Array.from(skuToMdrMap.values()))].filter(Boolean);
+            if (mdrs.length > 0) {
+                const { data: skuMSubCatData, error: skuMSubCatError } = await supabasePROD
+                    .from('sku_m')
+                    .select('sku_mdr, sub_cat')
+                    .in('sku_mdr', mdrs);
+                if (skuMSubCatError) throw skuMSubCatError;
+                if (skuMSubCatData) {
+                    skuMSubCatData.forEach(item => {
+                        if (item.sub_cat) mdrToSubCatMap.set(item.sku_mdr, item.sub_cat);
+                    });
+                }
+
+                const { data: skuCostosData, error: skuCostosError } = await supabasePROD
+                    .from('sku_costos')
+                    .select('sku_mdr, landed_cost, id')
+                    .in('sku_mdr', mdrs)
+                    .order('id', { ascending: false });
+
+                if (skuCostosError) throw skuCostosError;
+                if (skuCostosData) {
+                    for (const item of skuCostosData) {
+                        if (!mdrToPriceMap.has(item.sku_mdr)) {
+                            mdrToPriceMap.set(item.sku_mdr, item.landed_cost);
+                        }
+                    }
+                }
+            }
         }
 
-        const markup = totalLandedCost > 0 ? (utilidadBruta / totalLandedCost) * 100 : 0;
+        const enrichedData = salesData.map(sale => {
+            const unidades = sale.unidades || 1;
+            const skuMdr = skuToMdrMap.get(sale.sku);
+            const subCat = skuMdr ? mdrToSubCatMap.get(skuMdr) : null;
+            const landedCostPerUnit = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
+            const totalLandedCost = landedCostPerUnit * unidades;
+            const totalFromDb = sale.total || 0;
+            let utilidadBruta = totalFromDb - totalLandedCost;
+            
+            const saleStatus = sale.status || '';
+            if (totalFromDb === 0 && !saleStatus.toLowerCase().startsWith('paquete de')) {
+                utilidadBruta = 0;
+            }
 
-        return {
-            ...sale,
-            landed_cost: totalLandedCost,
-            total_final: parseFloat(utilidadBruta.toFixed(2)),
-            markup,
-            sub_cat: subCat,
-        };
-      });
+            const markup = totalLandedCost > 0 ? (utilidadBruta / totalLandedCost) * 100 : 0;
 
-      setSales(enrichedData as SaleRecord[]);
-      setTotalRows(count || 0);
+            return {
+                ...sale,
+                landed_cost: totalLandedCost,
+                total_final: parseFloat(utilidadBruta.toFixed(2)),
+                markup,
+                sub_cat: subCat,
+            };
+        });
+
+        setSales(enrichedData as SaleRecord[]);
 
     } catch (err: any) {
-      setError('No se pudo cargar el historial de ventas.');
-      toast({
-        variant: 'destructive',
-        title: 'Error de Carga',
-        description: err.message,
-      });
-      console.error('Error fetching sales history:', err);
+        setError('No se pudo cargar el historial de ventas.');
+        toast({
+            variant: 'destructive',
+            title: 'Error de Carga',
+            description: err.message,
+        });
+        console.error('Error fetching sales history:', err);
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
-  }, [debouncedSearchTerm, appliedFilters, toast]);
+}, [debouncedSearchTerm, appliedFilters, toast]);
+
 
   useEffect(() => {
     fetchSales();
@@ -524,7 +543,7 @@ export default function HistorialCortesPage() {
     return sortedItems.slice(start, end);
   }, [page, sortedItems]);
 
-  const totalPages = Math.ceil(sortedItems.length / ROWS_PER_PAGE);
+  const totalPages = Math.ceil(sortedItems.length / ROWS_PER_PAGE) || 1;
 
   const utilidadBrutaSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.total_final || 0), 0), [filteredItems]);
   const totalSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.total || 0), 0), [filteredItems]);
@@ -563,12 +582,10 @@ export default function HistorialCortesPage() {
             acc[subCat] = { totalUtilidad: 0, totalLandedCost: 0, count: 0 };
         }
 
-        // 'total_final' is 'Utilidad Bruta'
-        // 'landed_cost' is 'Landed Cost Total'
         if (typeof sale.total_final === 'number') {
             acc[subCat].totalUtilidad += sale.total_final;
         }
-        if (typeof sale.landed_cost === 'number' && sale.landed_cost > 0) { // Only include landed cost if it's positive
+        if (typeof sale.landed_cost === 'number' && sale.landed_cost > 0) { 
             acc[subCat].totalLandedCost += sale.landed_cost;
         }
         acc[subCat].count += 1;
@@ -1039,48 +1056,52 @@ export default function HistorialCortesPage() {
                     </div>
                     <div className="grid gap-1.5 flex-grow min-w-[180px]">
                         <Label>Subcategoría</Label>
-                        <DropdownMenu onOpenChange={(open) => !open && setSubCategorySearch('')}>
-                            <DropdownMenuTrigger asChild>
+                        <Popover onOpenChange={(open) => !open && setSubCategorySearch('')}>
+                            <PopoverTrigger asChild>
                                 <Button variant="outline" className="w-full justify-between font-normal">
                                     <span>{subCategoryFilter.size > 0 ? `${subCategoryFilter.size} seleccionada(s)` : 'Seleccionar'}</span>
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-64 p-0" align="start">
-                                <div className="p-2 border-b">
-                                    <Input
-                                        autoFocus
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                <Command>
+                                    <CommandInput 
                                         placeholder="Buscar..."
                                         value={subCategorySearch}
-                                        onChange={(e) => setSubCategorySearch(e.target.value)}
-                                        className="h-8"
+                                        onValueChange={setSubCategorySearch}
                                     />
-                                </div>
-                                <div className="max-h-[200px] overflow-y-auto">
-                                    {filteredSubCategories.length > 0 ? filteredSubCategories.map((subCat) => (
-                                    <DropdownMenuCheckboxItem
-                                        key={subCat}
-                                        checked={subCategoryFilter.has(subCat)}
-                                        onCheckedChange={(checked) => {
-                                            setSubCategoryFilter(prev => {
-                                                const next = new Set(prev);
-                                                if (checked) next.add(subCat);
-                                                else next.delete(subCat);
-                                                return next;
-                                            })
-                                        }}
-                                        onSelect={(e) => e.preventDefault()}
-                                    >
-                                        {subCat}
-                                    </DropdownMenuCheckboxItem>
-                                    )) : (
-                                        <div className="p-4 text-center text-sm text-muted-foreground">
-                                            No se encontraron resultados.
-                                        </div>
-                                    )}
-                                </div>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                    <CommandList>
+                                        <CommandEmpty>No se encontraron resultados.</CommandEmpty>
+                                        <CommandGroup>
+                                        {filteredSubCategories.map((subCat) => (
+                                        <CommandItem
+                                            key={subCat}
+                                            onSelect={() => {
+                                                setSubCategoryFilter(prev => {
+                                                    const next = new Set(prev);
+                                                    if (next.has(subCat)) {
+                                                        next.delete(subCat);
+                                                    } else {
+                                                        next.add(subCat);
+                                                    }
+                                                    return next;
+                                                })
+                                            }}
+                                        >
+                                            <div className={cn(
+                                                "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                                subCategoryFilter.has(subCat) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible"
+                                            )}>
+                                                <Check className={cn("h-4 w-4")} />
+                                            </div>
+                                            <span>{subCat}</span>
+                                        </CommandItem>
+                                        ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
                     <div className="flex gap-2">
                         <Button size="sm" onClick={handleApplyFilters}>
