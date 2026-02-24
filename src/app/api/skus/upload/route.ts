@@ -2,6 +2,7 @@
 
 
 
+
 import { NextResponse } from 'next/server';
 import { supabasePROD } from '@/lib/supabase';
 
@@ -111,29 +112,46 @@ export async function POST(request: Request) {
 
         // 1. Process sku_m records
         uniqueMdrData.forEach((row, sku_mdr) => {
-            const newRecord = {
+            const existingRecord = existingMMap.get(sku_mdr);
+
+            const recordFromFile = {
                 sku_mdr,
                 cat_mdr: row.cat_mdr || null,
                 sub_cat: row.sub_categoria || null,
                 esti_time: parseNumeric(row.esti_time, true),
                 piezas_por_sku: parseNumeric(row.piezas_por_sku, true),
-                ...(uploadType === 'oficial' && { sku: String(row.sku || '').trim() }),
+                ...(uploadType === 'oficial' && { sku: String(row.sku || '').trim() || null }),
             };
 
-            const existingRecord = existingMMap.get(sku_mdr);
-
             if (!existingRecord) {
-                skuMRecordsToUpsert.push(newRecord);
+                skuMRecordsToUpsert.push(recordFromFile);
             } else {
-                const hasChanged = 
-                    existingRecord.cat_mdr !== newRecord.cat_mdr ||
-                    existingRecord.sub_cat !== newRecord.sub_cat ||
-                    existingRecord.esti_time !== newRecord.esti_time ||
-                    existingRecord.piezas_por_sku !== newRecord.piezas_por_sku ||
-                    (uploadType === 'oficial' && existingRecord.sku !== newRecord.sku);
-                
+                const mergedRecord = { ...existingRecord };
+                let hasChanged = false;
+
+                if (recordFromFile.cat_mdr !== null && recordFromFile.cat_mdr !== existingRecord.cat_mdr) {
+                    mergedRecord.cat_mdr = recordFromFile.cat_mdr;
+                    hasChanged = true;
+                }
+                if (recordFromFile.sub_cat !== null && recordFromFile.sub_cat !== existingRecord.sub_cat) {
+                    mergedRecord.sub_cat = recordFromFile.sub_cat;
+                    hasChanged = true;
+                }
+                if (recordFromFile.esti_time !== null && recordFromFile.esti_time !== existingRecord.esti_time) {
+                    mergedRecord.esti_time = recordFromFile.esti_time;
+                    hasChanged = true;
+                }
+                if (recordFromFile.piezas_por_sku !== null && recordFromFile.piezas_por_sku !== existingRecord.piezas_por_sku) {
+                    mergedRecord.piezas_por_sku = recordFromFile.piezas_por_sku;
+                    hasChanged = true;
+                }
+                if (uploadType === 'oficial' && recordFromFile.sku && recordFromFile.sku !== existingRecord.sku) {
+                    mergedRecord.sku = recordFromFile.sku;
+                    hasChanged = true;
+                }
+
                 if (hasChanged) {
-                    skuMRecordsToUpsert.push(newRecord);
+                    skuMRecordsToUpsert.push(mergedRecord);
                 }
             }
         });
