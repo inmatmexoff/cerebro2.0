@@ -484,18 +484,20 @@ export default function HistorialCortesPage() {
     const summary = filteredItems.reduce((acc, sale) => {
         const subCat = sale.sub_cat || 'Sin Subcategoría';
         if (!acc[subCat]) {
-            acc[subCat] = { totalProfit: 0, count: 0 };
+            acc[subCat] = { totalMarkup: 0, count: 0 };
         }
-        acc[subCat].totalProfit += sale.total_final || 0;
+        if (typeof sale.markup === 'number') {
+          acc[subCat].totalMarkup += sale.markup;
+        }
         acc[subCat].count += 1;
         return acc;
-    }, {} as Record<string, { totalProfit: number, count: number }>);
+    }, {} as Record<string, { totalMarkup: number, count: number }>);
 
     return Object.entries(summary).map(([subCategory, data]) => ({
         subCategory,
-        averageProfit: data.count > 0 ? data.totalProfit / data.count : 0,
+        averageMarkup: data.count > 0 ? data.totalMarkup / data.count : 0,
         count: data.count,
-    })).sort((a, b) => b.averageProfit - a.averageProfit);
+    })).sort((a, b) => b.averageMarkup - a.averageMarkup);
   }, [filteredItems]);
 
 
@@ -672,6 +674,11 @@ export default function HistorialCortesPage() {
     return value.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
   };
   
+  const formatPercentage = (value: number | null) => {
+    if (value === null || value === undefined) return '-';
+    return `${value.toFixed(2)}%`;
+  };
+
   const headers = [
     { key: 'num_venta', label: 'ID Venta' },
     { key: 'fecha_venta', label: 'Fecha' },
@@ -1410,7 +1417,7 @@ export default function HistorialCortesPage() {
                         <CardHeader>
                             <CardTitle>Resumen por Subcategoría</CardTitle>
                             <CardDescription>
-                                Utilidad promedio para cada subcategoría en los datos filtrados.
+                                Markup (%) promedio para cada subcategoría en los datos filtrados.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -1420,7 +1427,7 @@ export default function HistorialCortesPage() {
                                         <TableRow>
                                             <TableHead>Subcategoría</TableHead>
                                             <TableHead className="text-right">Registros</TableHead>
-                                            <TableHead className="text-right">Utilidad Promedio</TableHead>
+                                            <TableHead className="text-right">Markup (%) Promedio</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -1428,8 +1435,14 @@ export default function HistorialCortesPage() {
                                             <TableRow key={item.subCategory}>
                                                 <TableCell className="font-medium">{item.subCategory}</TableCell>
                                                 <TableCell className="text-right">{item.count}</TableCell>
-                                                <TableCell className={cn("text-right font-semibold", item.averageProfit >= 0 ? "text-green-700" : "text-red-700")}>
-                                                    {formatCurrency(item.averageProfit)}
+                                                <TableCell className={cn("text-right font-semibold", 
+                                                    item.averageMarkup >= 30 ? "text-green-700" :
+                                                    item.averageMarkup >= 20 ? "text-green-500" :
+                                                    item.averageMarkup >= 10 ? "text-yellow-600" :
+                                                    item.averageMarkup >= 5 ? "text-orange-500" :
+                                                    "text-red-600"
+                                                )}>
+                                                    {formatPercentage(item.averageMarkup)}
                                                 </TableCell>
                                             </TableRow>
                                         )) : (
@@ -1452,5 +1465,3 @@ export default function HistorialCortesPage() {
     </div>
   );
 }
-
-    
