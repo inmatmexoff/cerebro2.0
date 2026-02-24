@@ -215,7 +215,6 @@ export default function ImportDevolucionesPage() {
                 const extractedData = dataRows.map(row => {
                     const originalStatus = row[columnMapping.status] ? String(row[columnMapping.status]) : null;
                     let fechaStatusValue = null;
-                    let finalStatus = originalStatus;
 
                     if (originalStatus) {
                         const prefix1 = "Te devolveremos el paquete antes del ";
@@ -224,18 +223,16 @@ export default function ImportDevolucionesPage() {
                         if (originalStatus.startsWith(prefix1)) {
                             const dateString = originalStatus.substring(prefix1.length).trim();
                             fechaStatusValue = parseSaleDate(dateString);
-                            finalStatus = dateString;
                         } else if (originalStatus.startsWith(prefix2)) {
                             const dateString = originalStatus.substring(prefix2.length).trim();
                             fechaStatusValue = parseSaleDate(dateString);
-                            finalStatus = `Llegará el ${dateString}`;
                         }
                     }
 
                     return {
                         num_venta: row[columnMapping.num_venta],
                         fecha_venta: row[columnMapping.fecha_venta],
-                        status: finalStatus,
+                        status: originalStatus,
                         fecha_status: fechaStatusValue,
                         desc_status: row[columnMapping.desc_status],
                         varios_productos: row[columnMapping.varios_productos],
