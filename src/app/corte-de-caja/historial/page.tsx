@@ -48,6 +48,7 @@ type SaleRecord = {
     tip_publi: string;
     total_final: number | null;
     markup: number | null;
+    sub_cat: string | null;
 };
 
 type SortDescriptor = {
@@ -94,7 +95,7 @@ export default function HistorialCortesPage() {
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'sku' | 'color'>('color');
+  const [activeTab, setActiveTab] = useState<'sku' | 'color' | 'subcategoria'>('color');
   const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red'>('all');
   const [skuSummary, setSkuSummary] = useState<any[]>([]);
   const [colorSummary, setColorSummary] = useState<any[]>([]);
@@ -228,7 +229,7 @@ export default function HistorialCortesPage() {
     if (newFilter !== 'all') {
         setGranTotalFilter('all');
         setShowHighShippingCost(false);
-        setActiveTab('sku');
+        setActiveTab('subcategoria');
     } else {
         setActiveTab('color');
     }
@@ -296,6 +297,7 @@ export default function HistorialCortesPage() {
 
       const skusInPage = [...new Set(salesData.map(s => s.sku).filter(Boolean))];
       const skuToMdrMap = new Map();
+      const mdrToSubCatMap = new Map();
       const mdrToPriceMap = new Map();
 
       if (skusInPage.length > 0) {
@@ -320,6 +322,17 @@ export default function HistorialCortesPage() {
 
         const mdrs = [...new Set(Array.from(skuToMdrMap.values()))].filter(Boolean);
         if (mdrs.length > 0) {
+          const { data: skuMSubCatData, error: skuMSubCatError } = await supabasePROD
+            .from('sku_m')
+            .select('sku_mdr, sub_cat')
+            .in('sku_mdr', mdrs);
+          if (skuMSubCatError) throw skuMSubCatError;
+          if (skuMSubCatData) {
+            skuMSubCatData.forEach(item => {
+              if(item.sub_cat) mdrToSubCatMap.set(item.sku_mdr, item.sub_cat);
+            });
+          }
+
           const { data: skuCostosData, error: skuCostosError } = await supabasePROD
             .from('sku_costos')
             .select('sku_mdr, landed_cost, id')
@@ -340,6 +353,7 @@ export default function HistorialCortesPage() {
       const enrichedData = salesData.map(sale => {
         const unidades = sale.unidades || 1;
         const skuMdr = skuToMdrMap.get(sale.sku);
+        const subCat = skuMdr ? mdrToSubCatMap.get(skuMdr) : null;
         const landedCostPerUnit = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
         const totalLandedCost = landedCostPerUnit * unidades;
         const totalFromDb = sale.total || 0;
@@ -357,6 +371,7 @@ export default function HistorialCortesPage() {
             landed_cost: totalLandedCost,
             total_final: parseFloat(utilidadBruta.toFixed(2)),
             markup,
+            sub_cat: subCat,
         };
       });
 
@@ -463,6 +478,26 @@ export default function HistorialCortesPage() {
     return counters;
   }, [filteredItems]);
   
+  const subCategorySummary = React.useMemo(() => {
+    if (filteredItems.length === 0) return [];
+
+    const summary = filteredItems.reduce((acc, sale) => {
+        const subCat = sale.sub_cat || 'Sin Subcategoría';
+        if (!acc[subCat]) {
+            acc[subCat] = { totalProfit: 0, count: 0 };
+        }
+        acc[subCat].totalProfit += sale.total_final || 0;
+        acc[subCat].count += 1;
+        return acc;
+    }, {} as Record<string, { totalProfit: number, count: number }>);
+
+    return Object.entries(summary).map(([subCategory, data]) => ({
+        subCategory,
+        averageProfit: data.count > 0 ? data.totalProfit / data.count : 0,
+        count: data.count,
+    })).sort((a, b) => b.averageProfit - a.averageProfit);
+  }, [filteredItems]);
+
 
   useEffect(() => {
     if (filteredItems.length === 0) {
@@ -1190,12 +1225,13 @@ export default function HistorialCortesPage() {
                 <Tabs 
                 defaultValue="color" 
                 value={activeTab} 
-                onValueChange={(value) => setActiveTab(value as 'sku' | 'color')} 
+                onValueChange={(value) => setActiveTab(value as 'sku' | 'color' | 'subcategoria')} 
                 className="mt-6"
                 >
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="sku">Resumen por SKU</TabsTrigger>
-                    <TabsTrigger value="color">Resumen por Rentabilidad</TabsTrigger>
+                    <TabsTrigger value="color">Por Rentabilidad</TabsTrigger>
+                    <TabsTrigger value="subcategoria">Por Subcategoría</TabsTrigger>
                 </TabsList>
                 <TabsContent value="sku">
                     {skuSummary.length > 0 ? (
@@ -1368,6 +1404,46 @@ export default function HistorialCortesPage() {
                     ) : (
                         <Card className="mt-6"><CardContent className="p-6 text-center text-muted-foreground">No hay datos de resumen para mostrar.</CardContent></Card>
                     )}
+                </TabsContent>
+                <TabsContent value="subcategoria">
+                    <Card className="mt-6">
+                        <CardHeader>
+                            <CardTitle>Resumen por Subcategoría</CardTitle>
+                            <CardDescription>
+                                Utilidad promedio para cada subcategoría en los datos filtrados.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="border rounded-md max-h-96 overflow-y-auto">
+                                <ShadcnTable>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Subcategoría</TableHead>
+                                            <TableHead className="text-right">Registros</TableHead>
+                                            <TableHead className="text-right">Utilidad Promedio</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {subCategorySummary.length > 0 ? subCategorySummary.map((item) => (
+                                            <TableRow key={item.subCategory}>
+                                                <TableCell className="font-medium">{item.subCategory}</TableCell>
+                                                <TableCell className="text-right">{item.count}</TableCell>
+                                                <TableCell className={cn("text-right font-semibold", item.averageProfit >= 0 ? "text-green-700" : "text-red-700")}>
+                                                    {formatCurrency(item.averageProfit)}
+                                                </TableCell>
+                                            </TableRow>
+                                        )) : (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="h-24 text-center">
+                                                    No hay datos de subcategorías para mostrar.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </ShadcnTable>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </TabsContent>
               </Tabs>
             )}
