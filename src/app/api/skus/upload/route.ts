@@ -1,6 +1,7 @@
 
 
 
+
 import { NextResponse } from 'next/server';
 import { supabasePROD } from '@/lib/supabase';
 
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
             const chunk = allMdrFromFile.slice(i, i + CHUNK_SIZE);
             const { data: mChunk, error: mError } = await supabase
                 .from('sku_m')
-                .select('sku_mdr, sku, cat_mdr, sub_categoria, esti_time, piezas_por_sku')
+                .select('sku_mdr, sku, cat_mdr, sub_cat, esti_time, piezas_por_sku')
                 .in('sku_mdr', chunk);
             if (mError) throw new Error(`Error fetching existing sku_m data: ${mError.message}`);
             if (mChunk) existingMData.push(...mChunk);
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
             const newRecord = {
                 sku_mdr,
                 cat_mdr: row.cat_mdr || null,
-                sub_categoria: row.sub_categoria || null,
+                sub_cat: row.sub_categoria || null,
                 esti_time: parseNumeric(row.esti_time, true),
                 piezas_por_sku: parseNumeric(row.piezas_por_sku, true),
                 ...(uploadType === 'oficial' && { sku: String(row.sku || '').trim() }),
@@ -126,7 +127,7 @@ export async function POST(request: Request) {
             } else {
                 const hasChanged = 
                     existingRecord.cat_mdr !== newRecord.cat_mdr ||
-                    existingRecord.sub_categoria !== newRecord.sub_categoria ||
+                    existingRecord.sub_cat !== newRecord.sub_cat ||
                     existingRecord.esti_time !== newRecord.esti_time ||
                     existingRecord.piezas_por_sku !== newRecord.piezas_por_sku ||
                     (uploadType === 'oficial' && existingRecord.sku !== newRecord.sku);
