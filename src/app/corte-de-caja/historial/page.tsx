@@ -560,18 +560,24 @@ export default function HistorialCortesPage() {
     const summary = filteredItems.reduce((acc, sale) => {
         const subCat = sale.sub_cat || 'Sin Subcategoría';
         if (!acc[subCat]) {
-            acc[subCat] = { totalMarkup: 0, count: 0 };
+            acc[subCat] = { totalUtilidad: 0, totalLandedCost: 0, count: 0 };
         }
-        if (typeof sale.markup === 'number') {
-          acc[subCat].totalMarkup += sale.markup;
+
+        // 'total_final' is 'Utilidad Bruta'
+        // 'landed_cost' is 'Landed Cost Total'
+        if (typeof sale.total_final === 'number') {
+            acc[subCat].totalUtilidad += sale.total_final;
+        }
+        if (typeof sale.landed_cost === 'number' && sale.landed_cost > 0) { // Only include landed cost if it's positive
+            acc[subCat].totalLandedCost += sale.landed_cost;
         }
         acc[subCat].count += 1;
         return acc;
-    }, {} as Record<string, { totalMarkup: number, count: number }>);
+    }, {} as Record<string, { totalUtilidad: number; totalLandedCost: number; count: number }>);
 
     return Object.entries(summary).map(([subCategory, data]) => ({
         subCategory,
-        averageMarkup: data.count > 0 ? data.totalMarkup / data.count : 0,
+        averageMarkup: data.totalLandedCost > 0 ? (data.totalUtilidad / data.totalLandedCost) * 100 : 0,
         count: data.count,
     })).sort((a, b) => b.averageMarkup - a.averageMarkup);
   }, [filteredItems]);

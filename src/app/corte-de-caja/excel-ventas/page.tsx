@@ -921,26 +921,33 @@ export default function ExcelVentasPage() {
   const subCategorySummary = React.useMemo(() => {
     if (filteredData.length === 0) return [];
     const subCatIndex = headers.indexOf('Subcategoría');
-    const markupIndex = headers.indexOf('Markup (%)');
+    const utilidadBrutaIndex = headers.indexOf('Utilidad Bruta');
+    const landedCostTotalIndex = headers.indexOf('Landed Cost Total');
 
-    if (subCatIndex === -1 || markupIndex === -1) return [];
+    if (subCatIndex === -1 || utilidadBrutaIndex === -1 || landedCostTotalIndex === -1) return [];
 
     const summary = filteredData.reduce((acc, sale) => {
         const subCat = sale[subCatIndex] || 'Sin Subcategoría';
         if (!acc[subCat]) {
-            acc[subCat] = { totalMarkup: 0, count: 0 };
+            acc[subCat] = { totalUtilidad: 0, totalLandedCost: 0, count: 0 };
         }
-        const markupValue = sale[markupIndex];
-        if (typeof markupValue === 'number') {
-            acc[subCat].totalMarkup += markupValue;
+
+        const utilidad = sale[utilidadBrutaIndex];
+        const landedCost = sale[landedCostTotalIndex];
+
+        if (typeof utilidad === 'number') {
+            acc[subCat].totalUtilidad += utilidad;
+        }
+        if (typeof landedCost === 'number' && landedCost > 0) { // Only include landed cost if it's positive to avoid division by zero or weird results
+            acc[subCat].totalLandedCost += landedCost;
         }
         acc[subCat].count += 1;
         return acc;
-    }, {} as Record<string, { totalMarkup: number, count: number }>);
+    }, {} as Record<string, { totalUtilidad: number; totalLandedCost: number; count: number }>);
 
     return Object.entries(summary).map(([subCategory, data]) => ({
         subCategory,
-        averageMarkup: data.count > 0 ? data.totalMarkup / data.count : 0,
+        averageMarkup: data.totalLandedCost > 0 ? (data.totalUtilidad / data.totalLandedCost) * 100 : 0,
         count: data.count,
     })).sort((a, b) => b.averageMarkup - a.averageMarkup);
   }, [filteredData, headers]);
