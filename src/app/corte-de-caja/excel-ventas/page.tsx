@@ -74,6 +74,8 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DatePicker } from '@/components/ui/date-picker';
+import { CompanySelect } from '@/components/company-select';
 
 // Define which columns to extract and in what order
 const COLUMN_MAPPING: { [key: string]: number } = {
@@ -230,6 +232,9 @@ export default function ExcelVentasPage() {
     originalLandedCost: number;
   } | null>(null);
   const [manualEntryInfo, setManualEntryInfo] = useState<{ rowIndex: number; rowData: any[] } | null>(null);
+  const [startDate, setStartDate] = React.useState<Date | null>(null);
+  const [endDate, setEndDate] = React.useState<Date | null>(null);
+  const [company, setCompany] = React.useState<string | undefined>();
 
   const [isUpdatingCost, setIsUpdatingCost] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
@@ -800,8 +805,6 @@ export default function ExcelVentasPage() {
     [toast]
   );
   
-  const isFiltered = skuSearchTerm || granTotalFilter !== 'all' || showHighShippingCost || markupFilter !== 'all';
-
   const utilidadBrutaIndex = headers.indexOf('Utilidad Bruta');
 
   const filteredData = React.useMemo(() => {
@@ -809,7 +812,8 @@ export default function ExcelVentasPage() {
     const pubIndex = headers.indexOf('# de publicación');
     const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
     const markupIndex = headers.indexOf('Markup (%)');
-
+    const dateIndex = headers.indexOf('Fecha de venta');
+    const companyIndex = headers.indexOf('Tienda');
 
     return data.filter((row) => {
       const searchMatch =
@@ -866,8 +870,29 @@ export default function ExcelVentasPage() {
             markupMatch = markupFilter === 'red' && utilidadBruta !== 0;
           }
       }
+      
+      const dateMatch = (() => {
+        if (!startDate && !endDate) return true;
+        const saleDate = parseSaleDate(row[dateIndex]);
+        if (!saleDate) return false; // Don't show rows with invalid dates if filtering by date
 
-      return searchMatch && utilidadBrutaMatch && highShippingCostMatch && markupMatch;
+        const start = startDate ? new Date(startDate.setHours(0, 0, 0, 0)) : null;
+        const end = endDate ? new Date(endDate.setHours(23, 59, 59, 999)) : null;
+
+        if (start && saleDate < start) return false;
+        if (end && saleDate > end) return false;
+        
+        return true;
+      })();
+      
+      const companyMatch = (() => {
+        if (!company || company === 'all') return true;
+        const rowCompany = String(row[companyIndex] || '').toUpperCase();
+        const filterCompany = company.replace(/-/g, ' ').toUpperCase();
+        return rowCompany === filterCompany;
+      })();
+
+      return searchMatch && utilidadBrutaMatch && highShippingCostMatch && markupMatch && dateMatch && companyMatch;
     });
   }, [
     data,
@@ -877,7 +902,12 @@ export default function ExcelVentasPage() {
     headers,
     markupFilter,
     utilidadBrutaIndex,
+    startDate,
+    endDate,
+    company
   ]);
+  
+  const isFiltered = skuSearchTerm || granTotalFilter !== 'all' || showHighShippingCost || markupFilter !== 'all' || startDate || endDate || (company && company !== 'all');
 
   const createSumCalculator = (columnName: string) => {
     return React.useMemo(() => {
@@ -1180,6 +1210,12 @@ export default function ExcelVentasPage() {
     setSelectedColumns(new Set());
     setProgress(0);
     setValidationIssues(null);
+  };
+  
+  const handleClearFilters = () => {
+    setStartDate(null);
+    setEndDate(null);
+    setCompany(undefined);
   };
 
   const handleDownloadCSV = () => {
@@ -1910,7 +1946,34 @@ export default function ExcelVentasPage() {
                         </DropdownMenu>
                       </div>
                     </div>
-                    <div className="pt-4">
+                     <div className="flex flex-col sm:flex-row sm:flex-wrap items-end gap-4 border-t pt-4 mt-4">
+                        <div className="grid gap-1.5 flex-grow min-w-[180px]">
+                            <Label htmlFor="fecha-inicio">Fecha Inicio</Label>
+                            <DatePicker
+                                id="fecha-inicio"
+                                value={startDate}
+                                onChange={setStartDate}
+                            />
+                        </div>
+                        <div className="grid gap-1.5 flex-grow min-w-[180px]">
+                            <Label htmlFor="fecha-fin">Fecha Fin</Label>
+                            <DatePicker
+                                id="fecha-fin"
+                                value={endDate}
+                                onChange={setEndDate}
+                            />
+                        </div>
+                        <div className="grid gap-1.5 flex-grow min-w-[180px]">
+                            <Label>Empresa</Label>
+                            <CompanySelect value={company} onValueChange={setCompany} />
+                        </div>
+                        <div className="flex gap-2">
+                            <Button size="sm" variant="ghost" onClick={handleClearFilters}>
+                                Limpiar
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="pt-4 mt-4 border-t">
                       <h4 className="text-sm font-medium mb-2">
                         Resumen de Totales (Filtrado)
                       </h4>
