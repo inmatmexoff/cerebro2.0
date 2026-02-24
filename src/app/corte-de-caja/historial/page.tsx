@@ -76,14 +76,19 @@ export default function HistorialCortesPage() {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [company, setCompany] = useState<string | undefined>();
+  const [subCategoryFilter, setSubCategoryFilter] = useState<Set<string>>(new Set());
+  const [allSubCategories, setAllSubCategories] = useState<string[]>([]);
+
   const [appliedFilters, setAppliedFilters] = useState<{
     startDate: Date | null;
     endDate: Date | null;
     company: string | undefined;
+    subCategory: Set<string>;
   }>({
     startDate: null,
     endDate: null,
     company: undefined,
+    subCategory: new Set(),
   });
 
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
@@ -193,10 +198,30 @@ export default function HistorialCortesPage() {
 
     getUnfilteredTotals();
   }, []);
+  
+  useEffect(() => {
+    const fetchSubCategories = async () => {
+      try {
+        const { data, error } = await supabasePROD
+          .from('sku_m')
+          .select('sub_cat');
+
+        if (error) throw error;
+        
+        if (data) {
+          const uniqueSubCats = [...new Set(data.map(item => item.sub_cat).filter(Boolean))].sort();
+          setAllSubCategories(uniqueSubCats);
+        }
+      } catch (err: any) {
+        console.error("Error fetching subcategories:", err.message);
+      }
+    };
+    fetchSubCategories();
+  }, []);
 
   const handleApplyFilters = () => {
     setPage(1);
-    setAppliedFilters({ startDate, endDate, company });
+    setAppliedFilters({ startDate, endDate, company, subCategory: subCategoryFilter });
   };
 
   const handleClearFilters = () => {
@@ -204,7 +229,8 @@ export default function HistorialCortesPage() {
     setStartDate(null);
     setEndDate(null);
     setCompany(undefined);
-    setAppliedFilters({ startDate: null, endDate: null, company: undefined });
+    setSubCategoryFilter(new Set());
+    setAppliedFilters({ startDate: null, endDate: null, company: undefined, subCategory: new Set() });
   };
 
   const handleCopyToClipboard = (text: string) => {
@@ -266,6 +292,46 @@ export default function HistorialCortesPage() {
 
     try {
       let query = supabasePROD.from('ml_sales').select('*', { count: 'exact' });
+
+      if (appliedFilters.subCategory.size > 0) {
+        const { data: skuMData, error: skuMError } = await supabasePROD
+          .from('sku_m')
+          .select('sku_mdr, sku')
+          .in('sub_cat', Array.from(appliedFilters.subCategory));
+  
+        if (skuMError) throw skuMError;
+  
+        if (skuMData && skuMData.length > 0) {
+          const skuMdrFromSubCat = skuMData.map(item => item.sku_mdr).filter(Boolean);
+          const skusFromSkuM = skuMData.map(item => item.sku).filter(Boolean);
+          let allSkusForSubCat = [...skusFromSkuM];
+  
+          if (skuMdrFromSubCat.length > 0) {
+            const { data: skuAlternoData, error: skuAlternoError } = await supabasePROD
+              .from('sku_alterno')
+              .select('sku')
+              .in('sku_mdr', skuMdrFromSubCat);
+            if (skuAlternoError) throw skuAlternoError;
+            if (skuAlternoData) {
+              allSkusForSubCat = [...new Set([...allSkusForSubCat, ...skuAlternoData.map(item => item.sku)])];
+            }
+          }
+  
+          if (allSkusForSubCat.length > 0) {
+            query = query.in('sku', allSkusForSubCat);
+          } else {
+            setSales([]);
+            setTotalRows(0);
+            setIsLoading(false);
+            return;
+          }
+        } else {
+          setSales([]);
+          setTotalRows(0);
+          setIsLoading(false);
+          return;
+        }
+      }
 
       if (debouncedSearchTerm) {
         query = query.or(
@@ -684,6 +750,7 @@ export default function HistorialCortesPage() {
     { key: 'fecha_venta', label: 'Fecha' },
     { key: 'status', label: 'Estado' },
     { key: 'sku', label: 'SKU' },
+    { key: 'sub_cat', label: 'Subcategoría' },
     { key: 'num_publi', label: '# de Publicación' },
     { key: 'unidades', label: 'Unidades' },
     { key: 'ing_xunidad', label: 'Costo Venta ML' },
@@ -705,7 +772,7 @@ export default function HistorialCortesPage() {
   const numericColumns = ['unidades', ...currencyColumns, 'markup'];
 
 
-  const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost || appliedFilters.startDate || appliedFilters.endDate || (appliedFilters.company && appliedFilters.company !== 'all') || markupFilter !== 'all';
+  const isFiltered = debouncedSearchTerm !== '' || granTotalFilter !== 'all' || showHighShippingCost || appliedFilters.startDate || appliedFilters.endDate || (appliedFilters.company && appliedFilters.company !== 'all') || markupFilter !== 'all' || appliedFilters.subCategory.size > 0;
 
   const handleColorSummarySort = (key: ColorSummarySortKey) => {
     setColorSummarySort(prev => {
@@ -953,6 +1020,37 @@ export default function HistorialCortesPage() {
                      <div className="grid gap-1.5 flex-grow min-w-[180px]">
                         <Label>Empresa</Label>
                         <CompanySelect value={company} onValueChange={setCompany} />
+                    </div>
+                    <div className="grid gap-1.5 flex-grow min-w-[180px]">
+                        <Label>Subcategoría</Label>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-full justify-between font-normal">
+                                    <span>{subCategoryFilter.size > 0 ? `${subCategoryFilter.size} seleccionada(s)` : 'Seleccionar'}</span>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-56" align="start">
+                                <DropdownMenuLabel>Filtrar por Subcategoría</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {allSubCategories.map((subCat) => (
+                                  <DropdownMenuCheckboxItem
+                                      key={subCat}
+                                      checked={subCategoryFilter.has(subCat)}
+                                      onCheckedChange={(checked) => {
+                                          setSubCategoryFilter(prev => {
+                                              const next = new Set(prev);
+                                              if (checked) next.add(subCat);
+                                              else next.delete(subCat);
+                                              return next;
+                                          })
+                                      }}
+                                  >
+                                      {subCat}
+                                  </DropdownMenuCheckboxItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                     <div className="flex gap-2">
                         <Button size="sm" onClick={handleApplyFilters}>
