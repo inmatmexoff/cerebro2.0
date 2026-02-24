@@ -188,6 +188,11 @@ const parseSaleDate = (value: any): Date | null => {
   return null;
 };
 
+const formatPercentage = (value: number | null) => {
+    if (value === null || value === undefined) return '-';
+    return `${value.toFixed(2)}%`;
+};
+
 const formSchema = z.object({
   sku_mdr: z.string().min(1, 'NOMBRE MADRE es requerido.'),
   cat_mdr: z.string().min(1, 'Categoría Madre es requerida.'),
@@ -235,7 +240,7 @@ export default function ExcelVentasPage() {
   const [skuSummary, setSkuSummary] = useState<any[]>([]);
   const [colorSummary, setColorSummary] = useState<any[]>([]);
   const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red'>('all');
-  const [activeTab, setActiveTab] = useState<'sku' | 'color'>('color');
+  const [activeTab, setActiveTab] = useState<'sku' | 'color' | 'subcategoria'>('color');
   const [validationIssues, setValidationIssues] = useState<{ emptySkus: { rows: number[] }, invalidLandedCosts: { rows: number[] } } | null>(null);
 
   const [colorSummarySort, setColorSummarySort] = useState<{ key: ColorSummarySortKey; direction: 'asc' | 'desc' }>({ key: 'total', direction: 'desc' });
@@ -421,7 +426,7 @@ export default function ExcelVentasPage() {
     if (newFilter !== 'all') {
         setGranTotalFilter('all');
         setShowHighShippingCost(false);
-        setActiveTab('sku');
+        setActiveTab('subcategoria');
     } else {
         setActiveTab('color');
     }
@@ -477,6 +482,7 @@ export default function ExcelVentasPage() {
             headerRow[COLUMN_MAPPING.C] || 'ESTADO',
             headerRow[COLUMN_MAPPING.G] || 'Unidades',
             headerRow[COLUMN_MAPPING.Q] || 'SKU',
+            'Subcategoría',
             'Costo de Venta en Mercado Libre',
             'Cargo por venta e impuestos (MXN)',
             'Costos de envío (MXN)',
@@ -525,6 +531,7 @@ export default function ExcelVentasPage() {
 
             let skuToMdrMap = new Map();
             let mdrToPriceMap = new Map();
+            let mdrToSubCatMap = new Map();
 
             if (skusInChunk.length > 0) {
               const { data: skuAlternoData, error: skuAlternoError } =
@@ -557,6 +564,17 @@ export default function ExcelVentasPage() {
                 ...new Set(Array.from(skuToMdrMap.values())),
               ].filter((mdr) => mdr);
               if (mdrs.length > 0) {
+                 const { data: skuMSubCatData, error: skuMSubCatError } = await supabasePROD
+                    .from('sku_m')
+                    .select('sku_mdr, sub_cat')
+                    .in('sku_mdr', mdrs);
+                 if (skuMSubCatError) throw skuMSubCatError;
+                 if (skuMSubCatData) {
+                    skuMSubCatData.forEach(item => {
+                        if(item.sub_cat) mdrToSubCatMap.set(item.sku_mdr, item.sub_cat);
+                    });
+                 }
+
                 const { data: skuCostosData, error: skuCostosError } =
                   await supabasePROD
                     .from('sku_costos')
@@ -579,6 +597,7 @@ export default function ExcelVentasPage() {
                 parseInt(String(row[COLUMN_MAPPING.G] || '1')) || 1;
               const sku = String(row[COLUMN_MAPPING.Q] || '');
               const skuMdr = skuToMdrMap.get(sku);
+              const subCat = skuMdr ? mdrToSubCatMap.get(skuMdr) : null;
               const landedCostPerUnit = skuMdr
                 ? mdrToPriceMap.get(skuMdr) || 0
                 : 0;
@@ -602,6 +621,7 @@ export default function ExcelVentasPage() {
                 estado,
                 unidades,
                 sku,
+                subCat,
                 parseCurrency(row[COLUMN_MAPPING.H]),
                 parseCurrency(row[COLUMN_MAPPING.I]),
                 parseCurrency(row[COLUMN_MAPPING.K]),
@@ -898,6 +918,32 @@ export default function ExcelVentasPage() {
     }, 0);
   }, [data, headers]);
 
+  const subCategorySummary = React.useMemo(() => {
+    if (filteredData.length === 0) return [];
+    const subCatIndex = headers.indexOf('Subcategoría');
+    const markupIndex = headers.indexOf('Markup (%)');
+
+    if (subCatIndex === -1 || markupIndex === -1) return [];
+
+    const summary = filteredData.reduce((acc, sale) => {
+        const subCat = sale[subCatIndex] || 'Sin Subcategoría';
+        if (!acc[subCat]) {
+            acc[subCat] = { totalMarkup: 0, count: 0 };
+        }
+        const markupValue = sale[markupIndex];
+        if (typeof markupValue === 'number') {
+            acc[subCat].totalMarkup += markupValue;
+        }
+        acc[subCat].count += 1;
+        return acc;
+    }, {} as Record<string, { totalMarkup: number, count: number }>);
+
+    return Object.entries(summary).map(([subCategory, data]) => ({
+        subCategory,
+        averageMarkup: data.count > 0 ? data.totalMarkup / data.count : 0,
+        count: data.count,
+    })).sort((a, b) => b.averageMarkup - a.averageMarkup);
+  }, [filteredData, headers]);
 
 
   React.useEffect(() => {
@@ -1281,20 +1327,21 @@ export default function ExcelVentasPage() {
       status: 3,
       unidades: 4,
       sku: 5,
-      ing_xunidad: 6,
-      cargo_venta: 7,
-      costo_envio: 8,
-      ing_xenvio: 9,
-      cargo_difpeso: 10,
-      anu_reembolsos: 11,
-      venta_xpublicidad: 12,
-      num_publi: 13,
-      tienda: 14,
-      tip_publi: 15,
-      total: 16,
-      landed_cost: 17,
-      total_final: 18,
-      markup: 19,
+      sub_cat: 6,
+      ing_xunidad: 7,
+      cargo_venta: 8,
+      costo_envio: 9,
+      ing_xenvio: 10,
+      cargo_difpeso: 11,
+      anu_reembolsos: 12,
+      venta_xpublicidad: 13,
+      num_publi: 14,
+      tienda: 15,
+      tip_publi: 16,
+      total: 17,
+      landed_cost: 18,
+      total_final: 19,
+      markup: 20,
     };
 
     const CHUNK_SIZE = 500;
@@ -2274,12 +2321,13 @@ export default function ExcelVentasPage() {
                   <Tabs 
                     defaultValue="color" 
                     value={activeTab} 
-                    onValueChange={(value) => setActiveTab(value as 'sku' | 'color')} 
+                    onValueChange={(value) => setActiveTab(value as 'sku' | 'color' | 'subcategoria')} 
                     className="mt-6"
                   >
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="sku">Resumen por SKU</TabsTrigger>
                         <TabsTrigger value="color">Resumen por Rentabilidad</TabsTrigger>
+                        <TabsTrigger value="subcategoria">Por Subcategoría</TabsTrigger>
                     </TabsList>
                     <TabsContent value="sku">
                         {skuSummary.length > 0 ? (
@@ -2478,6 +2526,52 @@ export default function ExcelVentasPage() {
                         ) : (
                             <Card className="mt-6"><CardContent className="p-6 text-center text-muted-foreground">No hay datos de resumen para mostrar.</CardContent></Card>
                         )}
+                    </TabsContent>
+                    <TabsContent value="subcategoria">
+                        <Card className="mt-6">
+                            <CardHeader>
+                                <CardTitle>Resumen por Subcategoría</CardTitle>
+                                <CardDescription>
+                                    Markup (%) promedio para cada subcategoría en los datos filtrados.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="border rounded-md max-h-96 overflow-y-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Subcategoría</TableHead>
+                                                <TableHead className="text-right">Registros</TableHead>
+                                                <TableHead className="text-right">Markup (%) Promedio</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {subCategorySummary.length > 0 ? subCategorySummary.map((item) => (
+                                                <TableRow key={item.subCategory}>
+                                                    <TableCell className="font-medium">{item.subCategory}</TableCell>
+                                                    <TableCell className="text-right">{item.count}</TableCell>
+                                                    <TableCell className={cn("text-right font-semibold", 
+                                                        item.averageMarkup >= 30 ? "text-green-700" :
+                                                        item.averageMarkup >= 20 ? "text-green-500" :
+                                                        item.averageMarkup >= 10 ? "text-yellow-600" :
+                                                        item.averageMarkup >= 5 ? "text-orange-500" :
+                                                        "text-red-600"
+                                                    )}>
+                                                        {formatPercentage(item.averageMarkup)}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={3} className="h-24 text-center">
+                                                        No hay datos de subcategorías para mostrar.
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                   </Tabs>
                 )}
