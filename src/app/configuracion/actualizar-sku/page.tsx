@@ -248,7 +248,7 @@ export default function ActualizarSkuPage() {
                     {!isLoadingData && selectedSku && (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Editando SKU: {selectedSku}</CardTitle>
+                                <CardTitle className="break-all">Editando SKU: {selectedSku}</CardTitle>
                                 <CardDescription>Modifica los campos y guarda los cambios. Al guardar un nuevo "Landed Cost", se creará un nuevo registro en el historial de costos.</CardDescription>
                             </CardHeader>
                             <CardContent>
