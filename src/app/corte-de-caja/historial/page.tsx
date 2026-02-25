@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter, PackageSearch, Download, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter, PackageSearch, Download, Copy, Check, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CompanySelect } from '@/components/company-select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
 
 // Expanded SaleRecord to include more columns
@@ -58,6 +63,14 @@ type SortDescriptor = {
   direction: 'ascending' | 'descending';
 };
 
+const formSchema = z.object({
+  sku_mdr: z.string().min(1, 'NOMBRE MADRE es requerido.'),
+  cat_mdr: z.string().min(1, 'Categoría Madre es requerida.'),
+  landed_cost: z.coerce
+    .number()
+    .positive('Landed cost debe ser un número positivo.'),
+});
+
 const ROWS_PER_PAGE = 20;
 type ColorSummarySortKey = 'count' | 'publications' | 'skus' | 'unidades' | 'total' | 'percentageOfTotal' | 'pedidos' | 'porcentaje_pedidos_rango' | 'porcentaje_unidades_rango' | 'utilidad_promedio_por_pedido_rango';
 type SkuSummarySortKey = 'sku' | 'unidades' | 'totalPorUnidad' | 'total' | 'porcentajeDelTotal';
@@ -69,6 +82,7 @@ export default function HistorialCortesPage() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // FILTERS
   const [page, setPage] = useState(1);
   const [totalRows, setTotalRows] = useState(0);
   const [grandTotal, setGrandTotal] = useState(0);
@@ -125,6 +139,18 @@ export default function HistorialCortesPage() {
   });
   const [totalUnidades, setTotalUnidades] = React.useState(0);
   const [totalPedidos, setTotalPedidos] = React.useState(0);
+
+  const [editingInfo, setEditingInfo] = useState<{ sale: SaleRecord, originalLandedCost: number } | null>(null);
+  const [isUpdatingCost, setIsUpdatingCost] = useState(false);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+      resolver: zodResolver(formSchema),
+      defaultValues: {
+        sku_mdr: '',
+        cat_mdr: '',
+        landed_cost: 0,
+      },
+  });
 
   useEffect(() => {
     const getUnfilteredTotals = async () => {
@@ -484,6 +510,110 @@ export default function HistorialCortesPage() {
         setIsLoading(false);
     }
 }, [debouncedSearchTerm, appliedFilters, toast]);
+
+  const handleEditClick = async (sale: SaleRecord) => {
+    if (!sale.sku) {
+      toast({ variant: 'destructive', title: 'SKU no encontrado', description: 'Esta fila no tiene un SKU para editar.' });
+      return;
+    }
+
+    form.reset({ sku_mdr: '', cat_mdr: '', landed_cost: 0 });
+    setEditingInfo({ sale, originalLandedCost: sale.landed_cost || 0 });
+
+    try {
+        const response = await fetch(`/api/sku-details/${sale.sku}`);
+        if (!response.ok) {
+            throw new Error('No se pudieron obtener los detalles del SKU.');
+        }
+        const details = await response.json();
+        form.setValue('sku_mdr', details.sku_mdr || '');
+        form.setValue('cat_mdr', details.cat_mdr || '');
+        if (details.landed_cost) {
+            form.setValue('landed_cost', details.landed_cost);
+        }
+    } catch (e: any) {
+        console.error("Could not fetch SKU details for modal:", e.message);
+        toast({
+          variant: "default",
+          title: "Aviso",
+          description: "No se pudieron precargar los detalles del SKU. Puedes introducirlos manualmente.",
+        });
+    }
+  };
+
+  async function onUpdateSubmit(values: z.infer<typeof formSchema>) {
+    if (!editingInfo) return;
+    setIsUpdatingCost(true);
+    try {
+        const payload = {
+            data: [
+                {
+                    sku: editingInfo.sale.sku,
+                    sku_mdr: values.sku_mdr,
+                    cat_mdr: values.cat_mdr,
+                    landed_cost: values.landed_cost,
+                    proveedor: null,
+                    piezas_xcontenedor: null,
+                },
+            ],
+            type: 'oficial'
+        };
+  
+        const response = await fetch('/api/skus/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+  
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message || 'Error actualizando el costo.');
+        }
+
+        setSales(currentSales => {
+            return currentSales.map(s => {
+                if (s.id === editingInfo.sale.id) {
+                    const newLandedCostPerUnit = values.landed_cost;
+                    const unidades = s.unidades || 1;
+                    const newTotalLandedCost = newLandedCostPerUnit * unidades;
+                    const totalFromDb = s.total || 0;
+                    let newUtilidadBruta = totalFromDb - newTotalLandedCost;
+
+                    const saleStatus = s.status || '';
+                    if (totalFromDb === 0 && !saleStatus.toLowerCase().startsWith('paquete de')) {
+                        newUtilidadBruta = 0;
+                    }
+
+                    const newMarkup = newTotalLandedCost > 0 ? (newUtilidadBruta / newTotalLandedCost) * 100 : 0;
+                    
+                    return {
+                        ...s,
+                        landed_cost: newTotalLandedCost,
+                        total_final: parseFloat(newUtilidadBruta.toFixed(2)),
+                        markup: newMarkup,
+                    };
+                }
+                return s;
+            });
+        });
+  
+        toast({
+            title: 'Éxito',
+            description: `Costo para SKU ${editingInfo.sale.sku} actualizado.`,
+        });
+  
+        setEditingInfo(null);
+
+    } catch (e: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error al actualizar',
+            description: e.message,
+        });
+    } finally {
+        setIsUpdatingCost(false);
+    }
+  }
 
 
   useEffect(() => {
@@ -1297,7 +1427,22 @@ export default function HistorialCortesPage() {
                                         const cellValue = sale[header.key as keyof SaleRecord];
                                         let formattedValue: React.ReactNode;
 
-                                        if (header.key === 'fecha_venta') {
+                                        if (header.key === 'landed_cost') {
+                                            const cost = cellValue as number | null;
+                                            const showPencil = cost === null || cost === 0 || cost === 1;
+                                            if (showPencil && sale.sku) {
+                                                formattedValue = (
+                                                    <div className="flex items-center justify-end gap-2 -mr-4">
+                                                        <span>{formatCurrency(cost)}</span>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(sale)}>
+                                                            <Pencil className="h-4 w-4 text-primary" />
+                                                        </Button>
+                                                    </div>
+                                                );
+                                            } else {
+                                                formattedValue = formatCurrency(cost);
+                                            }
+                                        } else if (header.key === 'fecha_venta') {
                                             formattedValue = formatDate(cellValue as string | null);
                                         } else if (header.key === 'markup') {
                                             if (typeof cellValue === 'number') {
@@ -1611,6 +1756,74 @@ export default function HistorialCortesPage() {
             )}
         </main>
       </div>
+      <Dialog
+          open={!!editingInfo}
+          onOpenChange={(isOpen) => !isOpen && setEditingInfo(null)}
+      >
+          <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+              <DialogTitle>Editar Costo de Producto</DialogTitle>
+              <DialogDescription>
+              Actualiza el costo y la información para el SKU:{' '}
+              <span className="font-bold">{editingInfo?.sale.sku}</span>
+              </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+              <form
+              onSubmit={form.handleSubmit(onUpdateSubmit)}
+              className="space-y-4"
+              >
+              <FormField
+                  control={form.control}
+                  name="landed_cost"
+                  render={({ field }) => (
+                  <FormItem>
+                      <FormLabel>Landed Cost (por unidad)</FormLabel>
+                      <FormControl>
+                      <Input type="number" step="0.01" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                  </FormItem>
+                  )}
+              />
+              <FormField
+                  control={form.control}
+                  name="sku_mdr"
+                  render={({ field }) => (
+                  <FormItem>
+                      <FormLabel>NOMBRE MADRE</FormLabel>
+                      <FormControl>
+                      <Input placeholder="Ej. SKU_MDR_123" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                  </FormItem>
+                  )}
+              />
+              <FormField
+                  control={form.control}
+                  name="cat_mdr"
+                  render={({ field }) => (
+                  <FormItem>
+                      <FormLabel>Categoría Madre</FormLabel>
+                      <FormControl>
+                      <Input placeholder="Ej. RACKS" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                  </FormItem>
+                  )}
+              />
+              <DialogFooter>
+                  <Button type="submit" disabled={isUpdatingCost}>
+                  {isUpdatingCost ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Guardar Cambios
+                  </Button>
+              </DialogFooter>
+              </form>
+          </Form>
+          </DialogContent>
+      </Dialog>
     </div>
   );
 }
