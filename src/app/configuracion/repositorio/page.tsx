@@ -113,9 +113,9 @@ export default function RepositorioPage() {
               <CardTitle>Resultados</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-md">
+              <div className="border rounded-md max-h-[60vh] overflow-y-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
                       <TableHead>SKU Oficial</TableHead>
                       <TableHead>NOMBRE MADRE</TableHead>

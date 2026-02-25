@@ -516,7 +516,7 @@ export default function CargaSkuPage() {
                             <CardContent>
                                 <div className="h-96 w-full overflow-auto">
                                     <Table>
-                                        <TableHeader className="sticky top-0 bg-background">
+                                        <TableHeader className="sticky top-0 bg-background z-10">
                                             <TableRow>
                                                 {TABLE_HEADERS.map((header, index) => (
                                                     <TableHead key={index}>{header}</TableHead>

@@ -2159,7 +2159,7 @@ export default function ExcelVentasPage() {
                     </div>
                     <div className="h-[70vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mt-6">
                       <Table>
-                        <TableHeader className="sticky top-0 bg-background">
+                        <TableHeader className="sticky top-0 bg-background z-10">
                           <TableRow>
                             {headers.map((header, index) => {
                               const id = `select-col-${header.replace(
@@ -2457,7 +2457,7 @@ export default function ExcelVentasPage() {
                                     </div>
                                     <div className="border rounded-md max-h-96 overflow-y-auto">
                                         <Table>
-                                            <TableHeader>
+                                            <TableHeader className="sticky top-0 bg-background z-10">
                                                 <TableRow>
                                                     <TableHead onClick={() => handleSkuSummarySort('sku')} className="cursor-pointer">
                                                         <div className="flex items-center gap-1">SKU <ChevronsUpDown className="h-4 w-4" /></div>
@@ -2540,9 +2540,9 @@ export default function ExcelVentasPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                <div className="overflow-x-auto">
+                                <div className="overflow-auto max-h-96">
                                 <Table>
-                                    <TableHeader>
+                                    <TableHeader className="sticky top-0 bg-background z-10">
                                     <TableRow>
                                         <TableHead>Color</TableHead>
                                         <TableHead onClick={() => handleColorSummarySort('count')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">Registros <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
@@ -2608,7 +2608,7 @@ export default function ExcelVentasPage() {
                             <CardContent>
                                 <div className="border rounded-md max-h-96 overflow-y-auto">
                                     <Table>
-                                        <TableHeader>
+                                        <TableHeader className="sticky top-0 bg-background z-10">
                                             <TableRow>
                                                 <TableHead>Subcategoría</TableHead>
                                                 <TableHead className="text-right">Registros</TableHead>

@@ -538,9 +538,9 @@ export default function HistorialDevolucionesPage() {
                             </div>
                         </div>
 
-                        <div className="border rounded-md overflow-x-auto">
+                        <div className="border rounded-md overflow-x-auto max-h-[70vh]">
                             <Table>
-                                <TableHeader>
+                                <TableHeader className="sticky top-0 bg-background z-10">
                                     <TableRow>
                                         {headerColumns.map((column) => (
                                              <TableHead key={column.uid} 
