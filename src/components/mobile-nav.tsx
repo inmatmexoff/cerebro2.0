@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Cable,
   ArchiveRestore,
+  History,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -134,6 +135,7 @@ function MobileNavMenu() {
                 <SheetClose asChild><Link href="/configuracion/carga-sku" className={cn("block rounded-md p-2", pathname === '/configuracion/carga-sku' && "bg-muted text-primary")}>Carga de SKUs</Link></SheetClose>
                 <SheetClose asChild><Link href="/configuracion/actualizar-sku" className={cn("block rounded-md p-2", pathname === '/configuracion/actualizar-sku' && "bg-muted text-primary")}>Actualizar SKU</Link></SheetClose>
                 <SheetClose asChild><Link href="/configuracion/repositorio" className={cn("block rounded-md p-2", pathname === '/configuracion/repositorio' && "bg-muted text-primary")}>Repositorio</Link></SheetClose>
+                <SheetClose asChild><Link href="/configuracion/historial-costos" className={cn("block rounded-md p-2", pathname === '/configuracion/historial-costos' && "bg-muted text-primary")}>Historial de Costos</Link></SheetClose>
               </CollapsibleContent>
             </Collapsible>
           </CollapsibleContent>
