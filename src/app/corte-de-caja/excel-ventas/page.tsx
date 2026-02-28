@@ -260,6 +260,27 @@ export default function ExcelVentasPage() {
     porcentajePedidosMargenBajo: 0,
   });
 
+  const tableContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToRow = (excelRowNum: number) => {
+      const rowId = `excel-row-${excelRowNum}`;
+      const rowElement = document.getElementById(rowId);
+      
+      if (rowElement && tableContainerRef.current) {
+          rowElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          rowElement.classList.add('bg-yellow-200', 'transition-colors', 'duration-1000');
+          setTimeout(() => {
+              rowElement.classList.remove('bg-yellow-200');
+          }, 2500);
+      } else {
+          toast({
+              variant: "default",
+              title: "Fila no encontrada",
+              description: "La fila puede estar oculta por los filtros actuales. Intenta limpiar los filtros."
+          });
+      }
+  };
+
   const groupedSkuSummary = React.useMemo(() => {
     if (!skuSummary) return {};
     return skuSummary.reduce((acc, item) => {
@@ -2157,7 +2178,7 @@ export default function ExcelVentasPage() {
                           </div>
                       </div>
                     </div>
-                    <div className="h-[70vh] w-full overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mt-6">
+                    <div ref={tableContainerRef} className="h-[70vh] w-full overflow-auto mt-6">
                       <Table>
                         <TableHeader className="sticky top-0 bg-background z-10">
                           <TableRow>
@@ -2215,7 +2236,10 @@ export default function ExcelVentasPage() {
                             ];
 
                             return (
-                              <TableRow key={rowIndex} className={cn(
+                              <TableRow 
+                                key={rowIndex} 
+                                id={`excel-row-${row[0]}`}
+                                className={cn(
                                   isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                   isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200',
                                   isRowColoringActive && typeof markupValue === 'number' && {
@@ -2368,9 +2392,20 @@ export default function ExcelVentasPage() {
                           <h4 className="font-semibold">
                             {validationIssues.invalidLandedCosts.rows.length} registros con "Landed Cost Total" de 0 o 1
                           </h4>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Filas de Excel: {validationIssues.invalidLandedCosts.rows.join(', ')}
-                          </p>
+                          <div className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2">
+                              <span>Filas de Excel:</span>
+                              {validationIssues.invalidLandedCosts.rows.map((rowNum, index) => (
+                                  <React.Fragment key={rowNum}>
+                                      <button
+                                          className="underline text-primary hover:text-primary/80"
+                                          onClick={() => scrollToRow(rowNum)}
+                                      >
+                                          {rowNum}
+                                      </button>
+                                      {index < validationIssues.invalidLandedCosts.rows.length - 1 && <span className="text-gray-400">,</span>}
+                                  </React.Fragment>
+                              ))}
+                          </div>
                         </div>
                       )}
                       {validationIssues.emptySkus.rows.length > 0 && (
@@ -2378,9 +2413,20 @@ export default function ExcelVentasPage() {
                           <h4 className="font-semibold">
                             {validationIssues.emptySkus.rows.length} registros con SKU vacío
                           </h4>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Filas de Excel: {validationIssues.emptySkus.rows.join(', ')}
-                          </p>
+                          <div className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2">
+                            <span>Filas de Excel:</span>
+                            {validationIssues.emptySkus.rows.map((rowNum, index) => (
+                                  <React.Fragment key={rowNum}>
+                                    <button
+                                        className="underline text-primary hover:text-primary/80"
+                                        onClick={() => scrollToRow(rowNum)}
+                                    >
+                                        {rowNum}
+                                    </button>
+                                    {index < validationIssues.emptySkus.rows.length - 1 && <span className="text-gray-400">,</span>}
+                                </React.Fragment>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </CardContent>
