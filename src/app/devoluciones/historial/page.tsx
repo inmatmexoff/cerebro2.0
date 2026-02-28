@@ -422,8 +422,8 @@ export default function HistorialDevolucionesPage() {
         for (const company in groupedByCompany) {
             const items = groupedByCompany[company];
             reportText += `${company} # DE DEVOLUCIONES ${items.length}\n`;
-            items.forEach(item => {
-                reportText += `[${item.num_venta}] ${item.sub_cat}\n`;
+            items.forEach((item, index) => {
+                reportText += `${index + 1}. [${item.num_venta}] ${item.sub_cat}\n`;
             });
             reportText += '\n';
         }
