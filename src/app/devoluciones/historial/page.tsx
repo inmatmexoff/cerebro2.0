@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Chip, Spinner } from "@nextui-org/react";
 import { Card, CardHeader, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Package2, Repeat, Search, Filter, ChevronDown, ChevronsUpDown, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Package2, Repeat, Search, Filter, ChevronDown, ChevronsUpDown, AlertTriangle, Copy } from "lucide-react";
 import { supabasePROD } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -41,6 +41,7 @@ const columns = [
   {name: "ESTADO", uid: "status", sortable: true},
   {name: "TIENDA", uid: "tienda", sortable: true},
   {name: "SKU", uid: "sku"},
+  {name: "SUBCATEGORIA", uid: "sub_cat", sortable: true},
   {name: "PRODUCTO", uid: "titulo_publi"},
   {name: "UNIDADES", uid: "unidades", sortable: true},
   {name: "TOTAL", uid: "total", sortable: true},
@@ -58,6 +59,7 @@ const INITIAL_VISIBLE_COLUMNS = [
     "status",
     "tienda",
     "sku",
+    "sub_cat",
     "resultado",
     "reclamo_abierto",
 ];
@@ -168,14 +170,51 @@ export default function HistorialDevolucionesPage() {
                 query = query.lt(dateColumn, nextDayStart.toISOString());
             }
 
-            query = query.order(sortDescriptor.column, { ascending: sortDescriptor.direction === 'ascending' });
-
             const { data, error: dbError, count } = await query;
 
             if (dbError) {
               throw dbError;
             }
-            setReturns(data || []);
+
+            if (!data || data.length === 0) {
+                setReturns([]);
+                setTotalRows(0);
+                setIsLoading(false);
+                return;
+            }
+
+            const skusInData = [...new Set(data.map(r => r.sku).filter(Boolean))];
+            const skuToMdrMap = new Map();
+            const mdrToSubCatMap = new Map();
+
+            if (skusInData.length > 0) {
+                const { data: skuAlternoData, error: skuAlternoError } = await supabasePROD
+                    .from('sku_alterno')
+                    .select('sku, sku_mdr')
+                    .in('sku', skusInData);
+                if (skuAlternoError) throw skuAlternoError;
+                skuAlternoData.forEach((item) => skuToMdrMap.set(item.sku, item.sku_mdr));
+
+                const mdrs = [...new Set(Array.from(skuToMdrMap.values()))].filter(Boolean);
+                if (mdrs.length > 0) {
+                    const { data: skuMData, error: skuMError } = await supabasePROD
+                        .from('sku_m')
+                        .select('sku_mdr, sub_cat')
+                        .in('sku_mdr', mdrs);
+                    if (skuMError) throw skuMError;
+                    if(skuMData) {
+                        skuMData.forEach(item => mdrToSubCatMap.set(item.sku_mdr, item.sub_cat));
+                    }
+                }
+            }
+
+            const enrichedData = data.map(r => {
+                const skuMdr = skuToMdrMap.get(r.sku);
+                const subCat = skuMdr ? mdrToSubCatMap.get(skuMdr) : null;
+                return { ...r, sub_cat: subCat };
+            });
+
+            setReturns(enrichedData);
             setTotalRows(count || 0);
 
           } catch (err: any) {
@@ -185,7 +224,7 @@ export default function HistorialDevolucionesPage() {
           } finally {
             setIsLoading(false);
           }
-    }, [debouncedFilterValue, appliedFilters, sortDescriptor, toast]);
+    }, [debouncedFilterValue, appliedFilters, toast]);
 
     useEffect(() => {
         fetchReturns();
@@ -251,11 +290,30 @@ export default function HistorialDevolucionesPage() {
         return [...new Set(returns.map(r => r.resultado).filter(Boolean))].map(r => ({ name: r, uid: r }));
     }, [returns]);
 
+    const sortedReturns = React.useMemo(() => {
+        return [...returns].sort((a, b) => {
+            const first = a[sortDescriptor.column];
+            const second = b[sortDescriptor.column];
+
+            if (first === null || first === undefined) return 1;
+            if (second === null || second === undefined) return -1;
+            
+            let cmp: number;
+            if (typeof first === 'string' && typeof second === 'string') {
+              cmp = first.localeCompare(second);
+            } else {
+              cmp = first < second ? -1 : first > second ? 1 : 0;
+            }
+    
+            return sortDescriptor.direction === 'descending' ? -cmp : cmp;
+        });
+      }, [returns, sortDescriptor]);
+
     const paginatedReturns = React.useMemo(() => {
         const start = (page - 1) * ROWS_PER_PAGE;
         const end = start + ROWS_PER_PAGE;
-        return returns.slice(start, end);
-    }, [page, returns]);
+        return sortedReturns.slice(start, end);
+    }, [page, sortedReturns]);
 
     const headerColumns = React.useMemo(() => {
         if (visibleColumns.size === columns.length) return columns;
@@ -321,6 +379,69 @@ export default function HistorialDevolucionesPage() {
             setSortDescriptor({ column: columnUid, direction: 'ascending' });
         }
     }
+
+    const handleCopyReport = () => {
+        if (returns.length === 0) {
+          toast({
+            variant: "destructive",
+            title: "No hay datos para copiar",
+          });
+          return;
+        }
+    
+        const formatDateRange = () => {
+            if (appliedFilters.startDate && appliedFilters.endDate) {
+                if (appliedFilters.startDate.toDateString() === appliedFilters.endDate.toDateString()) {
+                    return appliedFilters.startDate.toLocaleDateString('es-MX');
+                }
+                return `${appliedFilters.startDate.toLocaleDateString('es-MX')} - ${appliedFilters.endDate.toLocaleDateString('es-MX')}`;
+            }
+            if (appliedFilters.startDate) {
+                return `DESDE ${appliedFilters.startDate.toLocaleDateString('es-MX')}`;
+            }
+            if (appliedFilters.endDate) {
+                return `HASTA ${appliedFilters.endDate.toLocaleDateString('es-MX')}`;
+            }
+            return "TODOS LOS REGISTROS";
+        };
+    
+        const groupedByCompany = returns.reduce((acc, curr) => {
+          const company = curr.tienda || "SIN EMPRESA";
+          if (!acc[company]) {
+            acc[company] = [];
+          }
+          acc[company].push({
+            num_venta: curr.num_venta,
+            sub_cat: curr.sub_cat || 'SIN SUBCATEGORIA',
+          });
+          return acc;
+        }, {} as Record<string, { num_venta: string; sub_cat: string }[]>);
+    
+        let reportText = `REPORTE DE DEVOLUCIONES ${formatDateRange()}\n\n`;
+        
+        for (const company in groupedByCompany) {
+            const items = groupedByCompany[company];
+            reportText += `${company} # DE DEVOLUCIONES ${items.length}\n`;
+            items.forEach(item => {
+                reportText += `[${item.num_venta}] [${item.sub_cat}]\n`;
+            });
+            reportText += '\n';
+        }
+    
+        navigator.clipboard.writeText(reportText.trim()).then(() => {
+            toast({
+                title: "Reporte Copiado",
+                description: "El reporte de devoluciones ha sido copiado al portapapeles."
+            });
+        }).catch(err => {
+            toast({
+                variant: "destructive",
+                title: "Error al copiar",
+                description: "No se pudo copiar el reporte."
+            });
+            console.error('Copy to clipboard failed: ', err);
+        });
+      };
 
 
   return (
@@ -425,7 +546,7 @@ export default function HistorialDevolucionesPage() {
                     <CardHeader>
                         <CardTitle>Lista de Devoluciones de ML</CardTitle>
                         <CardDescription>
-                            Mostrando {returns.length} de {totalRows} devoluciones.
+                            Mostrando {paginatedReturns.length} de {totalRows} devoluciones.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -441,6 +562,10 @@ export default function HistorialDevolucionesPage() {
                                     />
                                 </div>
                                 <div className="flex gap-3">
+                                    <Button variant="outline" onClick={handleCopyReport}>
+                                        <Copy className="w-4 h-4 mr-2" />
+                                        Copiar Reporte
+                                    </Button>
                                     <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="outline">
