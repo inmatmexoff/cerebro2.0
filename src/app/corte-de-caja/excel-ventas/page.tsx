@@ -1555,19 +1555,13 @@ export default function ExcelVentasPage() {
     setIsUpdatingCost(true);
     try {
       const payload = {
-        data: [
-          {
-            sku: editingInfo.sku,
-            sku_mdr: values.sku_mdr,
-            cat_mdr: values.cat_mdr,
-            landed_cost: values.landed_cost,
-            proveedor: null,
-            piezas_xcontenedor: null,
-          },
-        ],
+        sku: editingInfo.sku,
+        sku_mdr: values.sku_mdr,
+        cat_mdr: values.cat_mdr,
+        landed_cost: values.landed_cost,
       };
 
-      const response = await fetch('/api/skus/upload', {
+      const response = await fetch('/api/sku-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
