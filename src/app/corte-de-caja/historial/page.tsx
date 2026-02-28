@@ -385,9 +385,10 @@ export default function HistorialCortesPage() {
             query = query.gte('fecha_venta', startOfDay.toISOString());
         }
         if (appliedFilters.endDate) {
-            const endOfDay = new Date(appliedFilters.endDate);
-            endOfDay.setHours(23, 59, 59, 999);
-            query = query.lte('fecha_venta', endOfDay.toISOString());
+            const nextDayStart = new Date(appliedFilters.endDate);
+            nextDayStart.setDate(nextDayStart.getDate() + 1);
+            nextDayStart.setHours(0, 0, 0, 0);
+            query = query.lt('fecha_venta', nextDayStart.toISOString());
         }
         
         if (appliedFilters.company && appliedFilters.company !== 'all') {

@@ -155,14 +155,17 @@ export default function HistorialDevolucionesPage() {
 
             const dateColumn = appliedFilters.dateType;
 
-            if(appliedFilters.startDate) {
-                query = query.gte(dateColumn, appliedFilters.startDate.toISOString());
+            if (appliedFilters.startDate) {
+                const startOfDay = new Date(appliedFilters.startDate);
+                startOfDay.setHours(0, 0, 0, 0);
+                query = query.gte(dateColumn, startOfDay.toISOString());
             }
 
-            if(appliedFilters.endDate) {
-                const endOfDay = new Date(appliedFilters.endDate);
-                endOfDay.setHours(23, 59, 59, 999);
-                query = query.lte(dateColumn, endOfDay.toISOString());
+            if (appliedFilters.endDate) {
+                const nextDayStart = new Date(appliedFilters.endDate);
+                nextDayStart.setDate(nextDayStart.getDate() + 1);
+                nextDayStart.setHours(0, 0, 0, 0);
+                query = query.lt(dateColumn, nextDayStart.toISOString());
             }
 
             query = query.order(sortDescriptor.column, { ascending: sortDescriptor.direction === 'ascending' });

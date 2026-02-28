@@ -804,7 +804,7 @@ export default function ExcelVentasPage() {
 
         } catch (e: any) {
             console.error(e);
-            let specificError = "Hubo un error al procesar el archivo. Asegúrate de que sea un formato de Excel o CSV válido y de que las tablas 'sku_alterno' y 'sku_costos' son accesibles.";
+            let specificError = "Hubo un error al procesar el archivo. Asegúrate de que sea un formato de Excel o CSV válido y que las tablas 'sku_alterno' y 'sku_costos' son accesibles.";
             
             if (e instanceof RangeError || e.message.toLowerCase().includes('memory')) {
                specificError = "El archivo es demasiado grande para ser procesado directamente en el navegador y ha causado un error de memoria. Por favor, intenta con un archivo de menos de 20,000 registros a la vez.";
@@ -895,13 +895,20 @@ export default function ExcelVentasPage() {
       const dateMatch = (() => {
         if (!startDate && !endDate) return true;
         const saleDate = parseSaleDate(row[dateIndex]);
-        if (!saleDate) return false; // Don't show rows with invalid dates if filtering by date
+        if (!saleDate) return false;
 
-        const start = startDate ? new Date(startDate.setHours(0, 0, 0, 0)) : null;
-        const end = endDate ? new Date(endDate.setHours(23, 59, 59, 999)) : null;
+        if (startDate) {
+          const start = new Date(startDate);
+          start.setHours(0, 0, 0, 0);
+          if (saleDate < start) return false;
+        }
 
-        if (start && saleDate < start) return false;
-        if (end && saleDate > end) return false;
+        if (endDate) {
+          const nextDayStart = new Date(endDate);
+          nextDayStart.setDate(nextDayStart.getDate() + 1);
+          nextDayStart.setHours(0, 0, 0, 0);
+          if (saleDate >= nextDayStart) return false;
+        }
         
         return true;
       })();
