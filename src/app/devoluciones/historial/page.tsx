@@ -423,7 +423,7 @@ export default function HistorialDevolucionesPage() {
             const items = groupedByCompany[company];
             reportText += `${company} # DE DEVOLUCIONES ${items.length}\n`;
             items.forEach(item => {
-                reportText += `[${item.num_venta}] [${item.sub_cat}]\n`;
+                reportText += `[${item.num_venta}] ${item.sub_cat}\n`;
             });
             reportText += '\n';
         }
