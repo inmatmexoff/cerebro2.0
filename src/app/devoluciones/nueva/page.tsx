@@ -49,6 +49,10 @@ export default function NuevaDevolucionPage() {
     const [isLoadingSkus, setIsLoadingSkus] = useState(true);
     const [skuPopoverOpen, setSkuPopoverOpen] = useState(false);
 
+    const [salesByDate, setSalesByDate] = useState<{ value: number; label: string; producto: string; sku: string | null }[]>([]);
+    const [isLoadingSales, setIsLoadingSales] = useState(false);
+    const [salePopoverOpen, setSalePopoverOpen] = useState(false);
+
     const form = useForm<DevolucionFormValues>({
         resolver: zodResolver(devolucionSchema),
         defaultValues: {
@@ -73,6 +77,7 @@ export default function NuevaDevolucionPage() {
     });
 
     const watchFactura = form.watch('factura');
+    const watchFechaVenta = form.watch('fecha_venta');
 
     useEffect(() => {
         const fetchSkus = async () => {
@@ -100,6 +105,61 @@ export default function NuevaDevolucionPage() {
         };
         fetchSkus();
     }, [toast]);
+
+    useEffect(() => {
+        if (!watchFechaVenta) {
+            setSalesByDate([]);
+            form.setValue('num_venta', null);
+            return;
+        }
+
+        const fetchSales = async () => {
+            setIsLoadingSales(true);
+            try {
+                const startOfDay = new Date(watchFechaVenta);
+                startOfDay.setHours(0, 0, 0, 0);
+
+                const nextDay = new Date(startOfDay);
+                nextDay.setDate(nextDay.getDate() + 1);
+
+                const { data, error } = await supabasePROD
+                    .from('devoluciones')
+                    .select('num_venta, producto, sku')
+                    .gte('fecha_venta', startOfDay.toISOString())
+                    .lt('fecha_venta', nextDay.toISOString())
+                    .order('num_venta', { ascending: false });
+
+                if (error) throw error;
+
+                if (data) {
+                    const uniqueSales = data.reduce((acc, current) => {
+                        if (!acc.find(item => item.num_venta === current.num_venta)) {
+                            acc.push(current);
+                        }
+                        return acc;
+                    }, [] as typeof data);
+
+                    setSalesByDate(uniqueSales.map(item => ({ 
+                        value: item.num_venta, 
+                        label: String(item.num_venta),
+                        producto: item.producto || '',
+                        sku: item.sku || null
+                    })));
+                }
+            } catch (err: any) {
+                toast({
+                    variant: "destructive",
+                    title: "Error al cargar ventas",
+                    description: "No se pudieron cargar las ventas para la fecha seleccionada.",
+                });
+            } finally {
+                setIsLoadingSales(false);
+            }
+        };
+
+        fetchSales();
+    }, [watchFechaVenta, form, toast]);
+
 
     async function onSubmit(values: DevolucionFormValues) {
         setIsSaving(true);
@@ -178,9 +238,91 @@ export default function NuevaDevolucionPage() {
                                                 </FormItem>
                                             )}
                                         />
-                                        <FormField control={form.control} name="num_venta" render={({ field }) => (<FormItem><FormLabel># Venta</FormLabel><FormControl><Input type="number" placeholder="Ej. 2000008064..." {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name="fecha_venta" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Venta</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                                         
+                                        <FormField control={form.control} name="fecha_venta" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Venta</FormLabel><FormControl><DatePicker value={field.value} onChange={(date) => {
+                                            field.onChange(date);
+                                            form.setValue('num_venta', null);
+                                            form.setValue('producto', '');
+                                            form.setValue('sku', '');
+                                        }} /></FormControl><FormMessage /></FormItem>)} />
+
+                                        <FormField
+                                            control={form.control}
+                                            name="num_venta"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-col">
+                                                    <FormLabel># Venta</FormLabel>
+                                                    <Popover open={salePopoverOpen} onOpenChange={setSalePopoverOpen}>
+                                                        <PopoverTrigger asChild>
+                                                            <FormControl>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    role="combobox"
+                                                                    className={cn(
+                                                                        "w-full justify-between",
+                                                                        !field.value && "text-muted-foreground"
+                                                                    )}
+                                                                    disabled={isLoadingSales || !watchFechaVenta}
+                                                                >
+                                                                    {isLoadingSales ? (
+                                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                    ) : field.value ? (
+                                                                        salesByDate.find(sale => sale.value === field.value)?.label
+                                                                    ) : (
+                                                                        "Selecciona una venta"
+                                                                    )}
+                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                </Button>
+                                                            </FormControl>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                            <Command>
+                                                                <CommandInput placeholder="Buscar # venta..." />
+                                                                <CommandList>
+                                                                    {isLoadingSales ? (
+                                                                        <div className="p-4 text-center text-sm">Cargando ventas...</div>
+                                                                    ) : salesByDate.length === 0 ? (
+                                                                        <CommandEmpty>
+                                                                            {watchFechaVenta ? "No se encontraron ventas." : "Selecciona una fecha primero."}
+                                                                        </CommandEmpty>
+                                                                    ) : (
+                                                                        <CommandGroup>
+                                                                            {salesByDate.map((sale) => (
+                                                                                <CommandItem
+                                                                                    value={sale.label}
+                                                                                    key={sale.value}
+                                                                                    onSelect={() => {
+                                                                                        form.setValue("num_venta", sale.value);
+                                                                                        form.setValue("producto", sale.producto);
+                                                                                        if (sale.sku) {
+                                                                                            form.setValue("sku", sale.sku);
+                                                                                        }
+                                                                                        setSalePopoverOpen(false);
+                                                                                    }}
+                                                                                >
+                                                                                    <Check
+                                                                                        className={cn(
+                                                                                            "mr-2 h-4 w-4",
+                                                                                            sale.value === field.value ? "opacity-100" : "opacity-0"
+                                                                                        )}
+                                                                                    />
+                                                                                    {sale.label}
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                        </CommandGroup>
+                                                                    )}
+                                                                </CommandList>
+                                                            </Command>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                    <FormDescription>
+                                                       Selecciona una fecha para ver las ventas disponibles.
+                                                    </FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
                                         <FormField control={form.control} name="fecha_llegada" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Llegada</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                                         <FormField control={form.control} name="fecha_revision" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha Revisión</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                                         <FormField control={form.control} name="producto" render={({ field }) => (<FormItem><FormLabel>Producto</FormLabel><FormControl><Input placeholder="Nombre del producto" {...field} /></FormControl><FormMessage /></FormItem>)} />
