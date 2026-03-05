@@ -321,11 +321,10 @@ export default function DirectorioSkusPage() {
                           catData.count > 0 && (
                             <AccordionItem value={category} key={category}>
                               <AccordionTrigger 
-                                className="text-lg font-semibold hover:no-underline px-4 cursor-pointer"
-                                onClick={() => handleCopyToClipboard(category, 'Categoría')}
+                                className="text-lg font-semibold hover:no-underline px-4"
                               >
                                 <div className="flex items-center gap-3">
-                                    <span>{category}</span>
+                                    <span className="cursor-pointer" onClick={(e) => { e.stopPropagation(); handleCopyToClipboard(category, 'Categoría')}}>{category}</span>
                                     <Badge variant="secondary">{catData.count}</Badge>
                                 </div>
                               </AccordionTrigger>
@@ -340,11 +339,10 @@ export default function DirectorioSkusPage() {
                                           className="border-l"
                                         >
                                           <AccordionTrigger 
-                                            className="font-medium hover:no-underline px-4 cursor-pointer"
-                                            onClick={() => handleCopyToClipboard(subCategory, 'Subcategoría')}
+                                            className="font-medium hover:no-underline px-4"
                                           >
                                             <div className="flex items-center gap-3">
-                                                <span>{subCategory}</span>
+                                                <span className="cursor-pointer" onClick={(e) => { e.stopPropagation(); handleCopyToClipboard(subCategory, 'Subcategoría')}}>{subCategory}</span>
                                                 <Badge variant="outline">{subCatData.count}</Badge>
                                             </div>
                                           </AccordionTrigger>
@@ -362,11 +360,10 @@ export default function DirectorioSkusPage() {
                                                       className="border-l"
                                                     >
                                                       <AccordionTrigger 
-                                                        className="text-sm hover:no-underline px-4 cursor-pointer"
-                                                        onClick={() => handleCopyToClipboard(skuMdr, 'Nombre Madre')}
+                                                        className="text-sm hover:no-underline px-4"
                                                       >
                                                         <div className="flex items-center gap-3">
-                                                            <span>{skuMdr}</span>
+                                                            <span className="cursor-pointer" onClick={(e) => { e.stopPropagation(); handleCopyToClipboard(skuMdr, 'Nombre Madre')}}>{skuMdr}</span>
                                                             <Badge variant="outline" className="font-mono">{skuMdrData.count}</Badge>
                                                         </div>
                                                       </AccordionTrigger>
