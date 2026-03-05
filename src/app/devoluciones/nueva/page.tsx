@@ -123,8 +123,8 @@ export default function NuevaDevolucionPage() {
                 nextDay.setDate(nextDay.getDate() + 1);
 
                 const { data, error } = await supabasePROD
-                    .from('devoluciones')
-                    .select('num_venta, producto, sku')
+                    .from('devoluciones_ml')
+                    .select('num_venta, titulo_publi, sku')
                     .gte('fecha_venta', startOfDay.toISOString())
                     .lt('fecha_venta', nextDay.toISOString())
                     .order('num_venta', { ascending: false });
@@ -142,7 +142,7 @@ export default function NuevaDevolucionPage() {
                     setSalesByDate(uniqueSales.map(item => ({ 
                         value: item.num_venta, 
                         label: String(item.num_venta),
-                        producto: item.producto || '',
+                        producto: item.titulo_publi || '',
                         sku: item.sku || null
                     })));
                 }
@@ -262,7 +262,7 @@ export default function NuevaDevolucionPage() {
                                                                         "w-full justify-between",
                                                                         !field.value && "text-muted-foreground"
                                                                     )}
-                                                                    disabled={isLoadingSales || !watchFechaVenta}
+                                                                    disabled={isLoadingSales}
                                                                 >
                                                                     {isLoadingSales ? (
                                                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
