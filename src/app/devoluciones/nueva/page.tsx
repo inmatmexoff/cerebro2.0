@@ -262,7 +262,6 @@ export default function NuevaDevolucionPage() {
                                                                         "w-full justify-between",
                                                                         !field.value && "text-muted-foreground"
                                                                     )}
-                                                                    disabled={isLoadingSales}
                                                                 >
                                                                     {isLoadingSales ? (
                                                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
