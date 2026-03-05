@@ -14,6 +14,7 @@ import {
   Cable,
   ArchiveRestore,
   History,
+  FolderTree,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -165,28 +166,29 @@ export function AppSidebar() {
                  <Link href="/corte-de-caja/historial" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/corte-de-caja/historial' && "text-primary")}>Historial</Link>
                  <Link href="/corte-de-caja/publicaciones" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/corte-de-caja/publicaciones' && "text-primary")}>Publicaciones</Link>
                  <Link href="/corte-de-caja/excel-ventas" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/corte-de-caja/excel-ventas' && "text-primary")}>Excel de Ventas</Link>
-
-                 <Collapsible open={configuracionOpen} onOpenChange={setConfiguracionOpen} className="w-full pt-1">
-                    <CollapsibleTrigger className='w-full' disabled={isCollapsed}>
-                        <div className={cn("flex items-center justify-between w-full text-sm text-muted-foreground transition-all hover:text-primary", pathname.startsWith('/configuracion') && 'text-primary')}>
-                           <div className="flex items-center gap-2">
-                              <Settings className="w-4 h-4"/>
-                               <span>Configuración</span>
-                           </div>
-                            <ChevronRight className={cn('h-4 w-4 shrink-0 transition-transform', configuracionOpen && 'rotate-90')} />
-                        </div>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="pl-6 mt-1 space-y-1">
-                        <Link href="/configuracion/categorias" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/categorias' && "text-primary")}>Categorías</Link>
-                        <Link href="/configuracion/proveedores" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/proveedores' && "text-primary")}>Proveedores</Link>
-                        <Link href="/configuracion/carga-sku" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/carga-sku' && "text-primary")}>Carga de SKUs</Link>
-                        <Link href="/configuracion/actualizar-sku" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/actualizar-sku' && "text-primary")}>Actualizar SKU</Link>
-                        <Link href="/configuracion/repositorio" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/repositorio' && "text-primary")}>Repositorio</Link>
-                        <Link href="/configuracion/historial-costos" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/historial-costos' && "text-primary")}>Historial de Costos</Link>
-                    </CollapsibleContent>
-                 </Collapsible>
             </CollapsibleContent>
         </Collapsible>
+        
+        <Collapsible open={configuracionOpen} onOpenChange={setConfiguracionOpen} className="w-full">
+            <CollapsibleTrigger className='w-full' disabled={isCollapsed}>
+                <div className={cn("flex items-center justify-between w-full rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary font-medium", pathname.startsWith('/configuracion') && 'text-primary bg-muted', isCollapsed ? 'justify-center' : 'justify-between')}>
+                   <div className="flex items-center gap-3">
+                      <Settings className="w-4 h-4 shrink-0"/>
+                       <span className={cn(isCollapsed && 'hidden')}>Configuración</span>
+                   </div>
+                    <ChevronRight className={cn('h-4 w-4 shrink-0 transition-transform', isCollapsed && 'hidden', configuracionOpen && 'rotate-90')} />
+                </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pl-10 mt-1 space-y-1">
+                <Link href="/configuracion/categorias" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/categorias' && "text-primary")}>Categorías</Link>
+                <Link href="/configuracion/proveedores" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/proveedores' && "text-primary")}>Proveedores</Link>
+                <Link href="/configuracion/carga-sku" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/carga-sku' && "text-primary")}>Carga de SKUs</Link>
+                <Link href="/configuracion/actualizar-sku" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/actualizar-sku' && "text-primary")}>Actualizar SKU</Link>
+                <Link href="/configuracion/repositorio" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/repositorio' && "text-primary")}>Repositorio</Link>
+                <Link href="/configuracion/historial-costos" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/historial-costos' && "text-primary")}>Historial de Costos</Link>
+                <Link href="/configuracion/directorio-skus" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/configuracion/directorio-skus' && "text-primary")}>Directorio de SKUs</Link>
+            </CollapsibleContent>
+         </Collapsible>
       </nav>
       <div className="mt-auto p-2 border-t">
         <Button variant="ghost" className="w-full" onClick={toggleSidebar}>

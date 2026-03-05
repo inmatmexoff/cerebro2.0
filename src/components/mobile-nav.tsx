@@ -18,6 +18,7 @@ import {
   Cable,
   ArchiveRestore,
   History,
+  FolderTree,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -55,7 +56,7 @@ function AppLogo() {
 
 function MobileNavMenu() {
     const pathname = usePathname();
-    const [corteDeCajaOpen, setCorteDeCajaOpen] = React.useState(pathname.startsWith('/corte-de-caja') || pathname.startsWith('/configuracion'));
+    const [corteDeCajaOpen, setCorteDeCajaOpen] = React.useState(pathname.startsWith('/corte-de-caja'));
     const [configuracionOpen, setConfiguracionOpen] = React.useState(pathname.startsWith('/configuracion'));
     const [devolucionesOpen, setDevolucionesOpen] = React.useState(pathname.startsWith('/devoluciones'));
 
@@ -118,26 +119,27 @@ function MobileNavMenu() {
             <SheetClose asChild><Link href="/corte-de-caja/historial" className={cn("block rounded-md p-2", pathname === '/corte-de-caja/historial' && "bg-muted text-primary")}>Historial</Link></SheetClose>
             <SheetClose asChild><Link href="/corte-de-caja/publicaciones" className={cn("block rounded-md p-2", pathname === '/corte-de-caja/publicaciones' && "bg-muted text-primary")}>Publicaciones</Link></SheetClose>
             <SheetClose asChild><Link href="/corte-de-caja/excel-ventas" className={cn("block rounded-md p-2", pathname === '/corte-de-caja/excel-ventas' && "bg-muted text-primary")}>Excel de Ventas</Link></SheetClose>
+          </CollapsibleContent>
+        </Collapsible>
 
-            <Collapsible open={configuracionOpen} onOpenChange={setConfiguracionOpen} className="w-full pt-1">
-              <CollapsibleTrigger className='w-full'>
-                <div className={cn("flex items-center justify-between w-full rounded-md p-2 text-base", pathname.startsWith('/configuracion') && 'text-primary')}>
-                  <div className="flex items-center gap-2">
-                    <Settings className="w-5 h-5"/>
-                    <span>Configuración</span>
-                  </div>
-                  <ChevronRight className={cn('h-5 w-5 shrink-0 transition-transform', configuracionOpen && 'rotate-90')} />
-                </div>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pl-8 mt-1 space-y-1">
-                <SheetClose asChild><Link href="/configuracion/categorias" className={cn("block rounded-md p-2", pathname === '/configuracion/categorias' && "bg-muted text-primary")}>Categorías</Link></SheetClose>
-                <SheetClose asChild><Link href="/configuracion/proveedores" className={cn("block rounded-md p-2", pathname === '/configuracion/proveedores' && "bg-muted text-primary")}>Proveedores</Link></SheetClose>
-                <SheetClose asChild><Link href="/configuracion/carga-sku" className={cn("block rounded-md p-2", pathname === '/configuracion/carga-sku' && "bg-muted text-primary")}>Carga de SKUs</Link></SheetClose>
-                <SheetClose asChild><Link href="/configuracion/actualizar-sku" className={cn("block rounded-md p-2", pathname === '/configuracion/actualizar-sku' && "bg-muted text-primary")}>Actualizar SKU</Link></SheetClose>
-                <SheetClose asChild><Link href="/configuracion/repositorio" className={cn("block rounded-md p-2", pathname === '/configuracion/repositorio' && "bg-muted text-primary")}>Repositorio</Link></SheetClose>
-                <SheetClose asChild><Link href="/configuracion/historial-costos" className={cn("block rounded-md p-2", pathname === '/configuracion/historial-costos' && "bg-muted text-primary")}>Historial de Costos</Link></SheetClose>
-              </CollapsibleContent>
-            </Collapsible>
+        <Collapsible open={configuracionOpen} onOpenChange={setConfiguracionOpen} className="w-full pt-1">
+          <CollapsibleTrigger className='w-full'>
+            <div className={cn("flex items-center justify-between w-full rounded-lg px-3 py-3", pathname.startsWith('/configuracion') && 'text-primary')}>
+              <div className="flex items-center gap-3">
+                <Settings className="w-5 h-5"/>
+                <span>Configuración</span>
+              </div>
+              <ChevronRight className={cn('h-5 w-5 shrink-0 transition-transform', configuracionOpen && 'rotate-90')} />
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pl-8 mt-1 space-y-1 text-base">
+            <SheetClose asChild><Link href="/configuracion/categorias" className={cn("block rounded-md p-2", pathname === '/configuracion/categorias' && "bg-muted text-primary")}>Categorías</Link></SheetClose>
+            <SheetClose asChild><Link href="/configuracion/proveedores" className={cn("block rounded-md p-2", pathname === '/configuracion/proveedores' && "bg-muted text-primary")}>Proveedores</Link></SheetClose>
+            <SheetClose asChild><Link href="/configuracion/carga-sku" className={cn("block rounded-md p-2", pathname === '/configuracion/carga-sku' && "bg-muted text-primary")}>Carga de SKUs</Link></SheetClose>
+            <SheetClose asChild><Link href="/configuracion/actualizar-sku" className={cn("block rounded-md p-2", pathname === '/configuracion/actualizar-sku' && "bg-muted text-primary")}>Actualizar SKU</Link></SheetClose>
+            <SheetClose asChild><Link href="/configuracion/repositorio" className={cn("block rounded-md p-2", pathname === '/configuracion/repositorio' && "bg-muted text-primary")}>Repositorio</Link></SheetClose>
+            <SheetClose asChild><Link href="/configuracion/historial-costos" className={cn("block rounded-md p-2", pathname === '/configuracion/historial-costos' && "bg-muted text-primary")}>Historial de Costos</Link></SheetClose>
+            <SheetClose asChild><Link href="/configuracion/directorio-skus" className={cn("block rounded-md p-2", pathname === '/configuracion/directorio-skus' && "bg-muted text-primary")}>Directorio de SKUs</Link></SheetClose>
           </CollapsibleContent>
         </Collapsible>
       </nav>

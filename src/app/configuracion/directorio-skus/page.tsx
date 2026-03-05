@@ -1,0 +1,316 @@
+'use client';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { ArrowLeft, Search, Loader2 } from 'lucide-react';
+import { supabasePROD } from '@/lib/supabase';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+
+type SkuM = {
+  sku_mdr: string;
+  cat_mdr: string | null;
+  sub_cat: string | null;
+};
+
+type SkuAlterno = {
+  sku: string;
+  sku_mdr: string;
+};
+
+type GroupedSkus = {
+  [category: string]: {
+    count: number;
+    subCategories: {
+      [subCategory: string]: {
+        count: number;
+        skuMdr: {
+          [skuMdr: string]: {
+            count: number;
+            skus: string[];
+          };
+        };
+      };
+    };
+  };
+};
+
+export default function DirectorioSkusPage() {
+  const [skuMList, setSkuMList] = useState<SkuM[]>([]);
+  const [skuAlternoList, setSkuAlternoList] = useState<SkuAlterno[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const { data: skuMData, error: skuMError } = await supabasePROD
+          .from('sku_m')
+          .select('sku_mdr, cat_mdr, sub_cat');
+
+        if (skuMError) throw skuMError;
+
+        const { data: skuAlternoData, error: skuAlternoError } =
+          await supabasePROD.from('sku_alterno').select('sku, sku_mdr');
+
+        if (skuAlternoError) throw skuAlternoError;
+
+        setSkuMList(skuMData || []);
+        setSkuAlternoList(skuAlternoData || []);
+      } catch (err: any) {
+        setError('No se pudieron cargar los datos de SKUs.');
+        console.error('Error fetching SKU data:', err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const groupedAndFilteredSkus = useMemo(() => {
+    if (skuMList.length === 0) return {};
+
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+
+    // Filter skus first to find relevant sku_mdr
+    const filteredAlternoBySku = skuAlternoList.filter(
+      (sa) => sa.sku.toLowerCase().includes(lowerCaseSearchTerm)
+    );
+    const relevantSkuMdrsFromAlterno = new Set(filteredAlternoBySku.map(sa => sa.sku_mdr));
+
+    // Filter sku_m based on search term or if they are related to a found SKU
+    const filteredSkuM = skuMList.filter(
+      (sm) =>
+        sm.sku_mdr.toLowerCase().includes(lowerCaseSearchTerm) ||
+        sm.cat_mdr?.toLowerCase().includes(lowerCaseSearchTerm) ||
+        sm.sub_cat?.toLowerCase().includes(lowerCaseSearchTerm) ||
+        relevantSkuMdrsFromAlterno.has(sm.sku_mdr)
+    );
+
+    const finalSkuMdrsInScope = new Set(filteredSkuM.map(sm => sm.sku_mdr));
+
+    const grouped: GroupedSkus = {};
+
+    filteredSkuM.forEach((sm) => {
+        const category = sm.cat_mdr || 'Sin Categoría';
+        const subCategory = sm.sub_cat || 'Sin Subcategoría';
+        const skuMdr = sm.sku_mdr;
+
+        if (!grouped[category]) {
+            grouped[category] = { count: 0, subCategories: {} };
+        }
+        if (!grouped[category].subCategories[subCategory]) {
+            grouped[category].subCategories[subCategory] = { count: 0, skuMdr: {} };
+        }
+        if (!grouped[category].subCategories[subCategory].skuMdr[skuMdr]) {
+            grouped[category].subCategories[subCategory].skuMdr[skuMdr] = { count: 0, skus: [] };
+        }
+    });
+    
+    skuAlternoList.forEach((sa) => {
+      if (!finalSkuMdrsInScope.has(sa.sku_mdr)) return;
+
+      const skuM = skuMList.find((sm) => sm.sku_mdr === sa.sku_mdr);
+      if (skuM) {
+        const category = skuM.cat_mdr || 'Sin Categoría';
+        const subCategory = skuM.sub_cat || 'Sin Subcategoría';
+        
+        // This check is important as the category/subcategory might not have been created if it didn't match search term
+        if (grouped[category]?.subCategories[subCategory]?.skuMdr[sa.sku_mdr]) {
+          // Only add sku if it matches search term, or if the search term is empty
+          if (!searchTerm || sa.sku.toLowerCase().includes(lowerCaseSearchTerm)) {
+              grouped[category].subCategories[subCategory].skuMdr[sa.sku_mdr].skus.push(sa.sku);
+          } else if (filteredSkuM.some(fsm => fsm.sku_mdr === sa.sku_mdr)) { // or if its parent group matched
+             grouped[category].subCategories[subCategory].skuMdr[sa.sku_mdr].skus.push(sa.sku);
+          }
+        }
+      }
+    });
+
+    // Calculate counts and clean up empty branches
+    Object.keys(grouped).forEach((cat) => {
+      let catCount = 0;
+      Object.keys(grouped[cat].subCategories).forEach((subCat) => {
+        let subCatCount = 0;
+        Object.keys(grouped[cat].subCategories[subCat].skuMdr).forEach(
+          (skuMdr) => {
+            const skusList = grouped[cat].subCategories[subCat].skuMdr[skuMdr].skus;
+            const count = skusList.length;
+            if (count > 0) {
+                grouped[cat].subCategories[subCat].skuMdr[skuMdr].count = count;
+                subCatCount += count;
+            } else {
+                delete grouped[cat].subCategories[subCat].skuMdr[skuMdr];
+            }
+          }
+        );
+        if (subCatCount > 0) {
+            grouped[cat].subCategories[subCat].count = subCatCount;
+            catCount += subCatCount;
+        } else {
+            delete grouped[cat].subCategories[subCat];
+        }
+      });
+      if (catCount > 0) {
+        grouped[cat].count = catCount;
+      } else {
+        delete grouped[cat];
+      }
+    });
+
+    return grouped;
+  }, [skuMList, skuAlternoList, searchTerm]);
+
+  return (
+    <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-5xl mx-auto space-y-6">
+        <header>
+          <Link
+            href="/configuracion/carga-sku"
+            className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver a Carga de SKUs
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Directorio de SKUs</h1>
+            <p className="text-muted-foreground">
+              Consulta la jerarquía de SKUs por categoría, subcategoría y nombre
+              madre.
+            </p>
+          </div>
+        </header>
+
+        <main className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Buscar en el Directorio</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search-skus"
+                  placeholder="Buscar por SKU, Nombre Madre, Categoría..."
+                  className="pl-8 w-full"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {isLoading ? (
+            <div className="flex justify-center items-center h-48">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : error ? (
+            <Card>
+              <CardContent className="p-6 text-center text-destructive">
+                {error}
+              </CardContent>
+            </Card>
+          ) : Object.keys(groupedAndFilteredSkus).length === 0 ? (
+             <Card>
+                <CardContent className="p-6 text-center text-muted-foreground">
+                    {searchTerm ? "No se encontraron resultados para tu búsqueda." : "No hay SKUs para mostrar."}
+                </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-2 sm:p-4">
+                <Accordion
+                  type="multiple"
+                  className="w-full"
+                >
+                  {Object.entries(groupedAndFilteredSkus).sort().map(
+                    ([category, catData]) =>
+                      catData.count > 0 && (
+                        <AccordionItem value={category} key={category}>
+                          <AccordionTrigger className="text-lg font-semibold hover:no-underline px-4">
+                            <div className="flex items-center gap-3">
+                                <span>{category}</span>
+                                <Badge variant="secondary">{catData.count}</Badge>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pl-4 sm:pl-6">
+                            <Accordion type="multiple" className="w-full">
+                              {Object.entries(catData.subCategories).sort().map(
+                                ([subCategory, subCatData]) =>
+                                  subCatData.count > 0 && (
+                                    <AccordionItem
+                                      value={subCategory}
+                                      key={subCategory}
+                                      className="border-l"
+                                    >
+                                      <AccordionTrigger className="font-medium hover:no-underline px-4">
+                                        <div className="flex items-center gap-3">
+                                            <span>{subCategory}</span>
+                                            <Badge variant="outline">{subCatData.count}</Badge>
+                                        </div>
+                                      </AccordionTrigger>
+                                      <AccordionContent className="pl-4 sm:pl-6">
+                                        <Accordion
+                                          type="multiple"
+                                          className="w-full"
+                                        >
+                                          {Object.entries(subCatData.skuMdr).sort().map(
+                                            ([skuMdr, skuMdrData]) =>
+                                              skuMdrData.count > 0 && (
+                                                <AccordionItem
+                                                  value={skuMdr}
+                                                  key={skuMdr}
+                                                  className="border-l"
+                                                >
+                                                  <AccordionTrigger className="text-sm hover:no-underline px-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <span>{skuMdr}</span>
+                                                        <Badge variant="outline" className="font-mono">{skuMdrData.count}</Badge>
+                                                    </div>
+                                                  </AccordionTrigger>
+                                                  <AccordionContent className="pl-6 pt-2">
+                                                    <ul className="space-y-1 list-disc list-inside">
+                                                      {skuMdrData.skus.sort().map((sku) => (
+                                                        <li key={sku} className="text-sm text-muted-foreground">{sku}</li>
+                                                      ))}
+                                                    </ul>
+                                                  </AccordionContent>
+                                                </AccordionItem>
+                                              )
+                                          )}
+                                        </Accordion>
+                                      </AccordionContent>
+                                    </AccordionItem>
+                                  )
+                              )}
+                            </Accordion>
+                          </AccordionContent>
+                        </AccordionItem>
+                      )
+                  )}
+                </Accordion>
+              </CardContent>
+            </Card>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
