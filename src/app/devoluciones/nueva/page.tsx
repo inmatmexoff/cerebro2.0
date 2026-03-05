@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 
 const devolucionSchema = z.object({
   tienda: z.string().optional(),
-  num_venta: z.coerce.number().optional().nullable(),
+  num_venta: z.string().optional().nullable(),
   fecha_venta: z.date().optional().nullable(),
   fecha_llegada: z.date().optional().nullable(),
   fecha_revision: z.date().optional().nullable(),
@@ -49,15 +49,14 @@ export default function NuevaDevolucionPage() {
     const [isLoadingSkus, setIsLoadingSkus] = useState(true);
     const [skuPopoverOpen, setSkuPopoverOpen] = useState(false);
 
-    const [salesByDate, setSalesByDate] = useState<{ value: number; label: string; producto: string; sku: string | null }[]>([]);
+    const [salesByDate, setSalesByDate] = useState<{ value: string; label: string; producto: string; sku: string | null }[]>([]);
     const [isLoadingSales, setIsLoadingSales] = useState(false);
-    const [salePopoverOpen, setSalePopoverOpen] = useState(false);
-
+    
     const form = useForm<DevolucionFormValues>({
         resolver: zodResolver(devolucionSchema),
         defaultValues: {
             tienda: '',
-            num_venta: null,
+            num_venta: '',
             fecha_venta: null,
             fecha_llegada: null,
             fecha_revision: null,
@@ -109,7 +108,6 @@ export default function NuevaDevolucionPage() {
     useEffect(() => {
         if (!watchFechaVenta) {
             setSalesByDate([]);
-            form.setValue('num_venta', null);
             return;
         }
 
@@ -132,15 +130,17 @@ export default function NuevaDevolucionPage() {
                 if (error) throw error;
 
                 if (data) {
-                    const uniqueSales = data.reduce((acc, current) => {
-                        if (!acc.find(item => item.num_venta === current.num_venta)) {
-                            acc.push(current);
+                    const salesMap = new Map<string, typeof data[0]>();
+                    data.forEach(item => {
+                        const ventaNum = String(item.num_venta);
+                        if (!salesMap.has(ventaNum)) {
+                            salesMap.set(ventaNum, item);
                         }
-                        return acc;
-                    }, [] as typeof data);
+                    });
+                    const uniqueSales = Array.from(salesMap.values());
 
                     setSalesByDate(uniqueSales.map(item => ({ 
-                        value: item.num_venta, 
+                        value: String(item.num_venta), 
                         label: String(item.num_venta),
                         producto: item.titulo_publi || '',
                         sku: item.sku || null
@@ -164,10 +164,16 @@ export default function NuevaDevolucionPage() {
     async function onSubmit(values: DevolucionFormValues) {
         setIsSaving(true);
         try {
+            // Coerce num_venta to number before sending, if it's a valid number string
+            const payload = {
+                ...values,
+                num_venta: values.num_venta ? Number(values.num_venta) : null
+            };
+
             const response = await fetch('/api/devoluciones/nueva', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(values)
+                body: JSON.stringify(payload)
             });
 
             const result = await response.json();
@@ -241,7 +247,7 @@ export default function NuevaDevolucionPage() {
                                         
                                         <FormField control={form.control} name="fecha_venta" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Venta</FormLabel><FormControl><DatePicker value={field.value} onChange={(date) => {
                                             field.onChange(date);
-                                            form.setValue('num_venta', null);
+                                            form.setValue('num_venta', '');
                                             form.setValue('producto', '');
                                             form.setValue('sku', '');
                                         }} /></FormControl><FormMessage /></FormItem>)} />
@@ -250,72 +256,35 @@ export default function NuevaDevolucionPage() {
                                             control={form.control}
                                             name="num_venta"
                                             render={({ field }) => (
-                                                <FormItem className="flex flex-col">
+                                                <FormItem>
                                                     <FormLabel># Venta</FormLabel>
-                                                    <Popover open={salePopoverOpen} onOpenChange={setSalePopoverOpen}>
-                                                        <PopoverTrigger asChild>
-                                                            <FormControl>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    role="combobox"
-                                                                    className={cn(
-                                                                        "w-full justify-between",
-                                                                        !field.value && "text-muted-foreground"
-                                                                    )}
-                                                                >
-                                                                    {isLoadingSales ? (
-                                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                                    ) : field.value ? (
-                                                                        salesByDate.find(sale => sale.value === field.value)?.label
-                                                                    ) : (
-                                                                        "Selecciona una venta"
-                                                                    )}
-                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                </Button>
-                                                            </FormControl>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                            <Command>
-                                                                <CommandInput placeholder="Buscar # venta..." />
-                                                                <CommandList>
-                                                                    {isLoadingSales ? (
-                                                                        <div className="p-4 text-center text-sm">Cargando ventas...</div>
-                                                                    ) : salesByDate.length === 0 ? (
-                                                                        <CommandEmpty>
-                                                                            {watchFechaVenta ? "No se encontraron ventas." : "Selecciona una fecha primero."}
-                                                                        </CommandEmpty>
-                                                                    ) : (
-                                                                        <CommandGroup>
-                                                                            {salesByDate.map((sale) => (
-                                                                                <CommandItem
-                                                                                    value={sale.label}
-                                                                                    key={sale.value}
-                                                                                    onSelect={() => {
-                                                                                        form.setValue("num_venta", sale.value);
-                                                                                        form.setValue("producto", sale.producto);
-                                                                                        if (sale.sku) {
-                                                                                            form.setValue("sku", sale.sku);
-                                                                                        }
-                                                                                        setSalePopoverOpen(false);
-                                                                                    }}
-                                                                                >
-                                                                                    <Check
-                                                                                        className={cn(
-                                                                                            "mr-2 h-4 w-4",
-                                                                                            sale.value === field.value ? "opacity-100" : "opacity-0"
-                                                                                        )}
-                                                                                    />
-                                                                                    {sale.label}
-                                                                                </CommandItem>
-                                                                            ))}
-                                                                        </CommandGroup>
-                                                                    )}
-                                                                </CommandList>
-                                                            </Command>
-                                                        </PopoverContent>
-                                                    </Popover>
+                                                    <FormControl>
+                                                        <Input
+                                                            placeholder="Escribe o selecciona un # de venta"
+                                                            {...field}
+                                                            value={field.value || ''}
+                                                            list="sales-list"
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+                                                                field.onChange(value);
+                                                                
+                                                                const selectedSale = salesByDate.find(s => s.label === value);
+                                                                if (selectedSale) {
+                                                                    form.setValue("producto", selectedSale.producto, { shouldValidate: true });
+                                                                    if (selectedSale.sku) {
+                                                                        form.setValue("sku", selectedSale.sku, { shouldValidate: true });
+                                                                    }
+                                                                }
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <datalist id="sales-list">
+                                                        {salesByDate.map((sale) => (
+                                                            <option key={sale.value} value={sale.label} />
+                                                        ))}
+                                                    </datalist>
                                                     <FormDescription>
-                                                       Selecciona una fecha para ver las ventas disponibles.
+                                                       {isLoadingSales ? "Cargando ventas..." : "Selecciona una fecha para ver sugerencias."}
                                                     </FormDescription>
                                                     <FormMessage />
                                                 </FormItem>
