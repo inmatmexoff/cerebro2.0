@@ -1885,7 +1885,7 @@ export default function ExcelVentasPage() {
                         <div className="relative w-full sm:w-auto">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Buscar por SKU, Fila o Pub..."
+                                placeholder="Buscar SKU, Fila, # de Publicación..."
                                 value={skuSearchTerm}
                                 onChange={(e) => setSkuSearchTerm(e.target.value)}
                                 className="pl-8 w-full sm:w-48 h-9"

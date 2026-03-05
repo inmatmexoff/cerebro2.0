@@ -1097,7 +1097,7 @@ export default function HistorialCortesPage() {
                         <div className="relative w-full md:w-auto flex-grow">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Buscar por SKU, ID, Publicación..."
+                                placeholder="Buscar por SKU, ID, # de Publicación..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-8 w-full"
