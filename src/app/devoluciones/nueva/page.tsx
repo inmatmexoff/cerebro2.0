@@ -117,14 +117,15 @@ export default function NuevaDevolucionPage() {
                 const startOfDay = new Date(watchFechaVenta);
                 startOfDay.setHours(0, 0, 0, 0);
 
-                const nextDay = new Date(startOfDay);
-                nextDay.setDate(nextDay.getDate() + 1);
+                const endOfDay = new Date(watchFechaVenta);
+                endOfDay.setHours(23, 59, 59, 999);
+                
 
                 const { data, error } = await supabasePROD
                     .from('devoluciones_ml')
                     .select('num_venta, titulo_publi, sku')
                     .gte('fecha_venta', startOfDay.toISOString())
-                    .lt('fecha_venta', nextDay.toISOString())
+                    .lte('fecha_venta', endOfDay.toISOString())
                     .order('num_venta', { ascending: false });
 
                 if (error) throw error;
@@ -145,8 +146,11 @@ export default function NuevaDevolucionPage() {
                         producto: item.titulo_publi || '',
                         sku: item.sku || null
                     })));
+                } else {
+                    setSalesByDate([]);
                 }
             } catch (err: any) {
+                setSalesByDate([]);
                 toast({
                     variant: "destructive",
                     title: "Error al cargar ventas",
@@ -284,7 +288,7 @@ export default function NuevaDevolucionPage() {
                                                         ))}
                                                     </datalist>
                                                     <FormDescription>
-                                                       {isLoadingSales ? "Cargando ventas..." : "Selecciona una fecha para ver sugerencias."}
+                                                       {isLoadingSales ? "Cargando ventas..." : watchFechaVenta ? `Se encontraron ${salesByDate.length} ventas.` : "Selecciona una fecha para ver sugerencias."}
                                                     </FormDescription>
                                                     <FormMessage />
                                                 </FormItem>
@@ -308,17 +312,19 @@ export default function NuevaDevolucionPage() {
                                                                     variant="outline"
                                                                     role="combobox"
                                                                     className={cn(
-                                                                        "w-full justify-between",
+                                                                        "w-full justify-between font-normal text-left",
                                                                         !field.value && "text-muted-foreground"
                                                                     )}
                                                                     disabled={isLoadingSkus}
                                                                 >
-                                                                    {isLoadingSkus && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                                    {field.value
-                                                                        ? allSkus.find(
-                                                                            (sku) => sku.value === field.value
-                                                                        )?.label
-                                                                        : "Selecciona un SKU"}
+                                                                    <span className="truncate">
+                                                                        {isLoadingSkus ? (<Loader2 className="inline mr-2 h-4 w-4 animate-spin" />) : null}
+                                                                        {field.value
+                                                                            ? allSkus.find(
+                                                                                (sku) => sku.value === field.value
+                                                                            )?.label
+                                                                            : "Selecciona un SKU"}
+                                                                    </span>
                                                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                                 </Button>
                                                             </FormControl>
