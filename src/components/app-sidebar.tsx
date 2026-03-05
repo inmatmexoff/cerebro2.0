@@ -133,7 +133,7 @@ export function AppSidebar() {
             <CollapsibleContent className="pl-10 mt-1 space-y-1">
                  <Link href="/devoluciones" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/devoluciones' && "text-primary")}>Listado</Link>
                  <Link href="/devoluciones/historial" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/devoluciones/historial' && "text-primary")}>Historial ML</Link>
-                 <Link href="/devoluciones/nueva" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/devoluciones/nueva' && "text-primary")}>Nueva Devolución</Link>
+                 <Link href="/devoluciones/nueva" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/devoluciones/nueva' && "text-primary")}>Estado de Devolución</Link>
                  <Link href="/devoluciones/import-excel" className={cn("block text-sm text-muted-foreground hover:text-primary py-1", pathname === '/devoluciones/import-excel' && "text-primary")}>Importar Excel</Link>
             </CollapsibleContent>
         </Collapsible>

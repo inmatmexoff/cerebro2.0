@@ -137,9 +137,9 @@ export default function NuevaDevolucionPage() {
                         Volver a Devoluciones
                     </Link>
                     <div>
-                        <h1 className="text-3xl font-bold">Registrar Nueva Devolución</h1>
+                        <h1 className="text-3xl font-bold">Estado de Devolución</h1>
                         <p className="text-muted-foreground">
-                            Completa el formulario para registrar una nueva devolución manualmente.
+                            Completa el formulario para registrar el estado de una devolución.
                         </p>
                     </div>
                 </header>
