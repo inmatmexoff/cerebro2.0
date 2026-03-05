@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Search, Loader2 } from 'lucide-react';
+import { ArrowLeft, Search, Loader2, FolderTree, Folders, Tag } from 'lucide-react';
 import { supabasePROD } from '@/lib/supabase';
 import {
   Card,
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/accordion';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 type SkuM = {
   sku_mdr: string;
@@ -54,6 +55,7 @@ export default function DirectorioSkusPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,6 +84,23 @@ export default function DirectorioSkusPage() {
     };
     fetchData();
   }, []);
+
+  const handleCopyToClipboard = (text: string, type: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: `${type} copiado`,
+        description: `"${text}" se ha copiado al portapapeles.`,
+      });
+    }).catch(err => {
+      console.error("Error al copiar:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `No se pudo copiar el ${type}.`,
+      });
+    });
+  };
 
   const groupedAndFilteredSkus = useMemo(() => {
     if (skuMList.length === 0) return {};
@@ -177,6 +196,29 @@ export default function DirectorioSkusPage() {
     return grouped;
   }, [skuMList, skuAlternoList, searchTerm]);
 
+  const summaryStats = useMemo(() => {
+    const categories = Object.keys(groupedAndFilteredSkus);
+    let subCategoryCount = 0;
+    let skuMdrCount = 0;
+
+    categories.forEach(catKey => {
+        const category = groupedAndFilteredSkus[catKey];
+        const subCategories = Object.keys(category.subCategories);
+        subCategoryCount += subCategories.length;
+        subCategories.forEach(subCatKey => {
+            const subCategory = category.subCategories[subCatKey];
+            skuMdrCount += Object.keys(subCategory.skuMdr).length;
+        });
+    });
+
+    return {
+        categoryCount: categories.length,
+        subCategoryCount,
+        skuMdrCount
+    };
+  }, [groupedAndFilteredSkus]);
+
+
   return (
     <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -227,87 +269,138 @@ export default function DirectorioSkusPage() {
                 {error}
               </CardContent>
             </Card>
-          ) : Object.keys(groupedAndFilteredSkus).length === 0 ? (
-             <Card>
-                <CardContent className="p-6 text-center text-muted-foreground">
-                    {searchTerm ? "No se encontraron resultados para tu búsqueda." : "No hay SKUs para mostrar."}
-                </CardContent>
-            </Card>
           ) : (
-            <Card>
-              <CardContent className="p-2 sm:p-4">
-                <Accordion
-                  type="multiple"
-                  className="w-full"
-                >
-                  {Object.entries(groupedAndFilteredSkus).sort().map(
-                    ([category, catData]) =>
-                      catData.count > 0 && (
-                        <AccordionItem value={category} key={category}>
-                          <AccordionTrigger className="text-lg font-semibold hover:no-underline px-4">
-                            <div className="flex items-center gap-3">
-                                <span>{category}</span>
-                                <Badge variant="secondary">{catData.count}</Badge>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="pl-4 sm:pl-6">
-                            <Accordion type="multiple" className="w-full">
-                              {Object.entries(catData.subCategories).sort().map(
-                                ([subCategory, subCatData]) =>
-                                  subCatData.count > 0 && (
-                                    <AccordionItem
-                                      value={subCategory}
-                                      key={subCategory}
-                                      className="border-l"
-                                    >
-                                      <AccordionTrigger className="font-medium hover:no-underline px-4">
-                                        <div className="flex items-center gap-3">
-                                            <span>{subCategory}</span>
-                                            <Badge variant="outline">{subCatData.count}</Badge>
-                                        </div>
-                                      </AccordionTrigger>
-                                      <AccordionContent className="pl-4 sm:pl-6">
-                                        <Accordion
-                                          type="multiple"
-                                          className="w-full"
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resumen del Directorio</CardTitle>
+                  <CardDescription>
+                    Totales basados en la búsqueda actual. Haz clic en un elemento del directorio para copiar.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                    <FolderTree className="h-8 w-8 text-primary" />
+                    <div>
+                      <p className="text-2xl font-bold">{summaryStats.categoryCount}</p>
+                      <p className="text-sm text-muted-foreground">Categorías</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                    <Folders className="h-8 w-8 text-primary" />
+                    <div>
+                      <p className="text-2xl font-bold">{summaryStats.subCategoryCount}</p>
+                      <p className="text-sm text-muted-foreground">Subcategorías</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                    <Tag className="h-8 w-8 text-primary" />
+                    <div>
+                      <p className="text-2xl font-bold">{summaryStats.skuMdrCount}</p>
+                      <p className="text-sm text-muted-foreground">Nombres Madre</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {Object.keys(groupedAndFilteredSkus).length === 0 ? (
+                <Card>
+                    <CardContent className="p-6 text-center text-muted-foreground">
+                        {searchTerm ? "No se encontraron resultados para tu búsqueda." : "No hay SKUs para mostrar."}
+                    </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="p-2 sm:p-4">
+                    <Accordion
+                      type="multiple"
+                      className="w-full"
+                    >
+                      {Object.entries(groupedAndFilteredSkus).sort().map(
+                        ([category, catData]) =>
+                          catData.count > 0 && (
+                            <AccordionItem value={category} key={category}>
+                              <AccordionTrigger 
+                                className="text-lg font-semibold hover:no-underline px-4 cursor-pointer"
+                                onClick={() => handleCopyToClipboard(category, 'Categoría')}
+                              >
+                                <div className="flex items-center gap-3">
+                                    <span>{category}</span>
+                                    <Badge variant="secondary">{catData.count}</Badge>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="pl-4 sm:pl-6">
+                                <Accordion type="multiple" className="w-full">
+                                  {Object.entries(catData.subCategories).sort().map(
+                                    ([subCategory, subCatData]) =>
+                                      subCatData.count > 0 && (
+                                        <AccordionItem
+                                          value={subCategory}
+                                          key={subCategory}
+                                          className="border-l"
                                         >
-                                          {Object.entries(subCatData.skuMdr).sort().map(
-                                            ([skuMdr, skuMdrData]) =>
-                                              skuMdrData.count > 0 && (
-                                                <AccordionItem
-                                                  value={skuMdr}
-                                                  key={skuMdr}
-                                                  className="border-l"
-                                                >
-                                                  <AccordionTrigger className="text-sm hover:no-underline px-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <span>{skuMdr}</span>
-                                                        <Badge variant="outline" className="font-mono">{skuMdrData.count}</Badge>
-                                                    </div>
-                                                  </AccordionTrigger>
-                                                  <AccordionContent className="pl-6 pt-2">
-                                                    <ul className="space-y-1 list-disc list-inside">
-                                                      {skuMdrData.skus.sort().map((sku) => (
-                                                        <li key={sku} className="text-sm text-muted-foreground">{sku}</li>
-                                                      ))}
-                                                    </ul>
-                                                  </AccordionContent>
-                                                </AccordionItem>
-                                              )
-                                          )}
-                                        </Accordion>
-                                      </AccordionContent>
-                                    </AccordionItem>
-                                  )
-                              )}
-                            </Accordion>
-                          </AccordionContent>
-                        </AccordionItem>
-                      )
-                  )}
-                </Accordion>
-              </CardContent>
-            </Card>
+                                          <AccordionTrigger 
+                                            className="font-medium hover:no-underline px-4 cursor-pointer"
+                                            onClick={() => handleCopyToClipboard(subCategory, 'Subcategoría')}
+                                          >
+                                            <div className="flex items-center gap-3">
+                                                <span>{subCategory}</span>
+                                                <Badge variant="outline">{subCatData.count}</Badge>
+                                            </div>
+                                          </AccordionTrigger>
+                                          <AccordionContent className="pl-4 sm:pl-6">
+                                            <Accordion
+                                              type="multiple"
+                                              className="w-full"
+                                            >
+                                              {Object.entries(subCatData.skuMdr).sort().map(
+                                                ([skuMdr, skuMdrData]) =>
+                                                  skuMdrData.count > 0 && (
+                                                    <AccordionItem
+                                                      value={skuMdr}
+                                                      key={skuMdr}
+                                                      className="border-l"
+                                                    >
+                                                      <AccordionTrigger 
+                                                        className="text-sm hover:no-underline px-4 cursor-pointer"
+                                                        onClick={() => handleCopyToClipboard(skuMdr, 'Nombre Madre')}
+                                                      >
+                                                        <div className="flex items-center gap-3">
+                                                            <span>{skuMdr}</span>
+                                                            <Badge variant="outline" className="font-mono">{skuMdrData.count}</Badge>
+                                                        </div>
+                                                      </AccordionTrigger>
+                                                      <AccordionContent className="pl-6 pt-2">
+                                                        <ul className="space-y-1">
+                                                          {skuMdrData.skus.sort().map((sku) => (
+                                                            <li 
+                                                              key={sku} 
+                                                              className="text-sm text-muted-foreground list-disc list-inside cursor-pointer hover:text-primary hover:underline"
+                                                              onClick={() => handleCopyToClipboard(sku, 'SKU')}
+                                                            >
+                                                              {sku}
+                                                            </li>
+                                                          ))}
+                                                        </ul>
+                                                      </AccordionContent>
+                                                    </AccordionItem>
+                                                  )
+                                              )}
+                                            </Accordion>
+                                          </AccordionContent>
+                                        </AccordionItem>
+                                      )
+                                  )}
+                                </Accordion>
+                              </AccordionContent>
+                            </AccordionItem>
+                          )
+                      )}
+                    </Accordion>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </main>
       </div>
