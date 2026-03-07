@@ -543,62 +543,62 @@ export default function NuevaDevolucionPage() {
                                         {isSaving ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando...</>) : (<><Save className="w-4 h-4 mr-2" /> Registrar Devolución</>)}
                                     </Button>
                                 </form>
+                                <Dialog open={modalState.open} onOpenChange={(open) => !open && handleModalClose(false)}>
+                                  <DialogContent className="sm:max-w-md">
+                                      <DialogHeader>
+                                          <DialogTitle>
+                                              {modalState.type === 'reporte' && 'Detalles del Reporte'}
+                                              {modalState.type === 'error' && 'Detalles del Error'}
+                                              {modalState.type === 'factura' && 'Número de Factura'}
+                                          </DialogTitle>
+                                          <DialogDescription>
+                                              {modalState.type === 'reporte' && 'Por favor, proporciona detalles sobre el reporte.'}
+                                              {modalState.type === 'error' && 'Por favor, completa los detalles del error.'}
+                                              {modalState.type === 'factura' && 'Por favor, ingresa el número de factura asociado.'}
+                                          </DialogDescription>
+                                      </DialogHeader>
+                                      
+                                      {modalState.type === 'error' && (
+                                          <div className="space-y-4 py-4">
+                                              <FormField control={form.control} name="encargado_etiqueta" render={({ field }) => (<FormItem><FormLabel>Encargado de etiqueta</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                              <FormField control={form.control} name="empaquetador" render={({ field }) => (<FormItem><FormLabel>Persona que empacó</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                              <FormField control={form.control} name="supervisado_por" render={({ field }) => (<FormItem><FormLabel>Persona de control de calidad</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                              <FormField control={form.control} name="monto_cobrar_ml" render={({ field }) => (<FormItem><FormLabel>Monto a cobrar a Mercado Libre</FormLabel><FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                              <FormField control={form.control} name="error_detalle" render={({ field }) => (<FormItem><FormLabel>Detalles adicionales del error</FormLabel><FormControl><Textarea placeholder="Describe el error..." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                          </div>
+                                      )}
+
+                                      {modalState.type === 'reporte' && (
+                                          <div className="py-4">
+                                              <Textarea 
+                                                  placeholder="Añade los detalles aquí..."
+                                                  value={modalInputValue}
+                                                  onChange={(e) => setModalInputValue(e.target.value)} 
+                                              />
+                                          </div>
+                                      )}
+                                      
+                                      {modalState.type === 'factura' && (
+                                          <div className="py-4">
+                                              <Input 
+                                                  placeholder="Número de factura" 
+                                                  value={modalInputValue}
+                                                  onChange={(e) => setModalInputValue(e.target.value)}
+                                              />
+                                          </div>
+                                      )}
+
+                                      <DialogFooter>
+                                          <Button variant="ghost" onClick={() => handleModalClose(false)}>Cancelar</Button>
+                                          <Button onClick={() => handleModalClose(true)}>Guardar</Button>
+                                      </DialogFooter>
+                                  </DialogContent>
+                              </Dialog>
                             </Form>
                         </CardContent>
                     </Card>
                 </main>
             </div>
-             <Dialog open={modalState.open} onOpenChange={(open) => !open && handleModalClose(false)}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {modalState.type === 'reporte' && 'Detalles del Reporte'}
-                            {modalState.type === 'error' && 'Detalles del Error'}
-                            {modalState.type === 'factura' && 'Número de Factura'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {modalState.type === 'reporte' && 'Por favor, proporciona detalles sobre el reporte.'}
-                            {modalState.type === 'error' && 'Por favor, completa los detalles del error.'}
-                            {modalState.type === 'factura' && 'Por favor, ingresa el número de factura asociado.'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    
-                    {modalState.type === 'error' && (
-                        <div className="space-y-4 py-4">
-                            <FormField control={form.control} name="encargado_etiqueta" render={({ field }) => (<FormItem><FormLabel>Encargado de etiqueta</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={form.control} name="empaquetador" render={({ field }) => (<FormItem><FormLabel>Persona que empacó</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={form.control} name="supervisado_por" render={({ field }) => (<FormItem><FormLabel>Persona de control de calidad</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={form.control} name="monto_cobrar_ml" render={({ field }) => (<FormItem><FormLabel>Monto a cobrar a Mercado Libre</FormLabel><FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={form.control} name="error_detalle" render={({ field }) => (<FormItem><FormLabel>Detalles adicionales del error</FormLabel><FormControl><Textarea placeholder="Describe el error..." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                        </div>
-                    )}
-
-                    {modalState.type === 'reporte' && (
-                        <div className="py-4">
-                            <Textarea 
-                                placeholder="Añade los detalles aquí..."
-                                value={modalInputValue}
-                                onChange={(e) => setModalInputValue(e.target.value)} 
-                            />
-                        </div>
-                    )}
-                    
-                    {modalState.type === 'factura' && (
-                        <div className="py-4">
-                            <Input 
-                                placeholder="Número de factura" 
-                                value={modalInputValue}
-                                onChange={(e) => setModalInputValue(e.target.value)}
-                            />
-                        </div>
-                    )}
-
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => handleModalClose(false)}>Cancelar</Button>
-                        <Button onClick={() => handleModalClose(true)}>Guardar</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }
