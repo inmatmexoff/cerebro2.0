@@ -2605,6 +2605,7 @@ export default function ExcelVentasPage() {
                                                     <TableHead onClick={() => handleSkuSummarySort('sku')} className="cursor-pointer">
                                                         <div className="flex items-center gap-1">SKU <ChevronsUpDown className="h-4 w-4" /></div>
                                                     </TableHead>
+                                                    <TableHead># de Publicación</TableHead>
                                                     <TableHead onClick={() => handleSkuSummarySort('unidades')} className="cursor-pointer text-right">
                                                       <div className="flex items-center justify-end gap-1">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
                                                     </TableHead>
@@ -2634,6 +2635,7 @@ export default function ExcelVentasPage() {
                                                           <div>{sku}</div>
                                                           <div className="text-xs font-normal text-muted-foreground">{typedItems.length} {typedItems.length === 1 ? 'publicación' : 'publicaciones'}</div>
                                                         </TableCell>
+                                                        <TableCell></TableCell>
                                                         <TableCell className="text-right">{totalUnidades}</TableCell>
                                                         <TableCell className="text-right">{totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
                                                         <TableCell className={cn("text-right font-bold", totalTotal >= 0 ? "text-green-800" : "text-red-800")}>
@@ -2643,13 +2645,14 @@ export default function ExcelVentasPage() {
                                                       </TableRow>
                                                       {typedItems.map((item) => (
                                                         <TableRow key={item.pubId} className="hover:bg-transparent">
-                                                          <TableCell className="pl-10 font-mono text-xs text-muted-foreground">
+                                                          <TableCell className="pl-10 font-mono text-xs text-muted-foreground"></TableCell>
+                                                          <TableCell>
                                                             <span
                                                               className="cursor-pointer hover:text-primary"
                                                               onClick={() => handleCopyToClipboard(item.pubId)}
                                                               title={`Copiar ${item.pubId}`}
                                                             >
-                                                              Pub: {item.pubId}
+                                                              {item.pubId}
                                                             </span>
                                                           </TableCell>
                                                           <TableCell className="text-right text-muted-foreground">{item.unidades}</TableCell>

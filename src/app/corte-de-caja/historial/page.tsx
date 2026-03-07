@@ -657,6 +657,40 @@ export default function HistorialCortesPage() {
     });
   }, [sales, granTotalFilter, showHighShippingCost, markupFilter]);
   
+  const handleCopyAllSaleIds = () => {
+    if (filteredItems.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No hay IDs de venta para copiar',
+      });
+      return;
+    }
+    const saleIds = [...new Set(filteredItems.map(sale => String(sale.num_venta || '')))]
+        .filter(Boolean);
+
+    if (saleIds.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No hay IDs de venta para copiar',
+      });
+      return;
+    }
+    const textToCopy = saleIds.join('\n');
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      toast({
+        title: 'Copiado',
+        description: `${saleIds.length} IDs de venta copiados al portapapeles.`,
+      });
+    }).catch(err => {
+      console.error('Error al copiar IDs de venta:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudieron copiar los IDs de venta.',
+      });
+    });
+  };
+
   const topMarkupSales = React.useMemo(() => {
     return [...filteredItems]
       .filter(sale => sale.markup !== null && sale.markup !== undefined)
@@ -1117,6 +1151,10 @@ export default function HistorialCortesPage() {
                                 className="pl-8 w-full"
                             />
                         </div>
+                        <Button variant="outline" size="sm" onClick={handleCopyAllSaleIds}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copiar IDs
+                        </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" className="shrink-0">
