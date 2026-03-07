@@ -1782,7 +1782,15 @@ export default function HistorialCortesPage() {
                                     <TableBody>
                                         {subCategorySummary.length > 0 ? subCategorySummary.map((item) => (
                                             <TableRow key={item.subCategory}>
-                                                <TableCell className="font-medium">{item.subCategory}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    <span
+                                                        className="cursor-pointer hover:text-primary hover:underline"
+                                                        onClick={() => handleCopyToClipboard(item.subCategory)}
+                                                        title={`Copiar ${item.subCategory}`}
+                                                    >
+                                                        {item.subCategory}
+                                                    </span>
+                                                </TableCell>
                                                 <TableCell className="text-right">{item.count}</TableCell>
                                                 <TableCell className={cn("text-right font-semibold", 
                                                     item.averageMarkup >= 30 ? "text-green-700" :

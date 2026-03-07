@@ -1653,7 +1653,7 @@ export default function ExcelVentasPage() {
         if (prev.key === key) {
             return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
         }
-        const newDirection = (key === 'sku' || key === '# de Publicación') ? 'asc' : 'desc';
+        const newDirection = (key === 'sku' || key === 'pubId') ? 'asc' : 'desc';
         return { key, direction: newDirection };
     });
   };
@@ -2720,7 +2720,15 @@ export default function ExcelVentasPage() {
                                         <TableBody>
                                             {subCategorySummary.length > 0 ? subCategorySummary.map((item) => (
                                                 <TableRow key={item.subCategory}>
-                                                    <TableCell className="font-medium">{item.subCategory}</TableCell>
+                                                    <TableCell className="font-medium">
+                                                        <span
+                                                            className="cursor-pointer hover:text-primary hover:underline"
+                                                            onClick={() => handleCopyToClipboard(item.subCategory)}
+                                                            title={`Copiar ${item.subCategory}`}
+                                                        >
+                                                            {item.subCategory}
+                                                        </span>
+                                                    </TableCell>
                                                     <TableCell className="text-right">{item.count}</TableCell>
                                                     <TableCell className={cn("text-right font-semibold", 
                                                         item.averageMarkup >= 30 ? "text-green-700" :
