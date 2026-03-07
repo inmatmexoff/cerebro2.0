@@ -1764,6 +1764,42 @@ export default function ExcelVentasPage() {
     });
   };
   
+  const handleCopyAllSaleIds = () => {
+    const idIndex = headers.indexOf('ID');
+    if (idIndex === -1) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'La columna ID de venta no se encontró para copiar.',
+      });
+      return;
+    }
+    const saleIds = [...new Set(filteredData.map(row => String(row[idIndex] || '')))]
+        .filter(Boolean);
+
+    if (saleIds.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No hay IDs de venta para copiar',
+      });
+      return;
+    }
+    const textToCopy = saleIds.join('\n');
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      toast({
+        title: 'Copiado',
+        description: `${saleIds.length} IDs de venta copiados al portapapeles.`,
+      });
+    }).catch(err => {
+      console.error('Error al copiar IDs de venta:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudieron copiar los IDs de venta.',
+      });
+    });
+  };
+
   const topMarkupSales = React.useMemo(() => {
     return [...filteredData]
       .filter(row => {
@@ -1970,6 +2006,10 @@ export default function ExcelVentasPage() {
                             <Label htmlFor="row-coloring">Colorear Filas</Label>
                         </div>
                         
+                        <Button variant="outline" size="sm" className="h-9" onClick={handleCopyAllSaleIds}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copiar IDs
+                        </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="sm" className="h-9">
