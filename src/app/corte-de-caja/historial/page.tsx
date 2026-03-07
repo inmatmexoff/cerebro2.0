@@ -1027,11 +1027,11 @@ export default function HistorialCortesPage() {
 
     const dataToExport = skuSummary.map(item => ({
         'SKU': item.sku,
+        '# de Publicación': item.pubId,
         'Unidades': item.unidades,
         'Pérdida x Unidad': item.totalPorUnidad,
         'Pérdida Total': item.total,
         '% del Total': `${item.porcentajeDelTotal.toFixed(2)}%`,
-        '# de Publicación': item.pubId,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -1546,12 +1546,15 @@ export default function HistorialCortesPage() {
                         <ul className="space-y-2">
                             {topMarkupSales.map((sale) => (
                                 <li key={sale.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
-                                <span
-                                    className="font-mono cursor-pointer hover:text-primary"
-                                    onClick={() => handleCopyToClipboard(sale.num_venta)}
-                                >
-                                    #{sale.num_venta}
-                                </span>
+                                  <div>
+                                    <span
+                                        className="font-mono cursor-pointer hover:text-primary"
+                                        onClick={() => handleCopyToClipboard(sale.num_venta)}
+                                    >
+                                        #{sale.num_venta}
+                                    </span>
+                                    <p className="text-xs text-muted-foreground">SKU: {sale.sku}</p>
+                                  </div>
                                 <Badge variant="outline" className="font-semibold text-primary border-primary">
                                     {formatPercentage(sale.markup)}
                                 </Badge>
@@ -1639,6 +1642,7 @@ export default function HistorialCortesPage() {
                                                 <TableHead onClick={() => handleSkuSummarySort('sku')} className="cursor-pointer">
                                                     <div className="flex items-center gap-1">SKU <ChevronsUpDown className="h-4 w-4" /></div>
                                                 </TableHead>
+                                                <TableHead># de Publicación</TableHead>
                                                 <TableHead onClick={() => handleSkuSummarySort('unidades')} className="cursor-pointer text-right">
                                                     <div className="flex items-center justify-end gap-1">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
                                                 </TableHead>
@@ -1657,6 +1661,15 @@ export default function HistorialCortesPage() {
                                             {skuSummary.map((item) => (
                                                 <TableRow key={`${item.pubId}-${item.sku}`}>
                                                     <TableCell className="font-medium">{item.sku}</TableCell>
+                                                    <TableCell>
+                                                        <span
+                                                            className="cursor-pointer hover:text-primary"
+                                                            onClick={() => handleCopyToClipboard(item.pubId)}
+                                                            title={`Copiar ${item.pubId}`}
+                                                        >
+                                                            {item.pubId}
+                                                        </span>
+                                                    </TableCell>
                                                     <TableCell className="text-right">{item.unidades}</TableCell>
                                                     <TableCell className="text-right">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
                                                     <TableCell className="text-right text-red-600 font-semibold">{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>

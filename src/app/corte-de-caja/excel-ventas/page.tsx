@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   ChevronsUpDown,
   Copy,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -76,6 +77,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker } from '@/components/ui/date-picker';
 import { CompanySelect } from '@/components/company-select';
+import { Badge } from "@/components/ui/badge";
 
 // Define which columns to extract and in what order
 const COLUMN_MAPPING: { [key: string]: number } = {
@@ -1754,6 +1756,20 @@ export default function ExcelVentasPage() {
       });
     });
   };
+  
+  const topMarkupSales = React.useMemo(() => {
+    return [...filteredData]
+      .filter(row => {
+          const markupIndex = headers.indexOf('Markup (%)');
+          return markupIndex > -1 && typeof row[markupIndex] === 'number';
+      })
+      .sort((a, b) => {
+          const markupIndex = headers.indexOf('Markup (%)');
+          return (b[markupIndex] as number) - (a[markupIndex] as number);
+      })
+      .slice(0, 5);
+  }, [filteredData, headers]);
+
 
   return (
     <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
@@ -2179,6 +2195,39 @@ export default function ExcelVentasPage() {
                           </div>
                       </div>
                     </div>
+                     <Card className="mt-6">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5 text-primary" />
+                                Top 5 Ventas por Markup
+                            </CardTitle>
+                            <CardDescription>Las 5 ventas con el mayor markup en los datos filtrados.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {topMarkupSales.length > 0 ? (
+                                <ul className="space-y-2">
+                                    {topMarkupSales.map((sale, index) => (
+                                        <li key={index} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
+                                            <div>
+                                                <span
+                                                    className="font-mono cursor-pointer hover:text-primary"
+                                                    onClick={() => handleCopyToClipboard(String(sale[headers.indexOf('ID')]))}
+                                                >
+                                                    #{sale[headers.indexOf('ID')]}
+                                                </span>
+                                                <p className="text-xs text-muted-foreground">SKU: {sale[headers.indexOf('SKU')]}</p>
+                                            </div>
+                                            <Badge variant="outline" className="font-semibold text-primary border-primary">
+                                                {formatPercentage(sale[headers.indexOf('Markup (%)')] as number)}
+                                            </Badge>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-muted-foreground text-center">No hay datos de markup para mostrar.</p>
+                            )}
+                        </CardContent>
+                    </Card>
                     <div ref={tableContainerRef} className="h-[70vh] w-full overflow-auto mt-6">
                       <Table>
                         <TableHeader className="sticky top-0 bg-background z-10">
@@ -2548,7 +2597,13 @@ export default function ExcelVentasPage() {
                                                       {typedItems.map((item) => (
                                                         <TableRow key={item.pubId} className="hover:bg-transparent">
                                                           <TableCell className="pl-10 font-mono text-xs text-muted-foreground">
-                                                            Pub: {item.pubId}
+                                                            <span
+                                                              className="cursor-pointer hover:text-primary"
+                                                              onClick={() => handleCopyToClipboard(item.pubId)}
+                                                              title={`Copiar ${item.pubId}`}
+                                                            >
+                                                              Pub: {item.pubId}
+                                                            </span>
                                                           </TableCell>
                                                           <TableCell className="text-right text-muted-foreground">{item.unidades}</TableCell>
                                                           <TableCell className="text-right text-muted-foreground">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
