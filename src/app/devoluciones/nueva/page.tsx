@@ -19,6 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { supabasePROD } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+
 
 const devolucionSchema = z.object({
   tienda: z.string().optional(),
@@ -31,9 +33,11 @@ const devolucionSchema = z.object({
   motivo_devolucion: z.string().optional(),
   estado_llegada: z.string().optional(),
   reporte: z.boolean().default(false),
+  reporte_detalle: z.string().optional(),
   empaquetador: z.string().optional(),
   supervisado_por: z.string().optional(),
   error_nosotros: z.boolean().default(false),
+  error_detalle: z.string().optional(),
   observaciones: z.string().optional(),
   factura: z.boolean().default(false),
   num_factura: z.string().optional(),
@@ -41,6 +45,8 @@ const devolucionSchema = z.object({
 });
 
 type DevolucionFormValues = z.infer<typeof devolucionSchema>;
+
+type ModalType = 'reporte' | 'error' | 'factura';
 
 export default function NuevaDevolucionPage() {
     const [isSaving, setIsSaving] = useState(false);
@@ -52,6 +58,9 @@ export default function NuevaDevolucionPage() {
     const [salesByDate, setSalesByDate] = useState<{ value: string; label: string; producto: string; sku: string | null }[]>([]);
     const [isLoadingSales, setIsLoadingSales] = useState(false);
     
+    const [modalState, setModalState] = useState<{type: ModalType | null, open: boolean}>({ type: null, open: false });
+    const [modalInputValue, setModalInputValue] = useState('');
+
     const form = useForm<DevolucionFormValues>({
         resolver: zodResolver(devolucionSchema),
         defaultValues: {
@@ -65,9 +74,11 @@ export default function NuevaDevolucionPage() {
             motivo_devolucion: '',
             estado_llegada: '',
             reporte: false,
+            reporte_detalle: '',
             empaquetador: '',
             supervisado_por: '',
             error_nosotros: false,
+            error_detalle: '',
             observaciones: '',
             factura: false,
             num_factura: '',
@@ -75,8 +86,53 @@ export default function NuevaDevolucionPage() {
         },
     });
 
-    const watchFactura = form.watch('factura');
     const watchFechaVenta = form.watch('fecha_venta');
+    const watchReporte = form.watch('reporte');
+    const watchErrorNosotros = form.watch('error_nosotros');
+    const watchFactura = form.watch('factura');
+
+    const handleModalOpen = (type: ModalType, value?: string) => {
+        setModalState({ type, open: true });
+        setModalInputValue(value || '');
+    };
+
+    useEffect(() => {
+        if (watchReporte && !form.getValues('reporte_detalle')) {
+            handleModalOpen('reporte');
+        }
+    }, [watchReporte, form]);
+
+    useEffect(() => {
+        if (watchErrorNosotros && !form.getValues('error_detalle')) {
+            handleModalOpen('error');
+        }
+    }, [watchErrorNosotros, form]);
+    
+    useEffect(() => {
+        if (watchFactura && !form.getValues('num_factura')) {
+            handleModalOpen('factura');
+        }
+    }, [watchFactura, form]);
+
+
+    const handleModalClose = (saved: boolean) => {
+        const { type } = modalState;
+        if (!type) {
+            setModalState({ type: null, open: false });
+            return;
+        };
+
+        if (saved) {
+            if (type === 'reporte') form.setValue('reporte_detalle', modalInputValue);
+            if (type === 'error') form.setValue('error_detalle', modalInputValue);
+            if (type === 'factura') form.setValue('num_factura', modalInputValue);
+        } else {
+            if (type === 'reporte' && !form.getValues('reporte_detalle')) form.setValue('reporte', false);
+            if (type === 'error' && !form.getValues('error_detalle')) form.setValue('error_nosotros', false);
+            if (type === 'factura' && !form.getValues('num_factura')) form.setValue('factura', false);
+        }
+        setModalState({ type: null, open: false });
+    };
 
     useEffect(() => {
         const fetchSkus = async () => {
@@ -168,11 +224,7 @@ export default function NuevaDevolucionPage() {
     async function onSubmit(values: DevolucionFormValues) {
         setIsSaving(true);
         try {
-            // Coerce num_venta to number before sending, if it's a valid number string
-            const payload = {
-                ...values,
-                num_venta: values.num_venta ? Number(values.num_venta) : null
-            };
+            const payload = { ...values };
 
             const response = await fetch('/api/devoluciones/nueva', {
                 method: 'POST',
@@ -414,10 +466,11 @@ export default function NuevaDevolucionPage() {
                                         <FormField control={form.control} name="empaquetador" render={({ field }) => (<FormItem><FormLabel>Empaquetador (Despacho)</FormLabel><FormControl><Input placeholder="Nombre de quien empacó" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                         <FormField control={form.control} name="supervisado_por" render={({ field }) => (<FormItem><FormLabel>Supervisado por (Revisión)</FormLabel><FormControl><Input placeholder="Nombre de quien revisó" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                         <FormField control={form.control} name="revision" render={({ field }) => (<FormItem><FormLabel>Estado de Revisión</FormLabel><FormControl><Input placeholder="Ej. Completa, Pendiente" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    </div>
+                                    <FormField control={form.control} name="observaciones" render={({ field }) => (<FormItem><FormLabel>Observaciones</FormLabel><FormControl><Textarea placeholder="Añade cualquier observación relevante..." {...field} /></FormControl><FormMessage /></FormItem>)} />
 
-                                        <FormField control={form.control} name="observaciones" render={({ field }) => (<FormItem className="md:col-span-3"><FormLabel>Observaciones</FormLabel><FormControl><Textarea placeholder="Añade cualquier observación relevante..." {...field} /></FormControl><FormMessage /></FormItem>)} />
-
-                                        <FormField
+                                    <div className="grid md:grid-cols-3 gap-6">
+                                         <FormField
                                             control={form.control}
                                             name="reporte"
                                             render={({ field }) => (
@@ -457,44 +510,28 @@ export default function NuevaDevolucionPage() {
                                                 </FormItem>
                                             )}
                                         />
-                                        <div className="space-y-4">
-                                            <FormField
-                                                control={form.control}
-                                                name="factura"
-                                                render={({ field }) => (
-                                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
-                                                        <div className="space-y-1">
-                                                            <FormLabel>Factura</FormLabel>
-                                                            <FormDescription className={cn(field.value ? 'text-primary font-semibold' : 'text-muted-foreground')}>
-                                                                {field.value ? 'Sí, incluye factura' : 'No'}
-                                                            </FormDescription>
-                                                        </div>
-                                                        <FormControl>
-                                                            <Switch
-                                                                checked={field.value}
-                                                                onCheckedChange={field.onChange}
-                                                            />
-                                                        </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            {watchFactura && (
-                                                <FormField
-                                                    control={form.control}
-                                                    name="num_factura"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Número de Factura</FormLabel>
-                                                            <FormControl>
-                                                                <Input placeholder="Digite el número de factura" {...field} value={field.value ?? ''} />
-                                                            </FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
+                                        <FormField
+                                            control={form.control}
+                                            name="factura"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                                                    <div className="space-y-1">
+                                                        <FormLabel>Factura</FormLabel>
+                                                        <FormDescription className={cn(field.value ? 'text-primary font-semibold' : 'text-muted-foreground')}>
+                                                            {field.value ? 'Sí, incluye factura' : 'No'}
+                                                        </FormDescription>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={field.value}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
                                             )}
-                                        </div>
+                                        />
                                     </div>
+                                    
 
                                     <Button type="submit" disabled={isSaving}>
                                         {isSaving ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando...</>) : (<><Save className="w-4 h-4 mr-2" /> Registrar Devolución</>)}
@@ -505,6 +542,41 @@ export default function NuevaDevolucionPage() {
                     </Card>
                 </main>
             </div>
+             <Dialog open={modalState.open} onOpenChange={(open) => !open && handleModalClose(false)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {modalState.type === 'reporte' && 'Detalles del Reporte'}
+                            {modalState.type === 'error' && 'Detalles del Error'}
+                            {modalState.type === 'factura' && 'Número de Factura'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {modalState.type === 'reporte' && 'Por favor, proporciona detalles sobre el reporte.'}
+                            {modalState.type === 'error' && 'Por favor, describe el error que ocurrió.'}
+                            {modalState.type === 'factura' && 'Por favor, ingresa el número de factura asociado.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        {modalState.type === 'factura' ? (
+                            <Input 
+                                placeholder="Número de factura" 
+                                value={modalInputValue}
+                                onChange={(e) => setModalInputValue(e.target.value)}
+                            />
+                        ) : (
+                            <Textarea 
+                                placeholder="Añade los detalles aquí..."
+                                value={modalInputValue}
+                                onChange={(e) => setModalInputValue(e.target.value)} 
+                            />
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => handleModalClose(false)}>Cancelar</Button>
+                        <Button onClick={() => handleModalClose(true)}>Guardar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

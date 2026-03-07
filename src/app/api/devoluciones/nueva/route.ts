@@ -9,6 +9,13 @@ export async function POST(request: Request) {
         if (body.factura && body.num_factura) {
             finalObservacion = `Factura: ${body.num_factura}. ${finalObservacion}`.trim();
         }
+        if (body.reporte && body.reporte_detalle) {
+            finalObservacion = `Reporte: ${body.reporte_detalle}. ${finalObservacion}`.trim();
+        }
+        if (body.error_nosotros && body.error_detalle) {
+            finalObservacion = `Error Propio: ${body.error_detalle}. ${finalObservacion}`.trim();
+        }
+
 
         const recordToInsert = {
             tienda: body.tienda || null,
