@@ -401,10 +401,9 @@ export default function NuevaDevolucionPage() {
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
-                                                            <SelectItem value="BUENO">BUENO</SelectItem>
-                                                            <SelectItem value="REGULAR">REGULAR</SelectItem>
-                                                            <SelectItem value="DANIADO">DAÑADO</SelectItem>
-                                                            <SelectItem value="MUY_DANIADO">MUY DAÑADO</SelectItem>
+                                                            <SelectItem value="LISTO_PARA_VENDER">Listo para Vender</SelectItem>
+                                                            <SelectItem value="VENDER_CON_DESCUENTO">Vender con descuento</SelectItem>
+                                                            <SelectItem value="MERMA">Merma</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                     <FormMessage />

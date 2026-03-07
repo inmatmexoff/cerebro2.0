@@ -58,10 +58,9 @@ const columns = [
 ];
 
 const statusOptions = [
-    { name: "Bueno", uid: "BUENO" },
-    { name: "Regular", uid: "REGULAR" },
-    { name: "Dañado", uid: "DANIADO" },
-    { name: "Muy Dañado", uid: "MUY_DANIADO" },
+    { name: "Listo para Vender", uid: "LISTO_PARA_VENDER" },
+    { name: "Vender con descuento", uid: "VENDER_CON_DESCUENTO" },
+    { name: "Merma", uid: "MERMA" },
 ];
 
 const errorNosotrosOptions = [
@@ -71,10 +70,9 @@ const errorNosotrosOptions = [
 
 
 const statusColorMap: Record<string, "success" | "warning" | "danger" | "default"> = {
-  BUENO: "success",
-  REGULAR: "warning",
-  DANIADO: "danger",
-  MUY_DANIADO: "danger",
+  LISTO_PARA_VENDER: "success",
+  VENDER_CON_DESCUENTO: "warning",
+  MERMA: "danger",
 };
 
 
@@ -210,7 +208,7 @@ export default function DevolucionesPage() {
                 today: '...',
                 topReason: { reason: '...', count: '...' },
                 errors: '...',
-                byStatus: { BUENO: '...', REGULAR: '...', DANIADO: '...', MUY_DANIADO: '...' },
+                byStatus: { LISTO_PARA_VENDER: '...', VENDER_CON_DESCUENTO: '...', MERMA: '...' },
                 byCompanyToday: [],
             };
         }
@@ -256,10 +254,9 @@ export default function DevolucionesPage() {
             topReason: { reason: topReason[0], count: topReason[1] },
             errors: errorCount,
             byStatus: {
-                BUENO: statusCounts['BUENO'] || 0,
-                REGULAR: statusCounts['REGULAR'] || 0,
-                DANIADO: statusCounts['DANIADO'] || 0,
-                MUY_DANIADO: statusCounts['MUY_DANIADO'] || 0,
+                LISTO_PARA_VENDER: statusCounts['LISTO_PARA_VENDER'] || 0,
+                VENDER_CON_DESCUENTO: statusCounts['VENDER_CON_DESCUENTO'] || 0,
+                MERMA: statusCounts['MERMA'] || 0,
             },
             byCompanyToday: Object.entries(companyTodayCounts).sort((a,b) => b[1] - a[1]),
         };
@@ -404,22 +401,18 @@ export default function DevolucionesPage() {
                                 <TabsTrigger value="empresa">Por Empresa (Hoy)</TabsTrigger>
                             </TabsList>
                             <TabsContent value="estado" className="pt-4">
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
                                     <div className="p-2 bg-muted/50 rounded-md">
-                                        <p className="text-sm text-muted-foreground">Bueno</p>
-                                        <div className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.BUENO}</div>
+                                        <p className="text-sm text-muted-foreground">Listo para Vender</p>
+                                        <div className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.LISTO_PARA_VENDER}</div>
                                     </div>
                                     <div className="p-2 bg-muted/50 rounded-md">
-                                        <p className="text-sm text-muted-foreground">Regular</p>
-                                        <div className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.REGULAR}</div>
+                                        <p className="text-sm text-muted-foreground">Vender c/ Descuento</p>
+                                        <div className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.VENDER_CON_DESCUENTO}</div>
                                     </div>
                                     <div className="p-2 bg-muted/50 rounded-md">
-                                        <p className="text-sm text-muted-foreground">Dañado</p>
-                                        <div className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.DANIADO}</div>
-                                    </div>
-                                    <div className="p-2 bg-muted/50 rounded-md">
-                                        <p className="text-sm text-muted-foreground">Muy Dañado</p>
-                                        <div className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.MUY_DANIADO}</div>
+                                        <p className="text-sm text-muted-foreground">Merma</p>
+                                        <div className="text-xl font-bold">{isLoading ? <Spinner size="sm"/> : stats.byStatus.MERMA}</div>
                                     </div>
                                 </div>
                             </TabsContent>
