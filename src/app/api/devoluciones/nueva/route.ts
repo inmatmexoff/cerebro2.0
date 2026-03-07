@@ -12,8 +12,16 @@ export async function POST(request: Request) {
         if (body.reporte && body.reporte_detalle) {
             finalObservacion = `Reporte: ${body.reporte_detalle}. ${finalObservacion}`.trim();
         }
-        if (body.error_nosotros && body.error_detalle) {
-            finalObservacion = `Error Propio: ${body.error_detalle}. ${finalObservacion}`.trim();
+
+        if (body.error_nosotros) {
+            let errorParts = [];
+            if (body.error_detalle) errorParts.push(`Detalle: ${body.error_detalle}`);
+            if (body.encargado_etiqueta) errorParts.push(`Encargado Etiqueta: ${body.encargado_etiqueta}`);
+            if (body.monto_cobrar_ml) errorParts.push(`Monto a cobrar ML: $${body.monto_cobrar_ml}`);
+            
+            if (errorParts.length > 0) {
+                 finalObservacion = `Error Propio: ${errorParts.join('; ')}. ${finalObservacion}`.trim();
+            }
         }
 
 
