@@ -20,11 +20,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 type SkuM = {
   sku_mdr: string;
   cat_mdr: string | null;
   sub_cat: string | null;
+  sku: string | null;
 };
 
 type SkuAlterno = {
@@ -42,6 +44,7 @@ type GroupedSkus = {
           [skuMdr: string]: {
             count: number;
             skus: string[];
+            officialSku: string | null;
           };
         };
       };
@@ -64,7 +67,7 @@ export default function DirectorioSkusPage() {
       try {
         const { data: skuMData, error: skuMError } = await supabasePROD
           .from('sku_m')
-          .select('sku_mdr, cat_mdr, sub_cat');
+          .select('sku_mdr, cat_mdr, sub_cat, sku');
 
         if (skuMError) throw skuMError;
 
@@ -119,7 +122,8 @@ export default function DirectorioSkusPage() {
         sm.sku_mdr.toLowerCase().includes(lowerCaseSearchTerm) ||
         sm.cat_mdr?.toLowerCase().includes(lowerCaseSearchTerm) ||
         sm.sub_cat?.toLowerCase().includes(lowerCaseSearchTerm) ||
-        relevantSkuMdrsFromAlterno.has(sm.sku_mdr)
+        relevantSkuMdrsFromAlterno.has(sm.sku_mdr) ||
+        (sm.sku && sm.sku.toLowerCase().includes(lowerCaseSearchTerm))
     );
 
     const finalSkuMdrsInScope = new Set(filteredSkuM.map(sm => sm.sku_mdr));
@@ -138,7 +142,11 @@ export default function DirectorioSkusPage() {
             grouped[category].subCategories[subCategory] = { count: 0, skuMdr: {} };
         }
         if (!grouped[category].subCategories[subCategory].skuMdr[skuMdr]) {
-            grouped[category].subCategories[subCategory].skuMdr[skuMdr] = { count: 0, skus: [] };
+            grouped[category].subCategories[subCategory].skuMdr[skuMdr] = {
+              count: 0,
+              skus: [],
+              officialSku: sm.sku,
+            };
         }
     });
     
@@ -150,12 +158,10 @@ export default function DirectorioSkusPage() {
         const category = skuM.cat_mdr || 'Sin Categoría';
         const subCategory = skuM.sub_cat || 'Sin Subcategoría';
         
-        // This check is important as the category/subcategory might not have been created if it didn't match search term
         if (grouped[category]?.subCategories[subCategory]?.skuMdr[sa.sku_mdr]) {
-          // Only add sku if it matches search term, or if the search term is empty
-          if (!searchTerm || sa.sku.toLowerCase().includes(lowerCaseSearchTerm)) {
+          if (!searchTerm || sa.sku.toLowerCase().includes(lowerCaseSearchTerm) || skuM.sku?.toLowerCase().includes(lowerCaseSearchTerm)) {
               grouped[category].subCategories[subCategory].skuMdr[sa.sku_mdr].skus.push(sa.sku);
-          } else if (filteredSkuM.some(fsm => fsm.sku_mdr === sa.sku_mdr)) { // or if its parent group matched
+          } else if (filteredSkuM.some(fsm => fsm.sku_mdr === sa.sku_mdr)) {
              grouped[category].subCategories[subCategory].skuMdr[sa.sku_mdr].skus.push(sa.sku);
           }
         }
@@ -169,11 +175,18 @@ export default function DirectorioSkusPage() {
         let subCatCount = 0;
         Object.keys(grouped[cat].subCategories[subCat].skuMdr).forEach(
           (skuMdr) => {
-            const skusList = grouped[cat].subCategories[subCat].skuMdr[skuMdr].skus;
+            const skuMdrData = grouped[cat].subCategories[subCat].skuMdr[skuMdr];
+            if (skuMdrData.officialSku && !skuMdrData.skus.includes(skuMdrData.officialSku)) {
+              skuMdrData.skus.push(skuMdrData.officialSku);
+            }
+            
+            const skusList = skuMdrData.skus;
             const count = skusList.length;
+            
             if (count > 0) {
-                grouped[cat].subCategories[subCat].skuMdr[skuMdr].count = count;
-                subCatCount += count;
+                grouped[cat].subCategories[subCat].skuMdr[skuMdr].skus = [...new Set(skusList)];
+                grouped[cat].subCategories[subCat].skuMdr[skuMdr].count = [...new Set(skusList)].length;
+                subCatCount += [...new Set(skusList)].length;
             } else {
                 delete grouped[cat].subCategories[subCat].skuMdr[skuMdr];
             }
@@ -369,15 +382,27 @@ export default function DirectorioSkusPage() {
                                                       </AccordionTrigger>
                                                       <AccordionContent className="pl-6 pt-2">
                                                         <ul className="space-y-1">
-                                                          {skuMdrData.skus.sort().map((sku) => (
-                                                            <li 
-                                                              key={sku} 
-                                                              className="text-sm text-muted-foreground list-disc list-inside cursor-pointer hover:text-primary hover:underline"
-                                                              onClick={() => handleCopyToClipboard(sku, 'SKU')}
-                                                            >
-                                                              {sku}
-                                                            </li>
-                                                          ))}
+                                                            {skuMdrData.skus.sort().map((sku) => (
+                                                                <li
+                                                                key={sku}
+                                                                className="text-sm text-muted-foreground list-disc list-inside flex items-center gap-2"
+                                                                >
+                                                                <span
+                                                                    className={cn(
+                                                                    "cursor-pointer hover:text-primary hover:underline",
+                                                                    sku === skuMdrData.officialSku && "font-semibold text-primary"
+                                                                    )}
+                                                                    onClick={(e) => { e.stopPropagation(); handleCopyToClipboard(sku, 'SKU')}}
+                                                                >
+                                                                    {sku}
+                                                                </span>
+                                                                {sku === skuMdrData.officialSku && (
+                                                                    <Badge variant="outline" className="ml-2 border-primary text-primary">
+                                                                        Oficial
+                                                                    </Badge>
+                                                                )}
+                                                                </li>
+                                                            ))}
                                                         </ul>
                                                       </AccordionContent>
                                                     </AccordionItem>
