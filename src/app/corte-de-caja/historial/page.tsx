@@ -32,6 +32,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 // Expanded SaleRecord to include more columns
@@ -719,7 +720,7 @@ export default function HistorialCortesPage() {
     const summary = filteredItems.reduce((acc, sale) => {
         const subCat = sale.sub_cat || 'Sin Subcategoría';
         if (!acc[subCat]) {
-            acc[subCat] = { totalUtilidad: 0, totalLandedCost: 0, count: 0 };
+            acc[subCat] = { totalUtilidad: 0, totalLandedCost: 0, count: 0, publications: new Set<string>() };
         }
 
         if (typeof sale.total_final === 'number') {
@@ -728,14 +729,18 @@ export default function HistorialCortesPage() {
         if (typeof sale.landed_cost === 'number' && sale.landed_cost > 0) { 
             acc[subCat].totalLandedCost += sale.landed_cost;
         }
+        if (sale.num_publi) {
+            acc[subCat].publications.add(sale.num_publi);
+        }
         acc[subCat].count += 1;
         return acc;
-    }, {} as Record<string, { totalUtilidad: number; totalLandedCost: number; count: number }>);
+    }, {} as Record<string, { totalUtilidad: number; totalLandedCost: number; count: number; publications: Set<string> }>);
 
     return Object.entries(summary).map(([subCategory, data]) => ({
         subCategory,
         averageMarkup: data.totalLandedCost > 0 ? (data.totalUtilidad / data.totalLandedCost) * 100 : 0,
         count: data.count,
+        publications: Array.from(data.publications),
     })).sort((a, b) => b.averageMarkup - a.averageMarkup);
   }, [filteredItems]);
 
@@ -1766,52 +1771,52 @@ export default function HistorialCortesPage() {
                         <CardHeader>
                             <CardTitle>Resumen por Subcategoría</CardTitle>
                             <CardDescription>
-                                Markup (%) promedio para cada subcategoría en los datos filtrados.
+                                Markup (%) promedio y desglose de publicaciones para cada subcategoría en los datos filtrados.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="border rounded-md max-h-96 overflow-y-auto">
-                                <ShadcnTable>
-                                    <TableHeader className="sticky top-0 bg-background z-10">
-                                        <TableRow>
-                                            <TableHead>Subcategoría</TableHead>
-                                            <TableHead className="text-right">Registros</TableHead>
-                                            <TableHead className="text-right">Markup (%) Promedio</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {subCategorySummary.length > 0 ? subCategorySummary.map((item) => (
-                                            <TableRow key={item.subCategory}>
-                                                <TableCell className="font-medium">
-                                                    <span
-                                                        className="cursor-pointer hover:text-primary hover:underline"
-                                                        onClick={() => handleCopyToClipboard(item.subCategory)}
-                                                        title={`Copiar ${item.subCategory}`}
-                                                    >
-                                                        {item.subCategory}
+                            <Accordion type="multiple" className="w-full">
+                                {subCategorySummary.length > 0 ? subCategorySummary.map((item) => (
+                                    <AccordionItem value={item.subCategory} key={item.subCategory}>
+                                        <AccordionTrigger>
+                                            <div className="flex justify-between items-center w-full pr-4">
+                                                <span className="font-medium text-left">{item.subCategory}</span>
+                                                <div className="flex items-center gap-4 text-right">
+                                                    <Badge variant="outline">{item.publications.length} pub.</Badge>
+                                                    <span className={cn("font-semibold", 
+                                                        item.averageMarkup >= 30 ? "text-green-700" :
+                                                        item.averageMarkup >= 20 ? "text-green-500" :
+                                                        item.averageMarkup >= 10 ? "text-yellow-600" :
+                                                        item.averageMarkup >= 5 ? "text-orange-500" :
+                                                        "text-red-600"
+                                                    )}>
+                                                        {formatPercentage(item.averageMarkup)}
                                                     </span>
-                                                </TableCell>
-                                                <TableCell className="text-right">{item.count}</TableCell>
-                                                <TableCell className={cn("text-right font-semibold", 
-                                                    item.averageMarkup >= 30 ? "text-green-700" :
-                                                    item.averageMarkup >= 20 ? "text-green-500" :
-                                                    item.averageMarkup >= 10 ? "text-yellow-600" :
-                                                    item.averageMarkup >= 5 ? "text-orange-500" :
-                                                    "text-red-600"
-                                                )}>
-                                                    {formatPercentage(item.averageMarkup)}
-                                                </TableCell>
-                                            </TableRow>
-                                        )) : (
-                                            <TableRow>
-                                                <TableCell colSpan={3} className="h-24 text-center">
-                                                    No hay datos de subcategorías para mostrar.
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </ShadcnTable>
-                            </div>
+                                                </div>
+                                            </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                                <ul className="pl-8 pt-2 space-y-1 list-disc list-inside">
+                                                {item.publications.map((pub: string) => (
+                                                    <li key={pub} className="text-sm text-muted-foreground">
+                                                        <span
+                                                            className="cursor-pointer hover:text-primary hover:underline"
+                                                            onClick={() => handleCopyToClipboard(pub)}
+                                                            title={`Copiar ${pub}`}
+                                                        >
+                                                            # de publicación: {pub}
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                )) : (
+                                    <div className="text-center text-muted-foreground p-6">
+                                        No hay datos de subcategorías para mostrar.
+                                    </div>
+                                )}
+                            </Accordion>
                         </CardContent>
                     </Card>
                 </TabsContent>

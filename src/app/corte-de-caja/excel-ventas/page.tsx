@@ -78,6 +78,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker } from '@/components/ui/date-picker';
 import { CompanySelect } from '@/components/company-select';
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 // Define which columns to extract and in what order
 const COLUMN_MAPPING: { [key: string]: number } = {
@@ -983,17 +984,19 @@ export default function ExcelVentasPage() {
     const subCatIndex = headers.indexOf('Subcategoría');
     const utilidadBrutaIndex = headers.indexOf('Utilidad Bruta');
     const landedCostTotalIndex = headers.indexOf('Landed Cost Total');
+    const pubIndex = headers.indexOf('# de publicación');
 
-    if (subCatIndex === -1 || utilidadBrutaIndex === -1 || landedCostTotalIndex === -1) return [];
+    if (subCatIndex === -1 || utilidadBrutaIndex === -1 || landedCostTotalIndex === -1 || pubIndex === -1) return [];
 
     const summary = filteredData.reduce((acc, sale) => {
         const subCat = sale[subCatIndex] || 'Sin Subcategoría';
         if (!acc[subCat]) {
-            acc[subCat] = { totalUtilidad: 0, totalLandedCost: 0, count: 0 };
+            acc[subCat] = { totalUtilidad: 0, totalLandedCost: 0, count: 0, publications: new Set<string>() };
         }
 
         const utilidad = sale[utilidadBrutaIndex];
         const landedCost = sale[landedCostTotalIndex];
+        const pubId = sale[pubIndex];
 
         if (typeof utilidad === 'number') {
             acc[subCat].totalUtilidad += utilidad;
@@ -1001,14 +1004,18 @@ export default function ExcelVentasPage() {
         if (typeof landedCost === 'number' && landedCost > 0) { // Only include landed cost if it's positive to avoid division by zero or weird results
             acc[subCat].totalLandedCost += landedCost;
         }
+        if (pubId) {
+            acc[subCat].publications.add(String(pubId));
+        }
         acc[subCat].count += 1;
         return acc;
-    }, {} as Record<string, { totalUtilidad: number; totalLandedCost: number; count: number }>);
+    }, {} as Record<string, { totalUtilidad: number; totalLandedCost: number; count: number; publications: Set<string> }>);
 
     return Object.entries(summary).map(([subCategory, data]) => ({
         subCategory,
         averageMarkup: data.totalLandedCost > 0 ? (data.totalUtilidad / data.totalLandedCost) * 100 : 0,
         count: data.count,
+        publications: Array.from(data.publications),
     })).sort((a, b) => b.averageMarkup - a.averageMarkup);
   }, [filteredData, headers]);
 
@@ -1720,11 +1727,11 @@ export default function ExcelVentasPage() {
 
     const dataToExport = skuSummary.map(item => ({
         'SKU': item.sku,
+        '# de Publicación': item.pubId,
         'Unidades': item.unidades,
         'Total x Unidad': item.totalPorUnidad,
         'Total': item.total,
         '% del Total': `${item.porcentajeDelTotal.toFixed(2)}%`,
-        '# de Publicación': item.pubId,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -2704,52 +2711,52 @@ export default function ExcelVentasPage() {
                             <CardHeader>
                                 <CardTitle>Resumen por Subcategoría</CardTitle>
                                 <CardDescription>
-                                    Markup (%) promedio para cada subcategoría en los datos filtrados.
+                                    Markup (%) promedio y desglose de publicaciones para cada subcategoría en los datos filtrados.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="border rounded-md max-h-96 overflow-y-auto">
-                                    <Table>
-                                        <TableHeader className="sticky top-0 bg-background z-10">
-                                            <TableRow>
-                                                <TableHead>Subcategoría</TableHead>
-                                                <TableHead className="text-right">Registros</TableHead>
-                                                <TableHead className="text-right">Markup (%) Promedio</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {subCategorySummary.length > 0 ? subCategorySummary.map((item) => (
-                                                <TableRow key={item.subCategory}>
-                                                    <TableCell className="font-medium">
-                                                        <span
-                                                            className="cursor-pointer hover:text-primary hover:underline"
-                                                            onClick={() => handleCopyToClipboard(item.subCategory)}
-                                                            title={`Copiar ${item.subCategory}`}
-                                                        >
-                                                            {item.subCategory}
+                                <Accordion type="multiple" className="w-full">
+                                    {subCategorySummary.length > 0 ? subCategorySummary.map((item) => (
+                                        <AccordionItem value={item.subCategory} key={item.subCategory}>
+                                            <AccordionTrigger>
+                                                <div className="flex justify-between items-center w-full pr-4">
+                                                    <span className="font-medium text-left">{item.subCategory}</span>
+                                                    <div className="flex items-center gap-4 text-right">
+                                                        <Badge variant="outline">{item.publications.length} pub.</Badge>
+                                                        <span className={cn("font-semibold", 
+                                                            item.averageMarkup >= 30 ? "text-green-700" :
+                                                            item.averageMarkup >= 20 ? "text-green-500" :
+                                                            item.averageMarkup >= 10 ? "text-yellow-600" :
+                                                            item.averageMarkup >= 5 ? "text-orange-500" :
+                                                            "text-red-600"
+                                                        )}>
+                                                            {formatPercentage(item.averageMarkup)}
                                                         </span>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">{item.count}</TableCell>
-                                                    <TableCell className={cn("text-right font-semibold", 
-                                                        item.averageMarkup >= 30 ? "text-green-700" :
-                                                        item.averageMarkup >= 20 ? "text-green-500" :
-                                                        item.averageMarkup >= 10 ? "text-yellow-600" :
-                                                        item.averageMarkup >= 5 ? "text-orange-500" :
-                                                        "text-red-600"
-                                                    )}>
-                                                        {formatPercentage(item.averageMarkup)}
-                                                    </TableCell>
-                                                </TableRow>
-                                            )) : (
-                                                <TableRow>
-                                                    <TableCell colSpan={3} className="h-24 text-center">
-                                                        No hay datos de subcategorías para mostrar.
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
+                                                    </div>
+                                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent>
+                                                 <ul className="pl-8 pt-2 space-y-1 list-disc list-inside">
+                                                    {item.publications.map((pub: string) => (
+                                                        <li key={pub} className="text-sm text-muted-foreground">
+                                                            <span
+                                                                className="cursor-pointer hover:text-primary hover:underline"
+                                                                onClick={() => handleCopyToClipboard(pub)}
+                                                                title={`Copiar ${pub}`}
+                                                            >
+                                                                # de publicación: {pub}
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    )) : (
+                                        <div className="text-center text-muted-foreground p-6">
+                                            No hay datos de subcategorías para mostrar.
+                                        </div>
+                                    )}
+                                </Accordion>
                             </CardContent>
                         </Card>
                     </TabsContent>
