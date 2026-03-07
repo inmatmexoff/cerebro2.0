@@ -295,28 +295,52 @@ export default function DirectorioSkusPage() {
                     Totales basados en la búsqueda actual. Haz clic en un elemento del directorio para copiar.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-                    <FolderTree className="h-8 w-8 text-primary" />
-                    <div>
-                      <p className="text-2xl font-bold">{summaryStats.categoryCount}</p>
-                      <p className="text-sm text-muted-foreground">Categorías</p>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                            <FolderTree className="h-8 w-8 text-primary" />
+                            <div>
+                            <p className="text-2xl font-bold">{summaryStats.categoryCount}</p>
+                            <p className="text-sm text-muted-foreground">Categorías</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                            <Folders className="h-8 w-8 text-primary" />
+                            <div>
+                            <p className="text-2xl font-bold">{summaryStats.subCategoryCount}</p>
+                            <p className="text-sm text-muted-foreground">Subcategorías</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                            <Tag className="h-8 w-8 text-primary" />
+                            <div>
+                            <p className="text-2xl font-bold">{summaryStats.skuMdrCount}</p>
+                            <p className="text-sm text-muted-foreground">Nombres Madre</p>
+                            </div>
+                        </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-                    <Folders className="h-8 w-8 text-primary" />
-                    <div>
-                      <p className="text-2xl font-bold">{summaryStats.subCategoryCount}</p>
-                      <p className="text-sm text-muted-foreground">Subcategorías</p>
+                    <div className="border-t pt-4 mt-4 text-sm text-muted-foreground">
+                        <h5 className="font-semibold text-foreground mb-2">Simbología de Contadores</h5>
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                            <div className="flex items-center gap-2">
+                                <span className="font-medium">Categoría:</span>
+                                <Badge variant="secondary"># SKUs</Badge>
+                                <Badge variant="outline"># Subcategorías</Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="font-medium">Subcategoría:</span>
+                                <Badge variant="outline"># SKUs</Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="font-medium">Nombre Madre:</span>
+                                <Badge variant="outline" className="font-mono"># SKUs</Badge>
+                            </div>
+                             <div className="flex items-center gap-2">
+                                <span className="font-medium">SKU Oficial:</span>
+                                <Badge variant="outline" className="border-primary text-primary">Oficial</Badge>
+                            </div>
+                        </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-                    <Tag className="h-8 w-8 text-primary" />
-                    <div>
-                      <p className="text-2xl font-bold">{summaryStats.skuMdrCount}</p>
-                      <p className="text-sm text-muted-foreground">Nombres Madre</p>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
 
