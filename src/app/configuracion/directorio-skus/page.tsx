@@ -37,6 +37,7 @@ type SkuAlterno = {
 type GroupedSkus = {
   [category: string]: {
     count: number;
+    subCategoryCount: number;
     subCategories: {
       [subCategory: string]: {
         count: number;
@@ -136,7 +137,7 @@ export default function DirectorioSkusPage() {
         const skuMdr = sm.sku_mdr;
 
         if (!grouped[category]) {
-            grouped[category] = { count: 0, subCategories: {} };
+            grouped[category] = { count: 0, subCategoryCount: 0, subCategories: {} };
         }
         if (!grouped[category].subCategories[subCategory]) {
             grouped[category].subCategories[subCategory] = { count: 0, skuMdr: {} };
@@ -171,6 +172,7 @@ export default function DirectorioSkusPage() {
     // Calculate counts and clean up empty branches
     Object.keys(grouped).forEach((cat) => {
       let catCount = 0;
+      let subCatGroupCount = 0;
       Object.keys(grouped[cat].subCategories).forEach((subCat) => {
         let subCatCount = 0;
         Object.keys(grouped[cat].subCategories[subCat].skuMdr).forEach(
@@ -195,12 +197,14 @@ export default function DirectorioSkusPage() {
         if (subCatCount > 0) {
             grouped[cat].subCategories[subCat].count = subCatCount;
             catCount += subCatCount;
+            subCatGroupCount++;
         } else {
             delete grouped[cat].subCategories[subCat];
         }
       });
       if (catCount > 0) {
         grouped[cat].count = catCount;
+        grouped[cat].subCategoryCount = subCatGroupCount;
       } else {
         delete grouped[cat];
       }
@@ -339,6 +343,7 @@ export default function DirectorioSkusPage() {
                                 <div className="flex items-center gap-3">
                                     <span className="cursor-pointer" onClick={(e) => { e.stopPropagation(); handleCopyToClipboard(category, 'Categoría')}}>{category}</span>
                                     <Badge variant="secondary">{catData.count}</Badge>
+                                    <Badge variant="outline">{catData.subCategoryCount}</Badge>
                                 </div>
                               </AccordionTrigger>
                               <AccordionContent className="pl-4 sm:pl-6">
