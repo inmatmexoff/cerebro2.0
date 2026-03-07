@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter, PackageSearch, Download, Copy, Check, Pencil } from 'lucide-react';
+import { ArrowLeft, Search, Loader2, ChevronsUpDown, Filter, PackageSearch, Download, Copy, Check, Pencil, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { Badge } from "@/components/ui/badge";
 
 
 // Expanded SaleRecord to include more columns
@@ -654,6 +655,14 @@ export default function HistorialCortesPage() {
         return utilidadBrutaMatch && highShippingCostMatch && markupMatch;
     });
   }, [sales, granTotalFilter, showHighShippingCost, markupFilter]);
+  
+  const topMarkupSales = React.useMemo(() => {
+    return [...filteredItems]
+      .filter(sale => sale.markup !== null && sale.markup !== undefined)
+      .sort((a, b) => (b.markup! - a.markup!))
+      .slice(0, 5);
+  }, [filteredItems]);
+
 
   const sortedItems = React.useMemo(() => {
     return [...filteredItems].sort((a, b) => {
@@ -1455,7 +1464,7 @@ export default function HistorialCortesPage() {
                                             formattedValue = formatCurrency(cellValue as number | null);
                                         } else if (header.key === 'venta_xpublicidad') {
                                             formattedValue = (cellValue as boolean) ? 'Sí' : 'No';
-                                        } else if ((header.key === 'num_publi' || header.key === 'sku') && cellValue) {
+                                        } else if ((header.key === 'num_publi' || header.key === 'sku' || header.key === 'num_venta') && cellValue) {
                                             formattedValue = (
                                                 <span
                                                     className="cursor-pointer hover:text-primary hover:font-medium"
@@ -1523,6 +1532,38 @@ export default function HistorialCortesPage() {
                 )}
             </CardContent>
           </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                        Top 5 Ventas por Markup
+                    </CardTitle>
+                    <CardDescription>Las 5 ventas con el mayor markup en los datos filtrados.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {topMarkupSales.length > 0 ? (
+                        <ul className="space-y-2">
+                            {topMarkupSales.map((sale) => (
+                                <li key={sale.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
+                                <span
+                                    className="font-mono cursor-pointer hover:text-primary"
+                                    onClick={() => handleCopyToClipboard(sale.num_venta)}
+                                >
+                                    #{sale.num_venta}
+                                </span>
+                                <Badge variant="outline" className="font-semibold text-primary border-primary">
+                                    {formatPercentage(sale.markup)}
+                                </Badge>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-muted-foreground text-center">No hay datos de markup para mostrar.</p>
+                    )}
+                </CardContent>
+            </Card>
+
             {sales.length > 0 && (
                 <Tabs 
                 defaultValue="color" 
