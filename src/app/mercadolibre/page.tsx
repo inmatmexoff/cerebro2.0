@@ -69,7 +69,7 @@ export default function MercadoLibrePage() {
           <div>
             <h1 className="text-3xl font-bold">Conectar con Mercado Libre</h1>
             <p className="text-muted-foreground">
-              Autoriza la aplicación para acceder a tus datos de Mercado Libre y visualiza el resultado.
+              Autoriza la aplicación para acceder a tus datos de Mercado Libre. El resultado se mostrará en esta misma pantalla.
             </p>
           </div>
         </header>
