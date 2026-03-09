@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from '@/components/ui/card';
 import { ML_APP_ID, ML_CALLBACK_PATH } from '@/lib/ml-config';
 
@@ -21,6 +22,13 @@ export default function MercadoLibrePage() {
 
   const [responseData, setResponseData] = useState<any | null>(null);
   const [responseError, setResponseError] = useState<string | null>(null);
+  const [redirectUri, setRedirectUri] = useState('');
+
+  useEffect(() => {
+    // This effect runs only on the client, where window.location.origin is available.
+    const uri = `${window.location.origin}${ML_CALLBACK_PATH}`;
+    setRedirectUri(uri);
+  }, []);
 
   useEffect(() => {
     if (dataParam) {
@@ -43,12 +51,12 @@ export default function MercadoLibrePage() {
     }
     // Dynamically construct the redirect URI using the window's origin.
     // This is crucial to avoid using "localhost", which Mercado Libre blocks.
-    const redirectUri = `${window.location.origin}${ML_CALLBACK_PATH}`;
+    const authRedirectUri = `${window.location.origin}${ML_CALLBACK_PATH}`;
 
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: ML_APP_ID,
-      redirect_uri: redirectUri,
+      redirect_uri: authRedirectUri,
     });
 
     // Using the Mexico-specific authorization URL.
@@ -124,6 +132,13 @@ export default function MercadoLibrePage() {
                         Conectar con Mercado Libre
                     </Button>
                 </CardContent>
+                {redirectUri && (
+                    <CardFooter className="flex-col items-start text-xs text-muted-foreground p-4 border-t">
+                        <p className="font-semibold">Configuración Requerida:</p>
+                        <p>Asegúrate de que la siguiente URL esté registrada como "Redirect URI" en tu aplicación de Mercado Libre:</p>
+                        <p className="font-mono bg-muted p-2 rounded-md mt-2 break-all">{redirectUri}</p>
+                    </CardFooter>
+                )}
             </Card>
           )}
         </main>
