@@ -34,12 +34,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${origin}/mercadolibre?error=${encodeURIComponent(errorMessage)}`);
     }
 
-    // Here you would typically save the access_token, refresh_token, etc., to a secure place like a database or session.
+    // Pass the successful token data to the frontend for display.
+    // In a real app, you would handle this more securely (e.g., sessions).
     console.log('Mercado Libre Tokens Received from proxy:', data);
-
-    // Redirect to a success page or the dashboard.
-    const redirectUrl = `${origin}/?ml_connected=true`;
-    return NextResponse.redirect(redirectUrl);
+    const successData = JSON.stringify({ message: '¡Tokens recibidos exitosamente!', tokens: data });
+    return NextResponse.redirect(`${origin}/mercadolibre?data=${encodeURIComponent(successData)}`);
 
   } catch (error) {
     console.error('Internal server error during Mercado Libre auth via proxy:', error);
