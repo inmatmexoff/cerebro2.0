@@ -10,3 +10,4 @@ export const ML_CLIENT_SECRET = process.env.ML_CLIENT_SECRET || '2QqfRfJo4wmZU3r
 // The path for the redirect URI. The full URL will be constructed dynamically
 // using the request's origin to avoid using localhost.
 export const ML_CALLBACK_PATH = '/api/auth/callback/mercadolibre';
+export const ML_API_PROXY_URL = 'https://api-ml-2-p2yw.onrender.com';
