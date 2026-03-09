@@ -13,7 +13,7 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
-import { ML_APP_ID, ML_CALLBACK_PATH } from '@/lib/ml-config';
+import { ML_APP_ID, ML_RENDER_REDIRECT_URI } from '@/lib/ml-config';
 
 export default function MercadoLibrePage() {
   const searchParams = useSearchParams();
@@ -22,13 +22,9 @@ export default function MercadoLibrePage() {
 
   const [responseData, setResponseData] = useState<any | null>(null);
   const [responseError, setResponseError] = useState<string | null>(null);
-  const [redirectUri, setRedirectUri] = useState('');
 
-  useEffect(() => {
-    // This effect runs only on the client, where window.location.origin is available.
-    const uri = `${window.location.origin}${ML_CALLBACK_PATH}`;
-    setRedirectUri(uri);
-  }, []);
+  // The correct redirect URI is the static one from the config file.
+  const redirectUri = ML_RENDER_REDIRECT_URI;
 
   useEffect(() => {
     if (dataParam) {
@@ -49,9 +45,9 @@ export default function MercadoLibrePage() {
         alert("El App ID de Mercado Libre no está configurado.");
         return;
     }
-    // Dynamically construct the redirect URI using the window's origin.
-    // This is crucial to avoid using "localhost", which Mercado Libre blocks.
-    const authRedirectUri = `${window.location.origin}${ML_CALLBACK_PATH}`;
+    
+    // The redirect_uri for the authorization request should be the Render service URL.
+    const authRedirectUri = ML_RENDER_REDIRECT_URI;
 
     const params = new URLSearchParams({
       response_type: 'code',
