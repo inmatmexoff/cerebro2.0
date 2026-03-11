@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
 
 function MercadoLibrePageSkeleton() {
     return (
