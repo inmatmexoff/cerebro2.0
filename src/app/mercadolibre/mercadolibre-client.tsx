@@ -32,7 +32,8 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
-import { ML_APP_ID, ML_REDIRECT_URI } from '@/lib/ml-config';
+import { ML_APP_ID } from '@/lib/ml-config';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const statusMap: { [key: string]: { label: string; color: string } } = {
   active: { label: 'Activa', color: 'bg-green-100 text-green-800' },
@@ -57,6 +58,13 @@ export default function MercadoLibreClient() {
   const [publicationsError, setPublicationsError] = useState<string | null>(
     null
   );
+  
+  // The redirect URI for our app, which must be registered with Mercado Libre
+  const [dynamicRedirectUri, setDynamicRedirectUri] = useState('');
+
+  useEffect(() => {
+    setDynamicRedirectUri(`${window.location.origin}/api/auth/mercadolibre/callback`);
+  }, []);
 
   const fetchPublications = useCallback(async (token: string) => {
     setIsLoadingPublications(true);
@@ -161,14 +169,14 @@ export default function MercadoLibreClient() {
     const dataParam = searchParams.get('data');
     const errorParam = searchParams.get('error');
 
-    // Case 1: Redirected back with an error from our backend or ML
+    // Case 1: Redirected back with an error
     if (errorParam) {
       setConnectionError(errorParam);
       setConnectionStatus('error');
       return;
     }
 
-    // Case 2: Redirected back with data from our backend
+    // Case 2: Redirected back with token data
     if (dataParam) {
       try {
         const parsedData = JSON.parse(dataParam);
@@ -204,6 +212,9 @@ export default function MercadoLibreClient() {
       fetchPublications(existingToken);
     } else {
       setConnectionStatus('idle');
+      localStorage.removeItem('ml_access_token');
+      localStorage.removeItem('ml_refresh_token');
+      localStorage.removeItem('ml_token_expiry');
     }
   }, [searchParams, fetchPublications]);
 
@@ -212,11 +223,15 @@ export default function MercadoLibreClient() {
       alert('El App ID de Mercado Libre no está configurado.');
       return;
     }
+    if (!dynamicRedirectUri) {
+      alert('La URL de redirección no está lista, por favor espera un momento.');
+      return;
+    }
 
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: ML_APP_ID,
-      redirect_uri: ML_REDIRECT_URI,
+      redirect_uri: dynamicRedirectUri,
     });
 
     window.location.href = `https://auth.mercadolibre.com.mx/authorization?${params}`;
@@ -279,9 +294,13 @@ export default function MercadoLibreClient() {
               Asegúrate de que la siguiente URL esté registrada como "Redirect
               URI" en tu aplicación de Mercado Libre:
             </p>
-            <p className="font-mono bg-muted p-2 rounded-md mt-2 break-all">
-              {ML_REDIRECT_URI}
-            </p>
+            {dynamicRedirectUri ? (
+              <p className="font-mono bg-muted p-2 rounded-md mt-2 break-all">
+                {dynamicRedirectUri}
+              </p>
+            ) : (
+               <Skeleton className="h-10 w-full mt-2" />
+            )}
           </CardFooter>
         </Card>
       );
