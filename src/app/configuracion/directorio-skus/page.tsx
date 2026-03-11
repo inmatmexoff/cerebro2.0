@@ -324,8 +324,8 @@ export default function DirectorioSkusPage() {
                         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                             <div className="flex items-center gap-2">
                                 <span className="font-medium">Categoría:</span>
-                                <Badge variant="secondary"># SKUs</Badge>
                                 <Badge variant="outline"># Subcategorías</Badge>
+                                <Badge variant="secondary"># SKUs</Badge>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="font-medium">Subcategoría:</span>
@@ -366,8 +366,8 @@ export default function DirectorioSkusPage() {
                               >
                                 <div className="flex items-center gap-3">
                                     <span className="cursor-pointer" onClick={(e) => { e.stopPropagation(); handleCopyToClipboard(category, 'Categoría')}}>{category}</span>
-                                    <Badge variant="secondary">{catData.count}</Badge>
                                     <Badge variant="outline">{catData.subCategoryCount}</Badge>
+                                    <Badge variant="secondary">{catData.count}</Badge>
                                 </div>
                               </AccordionTrigger>
                               <AccordionContent className="pl-4 sm:pl-6">
