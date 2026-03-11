@@ -13,7 +13,7 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
-import { ML_APP_ID, ML_CALLBACK_PATH } from '@/lib/ml-config';
+import { ML_APP_ID, ML_REDIRECT_URI } from '@/lib/ml-config';
 
 export default function MercadoLibreClient() {
   const searchParams = useSearchParams();
@@ -22,13 +22,6 @@ export default function MercadoLibreClient() {
 
   const [responseData, setResponseData] = useState<any | null>(null);
   const [responseError, setResponseError] = useState<string | null>(null);
-  const [redirectUri, setRedirectUri] = useState<string>('');
-
-  useEffect(() => {
-    // This effect runs on the client, so window is available.
-    setRedirectUri(`${window.location.origin}${ML_CALLBACK_PATH}`);
-  }, []);
-
 
   useEffect(() => {
     if (dataParam) {
@@ -49,14 +42,11 @@ export default function MercadoLibreClient() {
         alert("El App ID de Mercado Libre no está configurado.");
         return;
     }
-    
-    // The redirect_uri for the authorization request should be this app's own API route.
-    const authRedirectUri = `${window.location.origin}${ML_CALLBACK_PATH}`;
 
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: ML_APP_ID,
-      redirect_uri: authRedirectUri,
+      redirect_uri: ML_REDIRECT_URI,
     });
 
     // Using the Mexico-specific authorization URL.
@@ -132,13 +122,11 @@ export default function MercadoLibreClient() {
                         Conectar con Mercado Libre
                     </Button>
                 </CardContent>
-                {redirectUri && (
-                    <CardFooter className="flex-col items-start text-xs text-muted-foreground p-4 border-t">
-                        <p className="font-semibold">Configuración Requerida:</p>
-                        <p>Asegúrate de que la siguiente URL esté registrada como "Redirect URI" en tu aplicación de Mercado Libre:</p>
-                        <p className="font-mono bg-muted p-2 rounded-md mt-2 break-all">{redirectUri}</p>
-                    </CardFooter>
-                )}
+                <CardFooter className="flex-col items-start text-xs text-muted-foreground p-4 border-t">
+                    <p className="font-semibold">Configuración Requerida:</p>
+                    <p>Asegúrate de que la siguiente URL esté registrada como "Redirect URI" en tu aplicación de Mercado Libre:</p>
+                    <p className="font-mono bg-muted p-2 rounded-md mt-2 break-all">{ML_REDIRECT_URI}</p>
+                </CardFooter>
             </Card>
           )}
         </main>

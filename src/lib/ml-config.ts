@@ -1,13 +1,13 @@
 // Credentials provided by user:
 // App ID: 915941616480976
-// Client Secret: 2QqfRfJo4wmZU3rMSijD2DPkxjLt5N2O
 
-// It is strongly recommended to move these to environment variables for production.
-// e.g., NEXT_PUBLIC_ML_APP_ID and ML_CLIENT_SECRET
+// It is strongly recommended to move this to an environment variable for production.
+// e.g., NEXT_PUBLIC_ML_APP_ID
 export const ML_APP_ID = process.env.NEXT_PUBLIC_ML_APP_ID || '915941616480976';
-export const ML_CLIENT_SECRET = process.env.ML_CLIENT_SECRET || '2QqfRfJo4wmZU3rMSijD2DPkxjLt5N2O';
 
-// The path for the redirect URI for the Next.js app's internal API route.
-export const ML_CALLBACK_PATH = '/api/auth/callback/mercadolibre';
-// The URL for the external proxy service on Render.
-export const ML_API_PROXY_URL = 'https://api-ml-2-p2yw.onrender.com';
+// The full callback URL for the external Render service.
+// This is the URL Mercado Libre will redirect to after user authorization.
+export const ML_REDIRECT_URI = 'https://api-ml-2-p2yw.onrender.com/api/auth/callback';
+
+// NOTE: The ML_CLIENT_SECRET is NOT used in this Next.js app. 
+// It should be securely stored as an environment variable on the Render service.
