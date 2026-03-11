@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Save, Loader2, ChevronsUpDown, Check } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, ChevronsUpDown, Check, UploadCloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useForm } from 'react-hook-form';
@@ -20,7 +20,9 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { supabasePROD } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-
+import { useDropzone } from 'react-dropzone';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const devolucionSchema = z.object({
   tienda: z.string().optional(),
@@ -34,16 +36,21 @@ const devolucionSchema = z.object({
   estado_llegada: z.string().optional(),
   reporte: z.boolean().default(false),
   reporte_detalle: z.string().optional(),
-  empaquetador: z.string().optional(),
-  supervisado_por: z.string().optional(),
   error_nosotros: z.boolean().default(false),
-  error_detalle: z.string().optional(),
   observaciones: z.string().optional(),
   factura: z.boolean().default(false),
   num_factura: z.string().optional(),
   revision: z.string().optional(),
-  encargado_etiqueta: z.string().optional(),
-  monto_cobrar_ml: z.coerce.number().optional().nullable(),
+  // New fields for the "Error de Nosotros" modal
+  responsable_barra: z.string().optional(),
+  responsable_picking: z.string().optional(),
+  responsable_calificar: z.string().optional(),
+  saldo_negativo: z.coerce.number().optional().nullable(),
+  foto_error: z.any().optional(), // For file handling
+  descuento_personas: z.string().optional().nullable(),
+  enterado_personal: z.string().optional(),
+  fecha_registro_saldo_negativo: z.date().optional().nullable(),
+  saldo_cobrado: z.boolean().default(false),
 });
 
 type DevolucionFormValues = z.infer<typeof devolucionSchema>;
@@ -62,6 +69,7 @@ export default function NuevaDevolucionPage() {
     
     const [modalState, setModalState] = useState<{type: ModalType | null, open: boolean}>({ type: null, open: false });
     const [modalInputValue, setModalInputValue] = useState('');
+    const [saldoNegativoDateAlert, setSaldoNegativoDateAlert] = useState(false);
 
     const form = useForm<DevolucionFormValues>({
         resolver: zodResolver(devolucionSchema),
@@ -77,23 +85,50 @@ export default function NuevaDevolucionPage() {
             estado_llegada: '',
             reporte: false,
             reporte_detalle: '',
-            empaquetador: '',
-            supervisado_por: '',
             error_nosotros: false,
-            error_detalle: '',
             observaciones: '',
             factura: false,
             num_factura: '',
             revision: '',
-            encargado_etiqueta: '',
-            monto_cobrar_ml: null,
+            responsable_barra: '',
+            responsable_picking: '',
+            responsable_calificar: '',
+            saldo_negativo: null,
+            foto_error: null,
+            descuento_personas: null,
+            enterado_personal: '',
+            fecha_registro_saldo_negativo: null,
+            saldo_cobrado: false,
         },
+    });
+
+    const onDrop = useCallback((acceptedFiles: File[]) => {
+        form.setValue('foto_error', acceptedFiles[0]);
+    }, [form]);
+
+    const { getRootProps, getInputProps, isDragActive, acceptedFiles, fileRejections } = useDropzone({
+        onDrop,
+        accept: { 'image/*': [] },
+        maxFiles: 1,
     });
 
     const watchFechaVenta = form.watch('fecha_venta');
     const watchReporte = form.watch('reporte');
     const watchErrorNosotros = form.watch('error_nosotros');
     const watchFactura = form.watch('factura');
+    const watchFechaRegistroSaldoNegativo = form.watch('fecha_registro_saldo_negativo');
+    const watchSaldoCobrado = form.watch('saldo_cobrado');
+
+    useEffect(() => {
+        if (watchFechaRegistroSaldoNegativo && !watchSaldoCobrado) {
+            const twoWeeksAgo = new Date();
+            twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+            setSaldoNegativoDateAlert(watchFechaRegistroSaldoNegativo < twoWeeksAgo);
+        } else {
+            setSaldoNegativoDateAlert(false);
+        }
+    }, [watchFechaRegistroSaldoNegativo, watchSaldoCobrado]);
+
 
     const handleModalOpen = (type: ModalType, value?: string) => {
         setModalState({ type, open: true });
@@ -101,22 +136,16 @@ export default function NuevaDevolucionPage() {
     };
 
     useEffect(() => {
-        if (watchReporte) {
-            handleModalOpen('reporte', form.getValues('reporte_detalle'));
-        }
-    }, [watchReporte]);
+        if (watchReporte) handleModalOpen('reporte', form.getValues('reporte_detalle'));
+    }, [watchReporte, form]);
 
     useEffect(() => {
-        if (watchErrorNosotros) {
-            handleModalOpen('error');
-        }
+        if (watchErrorNosotros) handleModalOpen('error');
     }, [watchErrorNosotros]);
     
     useEffect(() => {
-        if (watchFactura) {
-            handleModalOpen('factura', form.getValues('num_factura'));
-        }
-    }, [watchFactura]);
+        if (watchFactura) handleModalOpen('factura', form.getValues('num_factura'));
+    }, [watchFactura, form]);
 
 
     const handleModalClose = (saved: boolean) => {
@@ -132,8 +161,8 @@ export default function NuevaDevolucionPage() {
         } else {
             if (type === 'reporte' && !form.getValues('reporte_detalle')) form.setValue('reporte', false);
             if (type === 'error') {
-                 const { error_detalle, encargado_etiqueta, empaquetador, supervisado_por, monto_cobrar_ml } = form.getValues();
-                 if (!error_detalle && !encargado_etiqueta && !empaquetador && !supervisado_por && !monto_cobrar_ml) {
+                 const { responsable_barra, responsable_picking, responsable_calificar, saldo_negativo, enterado_personal } = form.getValues();
+                 if (!responsable_barra && !responsable_picking && !responsable_calificar && !saldo_negativo && !enterado_personal) {
                     form.setValue('error_nosotros', false);
                  }
             }
@@ -227,13 +256,21 @@ export default function NuevaDevolucionPage() {
         };
 
         fetchSales();
-    }, [watchFechaVenta, form, toast]);
+    }, [watchFechaVenta, toast]);
 
 
     async function onSubmit(values: DevolucionFormValues) {
         setIsSaving(true);
         try {
-            const payload = { ...values };
+            const payload = { ...values, foto_error: undefined };
+
+            // Note: File upload logic is not implemented, as it requires a backend with storage.
+            // In a real scenario, you'd upload the file and save the URL.
+            if (values.foto_error) {
+                console.log("File to upload:", values.foto_error.name);
+                // Here you would typically call a function to upload values.foto_error to your storage
+                // and get a URL to save in the database.
+            }
 
             const response = await fetch('/api/devoluciones/nueva', {
                 method: 'POST',
@@ -247,6 +284,8 @@ export default function NuevaDevolucionPage() {
             }
             toast({ title: "Éxito", description: result.message });
             form.reset();
+            form.setValue('foto_error', null);
+
 
         } catch(e: any) {
             toast({ variant: "destructive", title: "Error al registrar", description: e.message });
@@ -276,13 +315,13 @@ export default function NuevaDevolucionPage() {
                 </header>
 
                 <main>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Detalles de la Devolución</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>Detalles de la Devolución</CardTitle>
+                                </CardHeader>
+                                <CardContent>
                                     <div className="grid md:grid-cols-3 gap-6">
                                         <FormField
                                             control={form.control}
@@ -537,69 +576,127 @@ export default function NuevaDevolucionPage() {
                                             )}
                                         />
                                     </div>
-                                    
+                                </CardContent>
+                            </Card>
 
-                                    <Button type="submit" disabled={isSaving}>
-                                        {isSaving ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando...</>) : (<><Save className="w-4 h-4 mr-2" /> Registrar Devolución</>)}
-                                    </Button>
-
-                                    <Dialog open={modalState.open} onOpenChange={(open) => !open && handleModalClose(false)}>
-                                      <DialogContent className="sm:max-w-md">
-                                          <DialogHeader>
-                                              <DialogTitle>
-                                                  {modalState.type === 'reporte' && 'Detalles del Reporte'}
-                                                  {modalState.type === 'error' && 'Detalles del Error'}
-                                                  {modalState.type === 'factura' && 'Número de Factura'}
-                                              </DialogTitle>
-                                              <DialogDescription>
-                                                  {modalState.type === 'reporte' && 'Por favor, proporciona detalles sobre el reporte.'}
-                                                  {modalState.type === 'error' && 'Por favor, completa los detalles del error.'}
-                                                  {modalState.type === 'factura' && 'Por favor, ingresa el número de factura asociado.'}
-                                              </DialogDescription>
-                                          </DialogHeader>
-                                          
-                                          {modalState.type === 'error' && (
-                                              <div className="space-y-4 py-4">
-                                                  <FormField control={form.control} name="encargado_etiqueta" render={({ field }) => (<FormItem><FormLabel>Encargado de etiqueta</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                                  <FormField control={form.control} name="empaquetador" render={({ field }) => (<FormItem><FormLabel>Persona que empacó</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                                  <FormField control={form.control} name="supervisado_por" render={({ field }) => (<FormItem><FormLabel>Persona de control de calidad</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                                  <FormField control={form.control} name="monto_cobrar_ml" render={({ field }) => (<FormItem><FormLabel>Monto a cobrar a Mercado Libre</FormLabel><FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                                  <FormField control={form.control} name="error_detalle" render={({ field }) => (<FormItem><FormLabel>Detalles adicionales del error</FormLabel><FormControl><Textarea placeholder="Describe el error..." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                              </div>
-                                          )}
-    
-                                          {modalState.type === 'reporte' && (
-                                              <div className="py-4">
-                                                  <Textarea 
-                                                      placeholder="Añade los detalles aquí..."
-                                                      value={modalInputValue}
-                                                      onChange={(e) => setModalInputValue(e.target.value)} 
-                                                  />
-                                              </div>
-                                          )}
-                                          
-                                          {modalState.type === 'factura' && (
-                                              <div className="py-4">
-                                                  <Input 
-                                                      placeholder="Número de factura" 
-                                                      value={modalInputValue}
-                                                      onChange={(e) => setModalInputValue(e.target.value)}
-                                                  />
-                                              </div>
-                                          )}
-    
-                                          <DialogFooter>
-                                              <Button type="button" variant="ghost" onClick={() => handleModalClose(false)}>Cancelar</Button>
-                                              <Button type="button" onClick={() => handleModalClose(true)}>Guardar</Button>
-                                          </DialogFooter>
-                                      </DialogContent>
-                                  </Dialog>
-                                </form>
-                            </Form>
-                        </CardContent>
-                    </Card>
+                            <div className="flex justify-start">
+                               <Button type="submit" disabled={isSaving}>
+                                    {isSaving ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando...</>) : (<><Save className="w-4 h-4 mr-2" /> Registrar Devolución</>)}
+                                </Button>
+                            </div>
+                        </form>
+                    </Form>
                 </main>
             </div>
+             <Dialog open={modalState.open} onOpenChange={(open) => !open && handleModalClose(false)}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {modalState.type === 'reporte' && 'Detalles del Reporte'}
+                            {modalState.type === 'error' && 'Detalles del Error'}
+                            {modalState.type === 'factura' && 'Número de Factura'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {modalState.type === 'reporte' && 'Por favor, proporciona detalles sobre el reporte.'}
+                            {modalState.type === 'error' && 'Por favor, completa los detalles del error.'}
+                            {modalState.type === 'factura' && 'Por favor, ingresa el número de factura asociado.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <Form {...form}>
+                        {modalState.type === 'error' && (
+                            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="responsable_barra" render={({ field }) => (<FormItem><FormLabel>Responsable de Barra</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="responsable_picking" render={({ field }) => (<FormItem><FormLabel>Responsable de Picking</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="responsable_calificar" render={({ field }) => (<FormItem><FormLabel>Responsable de Calificar</FormLabel><FormControl><Input placeholder="Nombre" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="saldo_negativo" render={({ field }) => (<FormItem><FormLabel>Saldo Negativo de Devolución</FormLabel><FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                </div>
+
+                                <FormField control={form.control} name="foto_error" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Foto del Error</FormLabel>
+                                        <FormControl>
+                                            <div {...getRootProps()} className={cn("border-2 border-dashed rounded-md p-6 text-center cursor-pointer", isDragActive && "border-primary bg-primary/10")}>
+                                                <input {...getInputProps()} />
+                                                <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground"/>
+                                                {acceptedFiles.length > 0 ? (
+                                                    <p className="mt-2 text-sm text-primary">{acceptedFiles[0].name}</p>
+                                                ) : (
+                                                    <p className="mt-2 text-sm text-muted-foreground">Arrastra una imagen o haz clic para seleccionarla.</p>
+                                                )}
+                                            </div>
+                                        </FormControl>
+                                        {fileRejections.length > 0 && <FormMessage>El archivo debe ser una imagen.</FormMessage>}
+                                    </FormItem>
+                                )}
+                                
+                                <FormField control={form.control} name="descuento_personas" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Descuento por Personal</FormLabel>
+                                        <FormDescription>Dividir costo entre el número de personas.</FormDescription>
+                                        <FormControl>
+                                            <RadioGroup onValueChange={field.onChange} value={field.value ?? undefined} className="flex space-x-4 pt-2">
+                                                <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="1" /></FormControl><FormLabel className="font-normal">1</FormLabel></FormItem>
+                                                <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="2" /></FormControl><FormLabel className="font-normal">2</FormLabel></FormItem>
+                                                <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="3" /></FormControl><FormLabel className="font-normal">3</FormLabel></FormItem>
+                                            </RadioGroup>
+                                        </FormControl>
+                                    </FormItem>
+                                )} />
+
+                                <FormField control={form.control} name="enterado_personal" render={({ field }) => (<FormItem><FormLabel>Enterado Personal</FormLabel><FormControl><Textarea placeholder="Nombres de las personas enteradas..." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                
+                                <FormField control={form.control} name="fecha_registro_saldo_negativo" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha Registro Saldo Negativo</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                                {saldoNegativoDateAlert && (
+                                    <Alert variant="destructive">
+                                      <AlertTitle>Alerta de Límite de Tiempo</AlertTitle>
+                                      <AlertDescription>
+                                        Han pasado más de 2 semanas desde el registro del saldo negativo y aún no se ha marcado como cobrado.
+                                      </AlertDescription>
+                                    </Alert>
+                                )}
+                                
+                                <FormField control={form.control} name="saldo_cobrado" render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                                        <div className="space-y-1">
+                                            <FormLabel>Saldo Cobrado</FormLabel>
+                                            <FormDescription>Lo llena el encargado de nómina.</FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                    </FormItem>
+                                )} />
+                            </div>
+                        )}
+
+                        {modalState.type === 'reporte' && (
+                            <div className="py-4">
+                                <Textarea 
+                                    placeholder="Añade los detalles aquí..."
+                                    value={modalInputValue}
+                                    onChange={(e) => setModalInputValue(e.target.value)} 
+                                />
+                            </div>
+                        )}
+                        
+                        {modalState.type === 'factura' && (
+                            <div className="py-4">
+                                <Input 
+                                    placeholder="Número de factura" 
+                                    value={modalInputValue}
+                                    onChange={(e) => setModalInputValue(e.target.value)}
+                                />
+                            </div>
+                        )}
+                    </Form>
+                    <DialogFooter>
+                        <Button type="button" variant="ghost" onClick={() => handleModalClose(false)}>Cancelar</Button>
+                        <Button type="button" onClick={() => handleModalClose(true)}>Guardar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
