@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Save, Loader2, ChevronsUpDown, Check, UploadCloud } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, ChevronsUpDown, Check, UploadCloud, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
@@ -24,6 +24,15 @@ import { useDropzone } from 'react-dropzone';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
+const casoSchema = z.object({
+  numero_caso: z.string().optional().nullable(),
+  fecha_apertura: z.date().optional().nullable(),
+  tiempo_respuesta: z.string().optional().nullable(),
+  veredicto: z.enum(['FAVORABLE', 'EN_CONTRA']).optional().nullable(),
+  saldo: z.coerce.number().optional().nullable(),
+  fecha_verificacion: z.date().optional().nullable(),
+});
+
 const devolucionSchema = z.object({
   tienda: z.string().optional(),
   num_venta: z.string().optional().nullable(),
@@ -35,7 +44,7 @@ const devolucionSchema = z.object({
   motivo_devolucion: z.string().optional(),
   estado_llegada: z.string().optional(),
   reporte: z.boolean().default(false),
-  reporte_detalle: z.string().optional(),
+  casos: z.array(casoSchema).optional(),
   error_nosotros: z.boolean().default(false),
   observaciones: z.string().optional(),
   factura: z.boolean().default(false),
@@ -57,6 +66,16 @@ type DevolucionFormValues = z.infer<typeof devolucionSchema>;
 
 type ModalType = 'reporte' | 'error' | 'factura';
 
+const defaultCasoValues = {
+    numero_caso: '',
+    fecha_apertura: null,
+    tiempo_respuesta: '',
+    veredicto: null as 'FAVORABLE' | 'EN_CONTRA' | null,
+    saldo: null,
+    fecha_verificacion: null,
+};
+
+
 export default function NuevaDevolucionPage() {
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
@@ -68,7 +87,6 @@ export default function NuevaDevolucionPage() {
     const [isLoadingSales, setIsLoadingSales] = useState(false);
     
     const [modalState, setModalState] = useState<{type: ModalType | null, open: boolean}>({ type: null, open: false });
-    const [modalInputValue, setModalInputValue] = useState('');
     const [saldoNegativoDateAlert, setSaldoNegativoDateAlert] = useState(false);
 
     const form = useForm<DevolucionFormValues>({
@@ -84,7 +102,7 @@ export default function NuevaDevolucionPage() {
             motivo_devolucion: '',
             estado_llegada: '',
             reporte: false,
-            reporte_detalle: '',
+            casos: [],
             error_nosotros: false,
             observaciones: '',
             factura: false,
@@ -100,6 +118,11 @@ export default function NuevaDevolucionPage() {
             fecha_registro_saldo_negativo: null,
             saldo_cobrado: false,
         },
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: "casos",
     });
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -130,22 +153,30 @@ export default function NuevaDevolucionPage() {
     }, [watchFechaRegistroSaldoNegativo, watchSaldoCobrado]);
 
 
-    const handleModalOpen = (type: ModalType, value?: string) => {
+    const handleModalOpen = (type: ModalType) => {
+        if (type === 'reporte' && (!form.getValues('casos') || form.getValues('casos')?.length === 0)) {
+            append(defaultCasoValues, { shouldFocus: false });
+        }
         setModalState({ type, open: true });
-        setModalInputValue(value || '');
     };
 
     useEffect(() => {
-        if (watchReporte) handleModalOpen('reporte', form.getValues('reporte_detalle'));
-    }, [watchReporte, form]);
-
+        if (watchReporte && !modalState.open) {
+          handleModalOpen('reporte');
+        }
+    }, [watchReporte]);
+    
     useEffect(() => {
-        if (watchErrorNosotros) handleModalOpen('error');
+        if (watchErrorNosotros && !modalState.open) {
+          handleModalOpen('error');
+        }
     }, [watchErrorNosotros]);
     
     useEffect(() => {
-        if (watchFactura) handleModalOpen('factura', form.getValues('num_factura'));
-    }, [watchFactura, form]);
+        if (watchFactura && !modalState.open) {
+          handleModalOpen('factura');
+        }
+    }, [watchFactura]);
 
 
     const handleModalClose = (saved: boolean) => {
@@ -155,11 +186,17 @@ export default function NuevaDevolucionPage() {
             return;
         };
 
-        if (saved) {
-            if (type === 'reporte') form.setValue('reporte_detalle', modalInputValue);
-            if (type === 'factura') form.setValue('num_factura', modalInputValue);
-        } else {
-            if (type === 'reporte' && !form.getValues('reporte_detalle')) form.setValue('reporte', false);
+        if (!saved) {
+            if (type === 'reporte') {
+                const casos = form.getValues('casos');
+                const isEmpty = !casos || casos.length === 0 || casos.every(
+                    c => !c.numero_caso && !c.fecha_apertura && !c.tiempo_respuesta && !c.veredicto && !c.saldo && !c.fecha_verificacion
+                );
+                if (isEmpty) {
+                    form.setValue('reporte', false);
+                    if (casos && casos.length > 0) form.setValue('casos', []);
+                }
+            }
             if (type === 'error') {
                  const { responsable_barra, responsable_picking, responsable_calificar, saldo_negativo, enterado_personal } = form.getValues();
                  if (!responsable_barra && !responsable_picking && !responsable_calificar && !saldo_negativo && !enterado_personal) {
@@ -169,8 +206,13 @@ export default function NuevaDevolucionPage() {
             if (type === 'factura' && !form.getValues('num_factura')) form.setValue('factura', false);
         }
         setModalState({ type: null, open: false });
-        setModalInputValue('');
     };
+    
+    useEffect(() => {
+        if (!watchReporte) {
+            form.setValue('casos', []); // Clear the array when the switch is turned off
+        }
+    }, [watchReporte, form]);
 
     useEffect(() => {
         const fetchSkus = async () => {
@@ -262,7 +304,29 @@ export default function NuevaDevolucionPage() {
     async function onSubmit(values: DevolucionFormValues) {
         setIsSaving(true);
         try {
-            const payload = { ...values, foto_error: undefined };
+            let reporte_detalle = '';
+            if (values.reporte && values.casos && values.casos.length > 0) {
+                reporte_detalle = values.casos.map((caso, index) => {
+                    const parts = [
+                        `Caso #${index + 1}`,
+                        `# Caso ML: ${caso.numero_caso || 'N/A'}`,
+                        `Apertura: ${caso.fecha_apertura?.toLocaleDateString('es-MX') || 'N/A'}`,
+                        `Tiempo Resp.: ${caso.tiempo_respuesta || 'N/A'}`,
+                        `Veredicto: ${caso.veredicto || 'N/A'}`,
+                        `Saldo: ${caso.saldo ?? 'N/A'}`,
+                        `Verificación: ${caso.fecha_verificacion?.toLocaleDateString('es-MX') || 'N/A'}`,
+                    ];
+                    return parts.join('; ');
+                }).join(' | ');
+            }
+
+            const { casos, ...restOfValues } = values;
+
+            const payload = { 
+                ...restOfValues, 
+                reporte_detalle,
+                foto_error: undefined 
+            };
 
             // Note: File upload logic is not implemented, as it requires a backend with storage.
             // In a real scenario, you'd upload the file and save the URL.
@@ -597,13 +661,64 @@ export default function NuevaDevolucionPage() {
                             {modalState.type === 'factura' && 'Número de Factura'}
                         </DialogTitle>
                         <DialogDescription>
-                            {modalState.type === 'reporte' && 'Por favor, proporciona detalles sobre el reporte.'}
+                            {modalState.type === 'reporte' && 'Completa la información de los casos abiertos en Mercado Libre.'}
                             {modalState.type === 'error' && 'Por favor, completa los detalles del error.'}
                             {modalState.type === 'factura' && 'Por favor, ingresa el número de factura asociado.'}
                         </DialogDescription>
                     </DialogHeader>
                     
                     <Form {...form}>
+                        {modalState.type === 'reporte' && (
+                             <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
+                                {fields.map((field, index) => (
+                                    <div key={field.id} className="p-4 border rounded-lg space-y-4 relative">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="font-semibold text-lg">Caso #{index + 1}</h4>
+                                            {fields.length > 1 && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7"
+                                                    onClick={() => remove(index)}
+                                                >
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <FormField control={form.control} name={`casos.${index}.numero_caso`} render={({ field }) => (<FormItem><FormLabel># Caso (ML)</FormLabel><FormControl><Input placeholder="Ej. 123456789" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                            <FormField control={form.control} name={`casos.${index}.fecha_apertura`} render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Apertura</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                                            <FormField control={form.control} name={`casos.${index}.tiempo_respuesta`} render={({ field }) => (<FormItem><FormLabel>Tiempo de Respuesta</FormLabel><FormControl><Input placeholder="Ej. 48 horas" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                            <FormField control={form.control} name={`casos.${index}.veredicto`} render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Veredicto</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value ?? undefined}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona..." />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="FAVORABLE">Favorable</SelectItem>
+                                                            <SelectItem value="EN_CONTRA">En Contra</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={form.control} name={`casos.${index}.saldo`} render={({ field }) => (<FormItem><FormLabel>Saldo</FormLabel><FormControl><Input type="number" step="0.01" placeholder="Ej. 250.00" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                            <FormField control={form.control} name={`casos.${index}.fecha_verificacion`} render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Verificación</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                                        </div>
+                                    </div>
+                                ))}
+                                <Button type="button" variant="outline" onClick={() => append(defaultCasoValues)}>
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Abrir otro caso
+                                </Button>
+                            </div>
+                        )}
                         {modalState.type === 'error' && (
                             <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
                                 <div className="grid md:grid-cols-2 gap-4">
@@ -670,24 +785,18 @@ export default function NuevaDevolucionPage() {
                                 )} />
                             </div>
                         )}
-
-                        {modalState.type === 'reporte' && (
-                            <div className="py-4">
-                                <Textarea 
-                                    placeholder="Añade los detalles aquí..."
-                                    value={modalInputValue}
-                                    onChange={(e) => setModalInputValue(e.target.value)} 
-                                />
-                            </div>
-                        )}
                         
                         {modalState.type === 'factura' && (
                             <div className="py-4">
-                                <Input 
-                                    placeholder="Número de factura" 
-                                    value={modalInputValue}
-                                    onChange={(e) => setModalInputValue(e.target.value)}
-                                />
+                                <FormField control={form.control} name="num_factura" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Número de Factura</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Ej. F-12345" {...field} value={field.value ?? ''} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
                             </div>
                         )}
                     </Form>

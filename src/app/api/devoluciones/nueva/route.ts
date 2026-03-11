@@ -48,6 +48,7 @@ export async function POST(request: Request) {
             observacion: finalObservacion || null,
             factura: body.factura,
             s_revision: body.revision || null,
+            reporte_detalle: body.reporte_detalle || null,
         };
 
         const { data, error } = await supabasePROD
