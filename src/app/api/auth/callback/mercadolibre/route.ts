@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ML_CALLBACK_PATH, ML_API_PROXY_URL } from '@/lib/ml-config';
+import { ML_CALLBACK_PATH, ML_API_PROXY_URL, ML_RENDER_REDIRECT_URI } from '@/lib/ml-config';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const origin = request.nextUrl.origin;
 
-  // Dynamically construct the redirect URI using the request's origin.
-  const redirectUri = `${origin}${ML_CALLBACK_PATH}`;
+  // The redirect URI for the proxy to use is the one registered with ML,
+  // which is the Render service's callback URL.
+  const redirectUriForProxy = ML_RENDER_REDIRECT_URI;
 
   if (!code) {
     const errorDescription = searchParams.get('error_description') || 'No code provided by Mercado Libre.';
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
       },
       body: JSON.stringify({
         code: code,
-        redirect_uri: redirectUri,
+        redirect_uri: redirectUriForProxy,
       }),
     });
 
