@@ -13,7 +13,7 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
-import { ML_APP_ID, ML_RENDER_REDIRECT_URI } from '@/lib/ml-config';
+import { ML_APP_ID, ML_REDIRECT_URI } from '@/lib/ml-config';
 
 export default function MercadoLibreClient() {
   const searchParams = useSearchParams();
@@ -55,7 +55,7 @@ export default function MercadoLibreClient() {
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: ML_APP_ID,
-      redirect_uri: ML_RENDER_REDIRECT_URI,
+      redirect_uri: ML_REDIRECT_URI,
     });
 
     window.location.href = `https://auth.mercadolibre.com.mx/authorization?${params}`;
@@ -136,7 +136,7 @@ export default function MercadoLibreClient() {
                 <CardFooter className="flex-col items-start text-xs text-muted-foreground p-4 border-t">
                     <p className="font-semibold">Configuración Requerida:</p>
                     <p>Asegúrate de que la siguiente URL esté registrada como "Redirect URI" en tu aplicación de Mercado Libre:</p>
-                    <p className="font-mono bg-muted p-2 rounded-md mt-2 break-all">{ML_RENDER_REDIRECT_URI}</p>
+                    <p className="font-mono bg-muted p-2 rounded-md mt-2 break-all">{ML_REDIRECT_URI}</p>
                 </CardFooter>
             </Card>
           )}
