@@ -32,8 +32,12 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
-import { ML_APP_ID } from '@/lib/ml-config';
 import { Skeleton } from '@/components/ui/skeleton';
+
+// Hardcoded App ID and Redirect URI for simplicity and to address user feedback
+const ML_APP_ID = '915941616480976';
+const ML_REDIRECT_URI = 'https://api-ml-2-p2yw.onrender.com/callback';
+
 
 const statusMap: { [key: string]: { label: string; color: string } } = {
   active: { label: 'Activa', color: 'bg-green-100 text-green-800' },
@@ -58,13 +62,6 @@ export default function MercadoLibreClient() {
   const [publicationsError, setPublicationsError] = useState<string | null>(
     null
   );
-  
-  // The redirect URI for our app, which must be registered with Mercado Libre
-  const [dynamicRedirectUri, setDynamicRedirectUri] = useState('');
-
-  useEffect(() => {
-    setDynamicRedirectUri(`${window.location.origin}/api/auth/mercadolibre/callback`);
-  }, []);
 
   const fetchPublications = useCallback(async (token: string) => {
     setIsLoadingPublications(true);
@@ -223,15 +220,11 @@ export default function MercadoLibreClient() {
       alert('El App ID de Mercado Libre no está configurado.');
       return;
     }
-    if (!dynamicRedirectUri) {
-      alert('La URL de redirección no está lista, por favor espera un momento.');
-      return;
-    }
-
+    
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: ML_APP_ID,
-      redirect_uri: dynamicRedirectUri,
+      redirect_uri: ML_REDIRECT_URI,
     });
 
     window.location.href = `https://auth.mercadolibre.com.mx/authorization?${params}`;
@@ -294,13 +287,9 @@ export default function MercadoLibreClient() {
               Asegúrate de que la siguiente URL esté registrada como "Redirect
               URI" en tu aplicación de Mercado Libre:
             </p>
-            {dynamicRedirectUri ? (
-              <p className="font-mono bg-muted p-2 rounded-md mt-2 break-all">
-                {dynamicRedirectUri}
-              </p>
-            ) : (
-               <Skeleton className="h-10 w-full mt-2" />
-            )}
+             <p className="font-mono bg-muted p-2 rounded-md mt-2 break-all">
+                {ML_REDIRECT_URI}
+            </p>
           </CardFooter>
         </Card>
       );
