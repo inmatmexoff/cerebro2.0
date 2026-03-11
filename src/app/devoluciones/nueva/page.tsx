@@ -629,7 +629,7 @@ export default function NuevaDevolucionPage() {
                                         </FormControl>
                                         {fileRejections.length > 0 && <FormMessage>El archivo debe ser una imagen.</FormMessage>}
                                     </FormItem>
-                                )}
+                                )} />
                                 
                                 <FormField control={form.control} name="descuento_personas" render={({ field }) => (
                                     <FormItem>
