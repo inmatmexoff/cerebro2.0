@@ -13,7 +13,7 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
-import { ML_APP_ID, ML_RENDER_REDIRECT_URI } from '@/lib/ml-config';
+import { ML_APP_ID, ML_CALLBACK_PATH } from '@/lib/ml-config';
 
 export default function MercadoLibreClient() {
   const searchParams = useSearchParams();
@@ -22,9 +22,13 @@ export default function MercadoLibreClient() {
 
   const [responseData, setResponseData] = useState<any | null>(null);
   const [responseError, setResponseError] = useState<string | null>(null);
+  const [redirectUri, setRedirectUri] = useState<string>('');
 
-  // The correct redirect URI is the static one from the config file.
-  const redirectUri = ML_RENDER_REDIRECT_URI;
+  useEffect(() => {
+    // This effect runs on the client, so window is available.
+    setRedirectUri(`${window.location.origin}${ML_CALLBACK_PATH}`);
+  }, []);
+
 
   useEffect(() => {
     if (dataParam) {
@@ -46,8 +50,8 @@ export default function MercadoLibreClient() {
         return;
     }
     
-    // The redirect_uri for the authorization request should be the Render service URL.
-    const authRedirectUri = ML_RENDER_REDIRECT_URI;
+    // The redirect_uri for the authorization request should be this app's own API route.
+    const authRedirectUri = `${window.location.origin}${ML_CALLBACK_PATH}`;
 
     const params = new URLSearchParams({
       response_type: 'code',

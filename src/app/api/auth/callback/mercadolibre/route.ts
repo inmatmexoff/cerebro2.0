@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ML_CALLBACK_PATH, ML_API_PROXY_URL, ML_RENDER_REDIRECT_URI } from '@/lib/ml-config';
+import { ML_CALLBACK_PATH, ML_API_PROXY_URL } from '@/lib/ml-config';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
   const origin = request.nextUrl.origin;
 
   // The redirect URI for the proxy to use is the one registered with ML,
-  // which is the Render service's callback URL.
-  const redirectUriForProxy = ML_RENDER_REDIRECT_URI;
+  // which is this Next.js app's own callback URL.
+  const redirectUriForProxy = `${origin}${ML_CALLBACK_PATH}`;
 
   if (!code) {
     const errorDescription = searchParams.get('error_description') || 'No code provided by Mercado Libre.';
