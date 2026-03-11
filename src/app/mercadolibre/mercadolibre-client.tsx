@@ -13,7 +13,7 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
-import { ML_APP_ID, ML_REDIRECT_URI } from '@/lib/ml-config';
+import { ML_APP_ID, ML_RENDER_REDIRECT_URI } from '@/lib/ml-config';
 
 export default function MercadoLibreClient() {
   const searchParams = useSearchParams();
@@ -26,7 +26,16 @@ export default function MercadoLibreClient() {
   useEffect(() => {
     if (dataParam) {
       try {
-        setResponseData(JSON.parse(dataParam));
+        const parsedData = JSON.parse(dataParam);
+        setResponseData(parsedData);
+        if (parsedData.tokens && parsedData.tokens.access_token) {
+          // Store the access token and refresh token in local storage
+          localStorage.setItem('ml_access_token', parsedData.tokens.access_token);
+          localStorage.setItem('ml_refresh_token', parsedData.tokens.refresh_token);
+          // Also store expiry time
+          const expiryTime = new Date().getTime() + (parsedData.tokens.expires_in * 1000);
+          localStorage.setItem('ml_token_expiry', expiryTime.toString());
+        }
       } catch (e) {
         setResponseError('Error al procesar la respuesta del servidor.');
       }
@@ -46,10 +55,9 @@ export default function MercadoLibreClient() {
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: ML_APP_ID,
-      redirect_uri: ML_REDIRECT_URI,
+      redirect_uri: ML_RENDER_REDIRECT_URI,
     });
 
-    // Using the Mexico-specific authorization URL.
     window.location.href = `https://auth.mercadolibre.com.mx/authorization?${params}`;
   };
 
@@ -83,7 +91,7 @@ export default function MercadoLibreClient() {
                  <CardDescription>
                   {responseError 
                     ? 'Ocurrió un error durante el proceso de autenticación.' 
-                    : 'Estos son los tokens de acceso que tu API de proxy ha obtenido de Mercado Libre. No se almacenan en el navegador.'
+                    : 'La conexión se ha establecido correctamente. Ya puedes acceder a las funcionalidades que utilizan la API de Mercado Libre.'
                   }
                 </CardDescription>
               </CardHeader>
@@ -94,13 +102,16 @@ export default function MercadoLibreClient() {
                         <p>{responseError}</p>
                     </div>
                 ) : responseData ? (
-                    <div>
-                        <p className="font-semibold mb-2">
-                            {responseData.message}
+                    <div className="space-y-2">
+                        <p className="font-semibold text-primary">
+                            ¡Conexión exitosa!
                         </p>
-                        <pre className="bg-muted p-4 rounded-md overflow-x-auto text-sm">
-                            {JSON.stringify(responseData.tokens, null, 2)}
-                        </pre>
+                        <p className="text-sm">
+                            Hemos guardado tu token de acceso en tu navegador. Ahora puedes ir a la sección de publicaciones.
+                        </p>
+                         <Button asChild className="mt-4">
+                            <Link href="/corte-de-caja/publicaciones">Ver mis publicaciones</Link>
+                        </Button>
                     </div>
                 ) : null}
                  <Button asChild variant="link" className="px-0 mt-4">
@@ -125,7 +136,7 @@ export default function MercadoLibreClient() {
                 <CardFooter className="flex-col items-start text-xs text-muted-foreground p-4 border-t">
                     <p className="font-semibold">Configuración Requerida:</p>
                     <p>Asegúrate de que la siguiente URL esté registrada como "Redirect URI" en tu aplicación de Mercado Libre:</p>
-                    <p className="font-mono bg-muted p-2 rounded-md mt-2 break-all">{ML_REDIRECT_URI}</p>
+                    <p className="font-mono bg-muted p-2 rounded-md mt-2 break-all">{ML_RENDER_REDIRECT_URI}</p>
                 </CardFooter>
             </Card>
           )}
