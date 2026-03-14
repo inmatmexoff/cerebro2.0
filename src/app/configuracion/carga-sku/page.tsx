@@ -25,7 +25,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 
 // Define column headers for the preview table
-const TABLE_HEADERS = ['sku', 'NOMBRE MADRE', 'Categoría Madre', 'Sub-Categoría', 'landed_cost', 'piezas_xcontenedor', 'esti_time', 'piezas_por_sku', 'proveedor'];
+const TABLE_HEADERS = ['sku', 'NOMBRE MADRE', 'Categoría Madre', 'Sub-Categoría', 'landed_cost', 'piezas_xcontenedor', 'esti_time', 'piezas_por_sku', 'empresa', 'empaquetado master', 'tipo de empaquetado', 'piezas por master', 'proveedor'];
+
 
 const manualSkuSchema = z.object({
     sku: z.string().min(1, { message: "SKU es requerido." }),
@@ -74,7 +75,11 @@ export default function CargaSkuPage() {
             'piezas_por_sku',     // F
             'esti_time',          // G
             'piezas_xcontenedor', // H
-            'proveedor',          // I
+            'empresa',            // I
+            'empaquetado master', // J
+            'tipo de empaquetado',// K
+            'piezas por master',  // L
+            'proveedor',          // M
         ];
         const ws = XLSX.utils.aoa_to_sheet([headers]);
         const wb = XLSX.utils.book_new();
@@ -144,8 +149,9 @@ export default function CargaSkuPage() {
                 }
 
                 const dataRows = json.slice(1);
-                // Mapeo de columnas: sku (A->0), NOMBRE MADRE (C->2), Categoría Madre (B->1), Sub-Categoría (D->3), landed_cost (E->4), piezas_xcontenedor (H->7), esti_time (G->6), piezas_por_sku (F->5), proveedor (I->8)
-                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[4], row[7], row[6], row[5], row[8]]);
+                // Mapeo de columnas: sku (A->0), NOMBRE MADRE (C->2), Categoría Madre (B->1), Sub-Categoría (D->3), landed_cost (E->4), piezas_xcontenedor (H->7), esti_time (G->6), piezas_por_sku (F->5), empresa (I->8), empaquetado master (J->9), tipo de empaquetado (K->10), piezas por master (L->11), proveedor (M->12)
+                const extractedData = dataRows.map(row => [row[0], row[2], row[1], row[3], row[4], row[7], row[6], row[5], row[8], row[9], row[10], row[11], row[12]]);
+
                 
                 // Filter out rows where essential columns are empty
                 const validatedData = extractedData.filter(row => 
@@ -225,7 +231,7 @@ export default function CargaSkuPage() {
                 sub_categoria: String(row[3] || '').trim(),
                 landed_cost: row[4], 
                 piezas_xcontenedor: row[5],
-                proveedor: row[8] || null,
+                proveedor: row[12] || null,
                 esti_time: row[6],
                 piezas_por_sku: row[7],
             }));
