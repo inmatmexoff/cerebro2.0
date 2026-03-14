@@ -227,6 +227,7 @@ export default function ExcelVentasPage() {
   const { toast } = useToast();
   const [progress, setProgress] = React.useState(0);
 
+  const [checkedRows, setCheckedRows] = React.useState(new Set<number>());
   const [skuSearchTerm, setSkuSearchTerm] = React.useState('');
   const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit'>('all');
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
@@ -477,6 +478,7 @@ export default function ExcelVentasPage() {
       setError(null);
       setHeaders([]);
       setData([]);
+      setCheckedRows(new Set());
       setIsProcessing(true);
       setProgress(0);
 
@@ -1247,6 +1249,7 @@ export default function ExcelVentasPage() {
     setHeaders([]);
     setData([]);
     setError(null);
+    setCheckedRows(new Set());
     setSelectedColumns(new Set());
     setProgress(0);
     setValidationIssues(null);
@@ -1492,6 +1495,7 @@ export default function ExcelVentasPage() {
               tip_publi: String(row[newIndices.tip_publi] || ''),
               total_final: parseCurrency(row[newIndices.total_final]),
               markup: parseCurrency(row[newIndices.markup]),
+              check: checkedRows.has(row[0]),
             };
           })
           .filter((record) => record.num_venta);
@@ -1510,6 +1514,9 @@ export default function ExcelVentasPage() {
               throw new Error(
                 "La columna 'markup' no existe en la tabla 'ml_sales'. Por favor, añádela antes de guardar."
               );
+            }
+             if (insertError.message.includes('column "check" of relation "ml_sales" does not exist')) {
+              throw new Error("La columna 'check' no existe en la tabla 'ml_sales'. Por favor, contacta a soporte para añadirla.");
             }
             if (
               insertError.message.includes(
@@ -1815,6 +1822,29 @@ export default function ExcelVentasPage() {
       })
       .slice(0, 5);
   }, [filteredData, headers]);
+  
+  const visibleRowNumbers = React.useMemo(() => filteredData.map(row => row[0]), [filteredData]);
+  const isAllVisibleChecked = visibleRowNumbers.length > 0 && visibleRowNumbers.every(num => checkedRows.has(num));
+
+  const handleToggleAllVisible = (checked: boolean) => {
+    const newCheckedRows = new Set(checkedRows);
+    if (checked) {
+        visibleRowNumbers.forEach(num => newCheckedRows.add(num));
+    } else {
+        visibleRowNumbers.forEach(num => newCheckedRows.delete(num));
+    }
+    setCheckedRows(newCheckedRows);
+  };
+
+  const handleRowCheck = (rowNum: number, checked: boolean) => {
+      const newCheckedRows = new Set(checkedRows);
+      if (checked) {
+          newCheckedRows.add(rowNum);
+      } else {
+          newCheckedRows.delete(rowNum);
+      }
+      setCheckedRows(newCheckedRows);
+  };
 
 
   return (
@@ -1923,28 +1953,13 @@ export default function ExcelVentasPage() {
                         <div>
                           <CardTitle>Vista Previa de Datos</CardTitle>
                           <CardDescription className="pt-1 text-muted-foreground">
-                              {isFiltered ? (
-                              <>
-                                  Mostrando{' '}
-                                  <span className="font-semibold text-foreground">
-                                  {filteredData.length}
-                                  </span>{' '}
-                                  de {data.length} registros.
-                                  {data.length > 0 && (
-                                      <span className="text-sm text-muted-foreground ml-1">
-                                          ({((filteredData.length / data.length) * 100).toFixed(1)}%)
-                                      </span>
-                                  )}
-                              </>
-                              ) : (
-                              <>
-                                  <span className="font-semibold text-foreground">
-                                  {data.length}
-                                  </span>
-                                  {data.length === 1 ? ' registro' : ' registros'} en
-                                  total.
-                              </>
-                              )}
+                              {isFiltered ? 'Mostrando ' : ''}
+                              <span className="font-semibold text-foreground">
+                                {filteredData.length}
+                              </span>
+                              {isFiltered ? ` de ${data.length}` : ''}
+                              {data.length === 1 ? ' registro' : ' registros'}
+                              {`. ${checkedRows.size} seleccionados.`}
                           </CardDescription>
                         </div>
 
@@ -2251,6 +2266,13 @@ export default function ExcelVentasPage() {
                       <Table>
                         <TableHeader className="sticky top-0 bg-background z-10">
                           <TableRow>
+                            <TableHead>
+                                <Checkbox
+                                    checked={isAllVisibleChecked}
+                                    onCheckedChange={(checked) => handleToggleAllVisible(checked as boolean)}
+                                    aria-label="Seleccionar todas las filas visibles"
+                                />
+                            </TableHead>
                             {headers.map((header, index) => {
                               const id = `select-col-${header.replace(
                                 /[^a-zA-Z0-9]/g,
@@ -2288,6 +2310,7 @@ export default function ExcelVentasPage() {
                         </TableHeader>
                         <TableBody>
                           {filteredData.map((row, rowIndex) => {
+                            const excelRowNum = row[0];
                             const skuIndex = headers.indexOf('SKU');
                             const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
                             const shippingCost = shippingCostIndex > -1 ? row[shippingCostIndex] : 0;
@@ -2307,7 +2330,7 @@ export default function ExcelVentasPage() {
                             return (
                               <TableRow 
                                 key={rowIndex} 
-                                id={`excel-row-${row[0]}`}
+                                id={`excel-row-${excelRowNum}`}
                                 className={cn(
                                   isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                   isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200',
@@ -2320,6 +2343,13 @@ export default function ExcelVentasPage() {
                                   },
                                   isRowColoringActive && typeof markupValue !== 'number' && utilidadBrutaValue !== 0 && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
                               )}>
+                                <TableCell>
+                                    <Checkbox
+                                        checked={checkedRows.has(excelRowNum)}
+                                        onCheckedChange={(checked) => handleRowCheck(excelRowNum, checked as boolean)}
+                                        aria-label={`Seleccionar fila ${excelRowNum}`}
+                                    />
+                                </TableCell>
                                 {row.map((cell, cellIndex) => {
                                   const header = headers[cellIndex];
                                   
