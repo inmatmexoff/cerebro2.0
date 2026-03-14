@@ -32,8 +32,14 @@ export function DashboardCard({
   const isTalComercializadora = (val: any) =>
     typeof val === "string" && val.toUpperCase() === "TAL COMERCIALIZADORA";
 
+  let displayValue = value;
+  if (isTalComercializadora(value)) {
+    displayValue = "TAL";
+  }
+
   const valueClassName = cn(
-    "font-bold mt-1 sm:mt-2 break-all",
+    "font-bold mt-1 sm:mt-2",
+    "break-words",
     isFilled ? "text-primary-foreground" : "text-primary",
     isPaloDeRosa(value)
       ? "text-lg sm:text-xl"
@@ -41,8 +47,6 @@ export function DashboardCard({
       ? "text-2xl sm:text-3xl"
       : isHogarden(value)
       ? "text-2xl sm:text-3xl"
-      : isTalComercializadora(value)
-      ? "text-xl sm:text-2xl"
       : "text-4xl sm:text-5xl"
   );
 
@@ -65,7 +69,7 @@ export function DashboardCard({
         </h3>
         {value !== undefined && (
           <p className={valueClassName}>
-              {value}
+              {displayValue}
           </p>
         )}
         {icon && <div className={cn("mt-2 flex justify-center", "[&_svg]:h-6 [&_svg]:w-6 sm:[&_svg]:h-8 sm:[&_svg]:w-8")}>{icon}</div>}
