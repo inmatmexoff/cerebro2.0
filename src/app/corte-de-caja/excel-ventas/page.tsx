@@ -267,6 +267,9 @@ export default function ExcelVentasPage() {
     porcentajePedidosMargenBajo: 0,
   });
 
+  const [showLowMarkupModal, setShowLowMarkupModal] = useState(false);
+  const [lowMarkupUncheckedRows, setLowMarkupUncheckedRows] = useState<any[]>([]);
+
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
 
   const scrollToRow = (excelRowNum: number) => {
@@ -1394,7 +1397,8 @@ export default function ExcelVentasPage() {
     XLSX.writeFile(workbook, 'ventas_preview.xlsx');
   };
 
-  const handleSaveData = async () => {
+  const proceedWithSave = async () => {
+    setShowLowMarkupModal(false);
     if (data.length === 0) {
       toast({
         variant: 'destructive',
@@ -1429,11 +1433,13 @@ export default function ExcelVentasPage() {
       total_final: 19,
       markup: 20,
     };
+    
+    const markupIndex = headers.indexOf('Markup (%)');
 
-    const CHUNK_SIZE = 500;
     let totalInsertedCount = 0;
     let totalSkippedForDuplication = 0;
 
+    const CHUNK_SIZE = 500;
     try {
       for (let i = 0; i < data.length; i += CHUNK_SIZE) {
         const chunk = data.slice(i, i + CHUNK_SIZE);
@@ -1476,6 +1482,11 @@ export default function ExcelVentasPage() {
         const recordsToInsert = validDataInChunk
           .map((row) => {
             const saleDate = parseSaleDate(row[newIndices.fecha_venta]);
+            const markupValue = row[markupIndex];
+            const excelRowNum = row[0];
+            const isChecked = checkedRows.has(excelRowNum);
+            const finalCheckValue = (typeof markupValue === 'number' && markupValue > 5) || isChecked;
+
             return {
               num_venta: String(row[newIndices.num_venta] || ''),
               fecha_venta: saleDate ? saleDate.toISOString() : null,
@@ -1495,7 +1506,7 @@ export default function ExcelVentasPage() {
               tip_publi: String(row[newIndices.tip_publi] || ''),
               total_final: parseCurrency(row[newIndices.total_final]),
               markup: parseCurrency(row[newIndices.markup]),
-              check: checkedRows.has(row[0]),
+              check: finalCheckValue,
             };
           })
           .filter((record) => record.num_venta);
@@ -1574,6 +1585,43 @@ export default function ExcelVentasPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSaveData = async () => {
+    if (data.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No hay datos para guardar',
+        description: 'Carga un archivo y procesa los datos primero.',
+      });
+      return;
+    }
+
+    const markupIndex = headers.indexOf('Markup (%)');
+    if (markupIndex === -1) {
+      toast({
+        variant: 'destructive',
+        title: 'Error de Columna',
+        description:
+          "No se encontró la columna 'Markup (%)'. No se puede realizar la validación.",
+      });
+      return;
+    }
+
+    const uncheckedLowMarkup = data.filter((row) => {
+      const markupValue = row[markupIndex];
+      const excelRowNum = row[0];
+      const isChecked = checkedRows.has(excelRowNum);
+      return typeof markupValue === 'number' && markupValue <= 5 && !isChecked;
+    });
+
+    if (uncheckedLowMarkup.length > 0) {
+      setLowMarkupUncheckedRows(uncheckedLowMarkup);
+      setShowLowMarkupModal(true);
+      return;
+    }
+
+    await proceedWithSave();
   };
 
   async function onUpdateSubmit(values: z.infer<typeof formSchema>) {
@@ -2951,6 +2999,57 @@ export default function ExcelVentasPage() {
                 </DialogFooter>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showLowMarkupModal} onOpenChange={setShowLowMarkupModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="text-amber-500" />
+                Confirmación Requerida
+              </DialogTitle>
+              <DialogDescription>
+                Has dejado sin revisar algunas filas con un markup igual o
+                inferior al 5%.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-60 overflow-y-auto p-1">
+              <p className="font-medium">Filas con bajo markup sin revisar:</p>
+              <ul className="list-disc pl-5 mt-2 space-y-1 text-sm text-muted-foreground">
+                {lowMarkupUncheckedRows.map((row) => {
+                  const fila = row[0];
+                  const sku = row[headers.indexOf('SKU')];
+                  const markup = row[headers.indexOf('Markup (%)')];
+                  return (
+                    <li key={fila}>
+                      Fila Excel{' '}
+                      <span className="font-semibold text-foreground">
+                        {fila}
+                      </span>{' '}
+                      (SKU: {sku || 'N/A'}) - Markup:{' '}
+                      <span className="font-semibold text-destructive">
+                        {formatPercentage(markup)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => setShowLowMarkupModal(false)}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={proceedWithSave} disabled={isSaving}>
+                {isSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Guardar de todos modos
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
