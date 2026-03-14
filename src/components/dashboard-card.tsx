@@ -24,10 +24,13 @@ export function DashboardCard({
     typeof val === "string" && val.toUpperCase() === "PALO DE ROSA";
 
   const isDomeska = (val: any) =>
-    typeof val === "string" && val.toUpperCase() === "DOMESKA";
+    typeof val === "string" && val.toUpperCase() === "DO MESKA";
 
   const isHogarden = (val: any) =>
     typeof val === "string" && val.toUpperCase() === "HOGARDEN";
+
+  const isTalComercializadora = (val: any) =>
+    typeof val === "string" && val.toUpperCase() === "TAL COMERCIALIZADORA";
 
   const valueClassName = cn(
     "font-bold mt-1 sm:mt-2 break-words", // break-words instead of break-all
@@ -37,6 +40,8 @@ export function DashboardCard({
       : isDomeska(value)
       ? "text-2xl sm:text-3xl"
       : isHogarden(value)
+      ? "text-2xl sm:text-3xl"
+      : isTalComercializadora(value)
       ? "text-2xl sm:text-3xl"
       : "text-4xl sm:text-5xl"
   );
