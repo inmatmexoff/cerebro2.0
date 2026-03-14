@@ -55,61 +55,49 @@ export async function POST(request: Request) {
         const allSkusFromFile = [...new Set(data.map(r => String(r.sku || '').trim()).filter(Boolean))];
         const allMdrFromFile = [...new Set(data.map(r => String(r.sku_mdr || '').trim()).filter(Boolean))];
         
-        const CHUNK_SIZE = 200;
-        let existingMData: any[] = [];
-        let existingAlternoData: any[] = [];
+        const { data: existingAlternoData, error: alternoError } = await supabase
+            .from('sku_alterno')
+            .select('sku, sku_mdr, empresa')
+            .in('sku', allSkusFromFile);
+        if (alternoError) throw new Error(`Error fetching existing sku_alterno data: ${alternoError.message}`);
 
-        for (let i = 0; i < allMdrFromFile.length; i += CHUNK_SIZE) {
-            const chunk = allMdrFromFile.slice(i, i + CHUNK_SIZE);
-            const { data: mChunk, error: mError } = await supabase
+        const allMdrFromDb = (existingAlternoData || []).map(r => r.sku_mdr).filter(Boolean);
+        const allMdrsToFetch = [...new Set([...allMdrFromFile, ...allMdrFromDb])];
+
+        let existingMData: any[] = [];
+        if (allMdrsToFetch.length > 0) {
+             const { data: mData, error: mError } = await supabase
                 .from('sku_m')
                 .select('sku_mdr, sku, cat_mdr, sub_cat, esti_time, piezas_por_sku, empaquetado_master, tip_empa, pz_empaquetado_master')
-                .in('sku_mdr', chunk);
+                .in('sku_mdr', allMdrsToFetch);
             if (mError) throw new Error(`Error fetching existing sku_m data: ${mError.message}`);
-            if (mChunk) existingMData.push(...mChunk);
+            if (mData) existingMData = mData;
         }
 
-        for (let i = 0; i < allSkusFromFile.length; i += CHUNK_SIZE) {
-            const chunk = allSkusFromFile.slice(i, i + CHUNK_SIZE);
-            const { data: alternoChunk, error: alternoError } = await supabase
-                .from('sku_alterno')
-                .select('sku, sku_mdr, empresa')
-                .in('sku', chunk);
-            if (alternoError) throw new Error(`Error fetching existing sku_alterno data: ${alternoError.message}`);
-            if (alternoChunk) existingAlternoData.push(...alternoChunk);
-        }
-
-        const existingMMap = new Map((existingMData || []).map(r => [r.sku_mdr, r]));
+        const existingMMap = new Map(existingMData.map(r => [r.sku_mdr, r]));
         const existingAlternoMap = new Map((existingAlternoData || []).map(r => [r.sku, r]));
 
 
         // --- Prepare records for DB operations ---
-        const skuMRecordsToUpsert: any[] = [];
-        const skuAlternoRecordsToUpsert: any[] = [];
+        const skuMRecordsToUpsert = new Map<string, any>();
+        const skuAlternoRecordsToUpsert = new Map<string, any>();
         const skuCostosRecordsToInsert: any[] = [];
 
-        // De-duplicate incoming data to process each sku_mdr and sku once
-        const uniqueMdrData = new Map<string, any>();
-        const uniqueAlternoData = new Map<string, any>();
-        
         data.forEach(row => {
-            const sku_mdr = String(row.sku_mdr || '').trim();
             const sku = String(row.sku || '').trim();
+            const sku_mdr = String(row.sku_mdr || '').trim();
+            if (!sku || !sku_mdr) return;
 
-            if (sku_mdr && !uniqueMdrData.has(sku_mdr)) {
-                uniqueMdrData.set(sku_mdr, row);
+            // 1. Prepare sku_alterno upsert
+            const existingAlternoRecord = existingAlternoMap.get(sku);
+            const empresa = row.empresa || null;
+            if (!existingAlternoRecord || existingAlternoRecord.sku_mdr !== sku_mdr || existingAlternoRecord.empresa !== empresa) {
+                skuAlternoRecordsToUpsert.set(sku, { sku, sku_mdr, empresa });
             }
-            if (sku && !uniqueAlternoData.has(sku)) {
-                uniqueAlternoData.set(sku, row);
-            }
-        });
 
-
-        // 1. Process sku_m records
-        uniqueMdrData.forEach((row, sku_mdr) => {
-            const existingRecord = existingMMap.get(sku_mdr);
-
-            const recordFromFile = {
+            // 2. Prepare sku_m upsert
+            const existingMRecord = existingMMap.get(sku_mdr);
+            const recordFromFileForM = {
                 sku_mdr,
                 cat_mdr: row.cat_mdr || null,
                 sub_cat: row.sub_categoria || null,
@@ -118,52 +106,35 @@ export async function POST(request: Request) {
                 empaquetado_master: row.empaquetado_master || null,
                 tip_empa: row.tip_empa || null,
                 pz_empaquetado_master: parseNumeric(row.pz_empaquetado_master, true),
-                ...(uploadType === 'oficial' && { sku: String(row.sku || '').trim() || null }),
+                ...(uploadType === 'oficial' && { sku }),
             };
-
-            if (!existingRecord) {
-                skuMRecordsToUpsert.push(recordFromFile);
-            } else {
-                const mergedRecord = { ...existingRecord };
-                let hasChanged = false;
-
-                if (recordFromFile.cat_mdr !== null && recordFromFile.cat_mdr !== existingRecord.cat_mdr) { mergedRecord.cat_mdr = recordFromFile.cat_mdr; hasChanged = true; }
-                if (recordFromFile.sub_cat !== null && recordFromFile.sub_cat !== existingRecord.sub_cat) { mergedRecord.sub_cat = recordFromFile.sub_cat; hasChanged = true; }
-                if (recordFromFile.esti_time !== null && recordFromFile.esti_time !== existingRecord.esti_time) { mergedRecord.esti_time = recordFromFile.esti_time; hasChanged = true; }
-                if (recordFromFile.piezas_por_sku !== null && recordFromFile.piezas_por_sku !== existingRecord.piezas_por_sku) { mergedRecord.piezas_por_sku = recordFromFile.piezas_por_sku; hasChanged = true; }
-                if (recordFromFile.empaquetado_master !== null && recordFromFile.empaquetado_master !== existingRecord.empaquetado_master) { mergedRecord.empaquetado_master = recordFromFile.empaquetado_master; hasChanged = true; }
-                if (recordFromFile.tip_empa !== null && recordFromFile.tip_empa !== existingRecord.tip_empa) { mergedRecord.tip_empa = recordFromFile.tip_empa; hasChanged = true; }
-                if (recordFromFile.pz_empaquetado_master !== null && recordFromFile.pz_empaquetado_master !== existingRecord.pz_empaquetado_master) { mergedRecord.pz_empaquetado_master = recordFromFile.pz_empaquetado_master; hasChanged = true; }
-
-                if (uploadType === 'oficial' && recordFromFile.sku && recordFromFile.sku !== existingRecord.sku) {
-                    mergedRecord.sku = recordFromFile.sku;
-                    hasChanged = true;
+            
+            if (!existingMRecord) {
+                // If sku_mdr is new, we'll upsert it.
+                if (!skuMRecordsToUpsert.has(sku_mdr)) {
+                    skuMRecordsToUpsert.set(sku_mdr, recordFromFileForM);
                 }
+            } else {
+                // sku_mdr exists, so we check for changes
+                const mergedRecord = { ...existingMRecord };
+                let hasChanged = false;
+                
+                Object.keys(recordFromFileForM).forEach(key => {
+                    const fileValue = recordFromFileForM[key as keyof typeof recordFromFileForM];
+                    const dbValue = existingMRecord[key];
+                    if (key !== 'sku_mdr' && fileValue !== null && fileValue !== dbValue) {
+                        mergedRecord[key] = fileValue;
+                        hasChanged = true;
+                    }
+                });
 
                 if (hasChanged) {
-                    skuMRecordsToUpsert.push(mergedRecord);
+                    skuMRecordsToUpsert.set(sku_mdr, mergedRecord);
                 }
             }
-        });
-
-        // 2. Process sku_alterno records (only for 'alterno' type)
-        if (uploadType === 'alterno') {
-            uniqueAlternoData.forEach((row, sku) => {
-                const existingRecord = existingAlternoMap.get(sku);
-                const sku_mdr = String(row.sku_mdr || '').trim();
-                const empresa = row.empresa || null;
-
-                if (!existingRecord || existingRecord.sku_mdr !== sku_mdr || existingRecord.empresa !== empresa) {
-                    skuAlternoRecordsToUpsert.push({ sku, sku_mdr, empresa });
-                }
-            });
-        }
-        
-        // 3. Process sku_costos (always append for history)
-        data.forEach(row => {
-            const sku_mdr = String(row.sku_mdr || '').trim();
-            const landed_cost = parseNumeric(row.landed_cost);
             
+            // 3. Prepare sku_costos insert (always append for history)
+            const landed_cost = parseNumeric(row.landed_cost);
             if (sku_mdr && landed_cost !== null) {
                 skuCostosRecordsToInsert.push({
                     sku_mdr,
@@ -179,8 +150,9 @@ export async function POST(request: Request) {
         const errors: string[] = [];
         let mCount = 0, alternoCount = 0, costosCount = 0;
 
-        if (skuMRecordsToUpsert.length > 0) {
-            const { error: skuMError, count } = await supabase.from('sku_m').upsert(skuMRecordsToUpsert, { onConflict: 'sku_mdr', count: 'exact' });
+        const finalSkuMRecords = Array.from(skuMRecordsToUpsert.values());
+        if (finalSkuMRecords.length > 0) {
+            const { error: skuMError, count } = await supabase.from('sku_m').upsert(finalSkuMRecords, { onConflict: 'sku_mdr', count: 'exact' });
             if (skuMError) {
                 errors.push(`Error en sku_m: ${skuMError.message}`);
                 throw new Error(errors.join('; '));
@@ -188,8 +160,9 @@ export async function POST(request: Request) {
             mCount = count ?? 0;
         }
 
-        if (skuAlternoRecordsToUpsert.length > 0) {
-            const { error: skuAlternoError, count } = await supabase.from('sku_alterno').upsert(skuAlternoRecordsToUpsert, { onConflict: 'sku', count: 'exact' });
+        const finalSkuAlternoRecords = Array.from(skuAlternoRecordsToUpsert.values());
+        if (finalSkuAlternoRecords.length > 0) {
+            const { error: skuAlternoError, count } = await supabase.from('sku_alterno').upsert(finalSkuAlternoRecords, { onConflict: 'sku', count: 'exact' });
             if (skuAlternoError) errors.push(`Error en sku_alterno: ${skuAlternoError.message}`);
             alternoCount = count ?? 0;
         }
@@ -204,10 +177,7 @@ export async function POST(request: Request) {
             throw new Error(errors.join('; '));
         }
         
-        let message = `Procesamiento completado. Registros maestros (sku_m) actualizados/insertados: ${mCount}. Nuevos registros de costos: ${costosCount}.`;
-        if (uploadType === 'alterno') {
-            message = `Procesamiento completado. Registros maestros (sku_m) actualizados/insertados: ${mCount}. Registros alternos actualizados/insertados: ${alternoCount}. Nuevos registros de costos: ${costosCount}.`;
-        }
+        let message = `Procesamiento completado. Registros maestros (sku_m) actualizados/insertados: ${mCount}. Registros alternos (sku_alterno) actualizados/insertados: ${alternoCount}. Nuevos registros de costos: ${costosCount}.`;
 
         return NextResponse.json({ message }, { status: 200 });
 
