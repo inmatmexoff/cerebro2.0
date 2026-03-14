@@ -33,7 +33,7 @@ export function DashboardCard({
     typeof val === "string" && val.toUpperCase() === "TAL COMERCIALIZADORA";
 
   const valueClassName = cn(
-    "font-bold mt-1 sm:mt-2 break-words", // break-words instead of break-all
+    "font-bold mt-1 sm:mt-2 break-all",
     isFilled ? "text-primary-foreground" : "text-primary",
     isPaloDeRosa(value)
       ? "text-lg sm:text-xl"
@@ -42,7 +42,7 @@ export function DashboardCard({
       : isHogarden(value)
       ? "text-2xl sm:text-3xl"
       : isTalComercializadora(value)
-      ? "text-2xl sm:text-3xl"
+      ? "text-xl sm:text-2xl"
       : "text-4xl sm:text-5xl"
   );
 
