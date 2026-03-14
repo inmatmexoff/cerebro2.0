@@ -16,6 +16,8 @@ import {
   ChevronsUpDown,
   Copy,
   TrendingUp,
+  Maximize,
+  Minimize,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -238,6 +240,7 @@ export default function ExcelVentasPage() {
   const [startDate, setStartDate] = React.useState<Date | null>(null);
   const [endDate, setEndDate] = React.useState<Date | null>(null);
   const [company, setCompany] = React.useState<string | undefined>();
+  const [isFocusMode, setIsFocusMode] = React.useState(false);
 
   const [isUpdatingCost, setIsUpdatingCost] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
@@ -1815,223 +1818,232 @@ export default function ExcelVentasPage() {
 
 
   return (
-    <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header>
-          <Link
-            href="/corte-de-caja"
-            className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver a Corte de Caja
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold">Cargar Excel de Ventas</h1>
-            <p className="text-muted-foreground">
-              Sube un archivo para leer, visualizar y guardar los datos de
-              ventas.
-            </p>
-          </div>
-        </header>
-        <main>
-          {!fileName ? (
-             <div
-              {...getRootProps()}
-              className={`border-2 border-dashed border-gray-300 rounded-lg transition-colors ${isProcessing ? 'cursor-not-allowed bg-muted/50' : 'hover:border-primary cursor-pointer'}`}
+    <div className={cn("min-h-screen bg-muted/40", isFocusMode ? "p-0" : "p-4 sm:p-6 lg:p-8")}>
+      <div className={cn("mx-auto space-y-6", isFocusMode ? "max-w-full" : "max-w-7xl")}>
+        <div className={cn(isFocusMode && "hidden")}>
+          <header>
+            <Link
+              href="/corte-de-caja"
+              className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
             >
-              <div className="flex flex-col items-center justify-center p-12 text-center">
-                <input {...getInputProps()} />
-                <Upload className="w-12 h-12 text-muted-foreground" />
-                {isDragActive ? (
-                  <p className="mt-4 text-lg font-semibold text-primary">
-                    Suelta el archivo aquí...
-                  </p>
-                ) : (
-                  <>
-                    <p className="mt-4 text-lg font-semibold">
-                      Arrastra y suelta un archivo aquí
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      o haz clic para seleccionar un archivo
-                    </p>
-                    <p className="mt-4 text-xs text-muted-foreground">
-                      Soportado: .xlsx, .xls, .csv
-                    </p>
-                  </>
-                )}
-              </div>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver a Corte de Caja
+            </Link>
+            <div>
+              <h1 className="text-3xl font-bold">Cargar Excel de Ventas</h1>
+              <p className="text-muted-foreground">
+                Sube un archivo para leer, visualizar y guardar los datos de
+                ventas.
+              </p>
             </div>
-          ) : (
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Archivo Cargado</CardTitle>
-                    <CardDescription>{fileName}</CardDescription>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={clearFile}
-                    disabled={isSaving || isProcessing}
-                  >
-                    <X className="w-5 h-5" />
-                  </Button>
+          </header>
+        </div>
+        <main>
+          <div className={cn(isFocusMode && "hidden")}>
+            {!fileName ? (
+              <div
+                {...getRootProps()}
+                className={`border-2 border-dashed border-gray-300 rounded-lg transition-colors ${isProcessing ? 'cursor-not-allowed bg-muted/50' : 'hover:border-primary cursor-pointer'}`}
+              >
+                <div className="flex flex-col items-center justify-center p-12 text-center">
+                  <input {...getInputProps()} />
+                  <Upload className="w-12 h-12 text-muted-foreground" />
+                  {isDragActive ? (
+                    <p className="mt-4 text-lg font-semibold text-primary">
+                      Suelta el archivo aquí...
+                    </p>
+                  ) : (
+                    <>
+                      <p className="mt-4 text-lg font-semibold">
+                        Arrastra y suelta un archivo aquí
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        o haz clic para seleccionar un archivo
+                      </p>
+                      <p className="mt-4 text-xs text-muted-foreground">
+                        Soportado: .xlsx, .xls, .csv
+                      </p>
+                    </>
+                  )}
                 </div>
-              </CardHeader>
-              {isProcessing && (
-                <CardContent>
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex flex-col items-center justify-center text-center">
-                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                        <p className="mt-4 text-lg font-semibold text-primary">
-                          Procesando archivo... ({progress}%)
-                        </p>
-                        <Progress value={progress} className="w-full max-w-sm mt-2" />
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          Por favor espera. Archivos grandes pueden tomar varios
-                          minutos.
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </CardContent>
-              )}
-            </Card>
-          )}
+              </div>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>Archivo Cargado</CardTitle>
+                      <CardDescription>{fileName}</CardDescription>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={clearFile}
+                      disabled={isSaving || isProcessing}
+                    >
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                {isProcessing && (
+                  <CardContent>
+                    <Card>
+                      <CardContent className="p-6">
+                        <div className="flex flex-col items-center justify-center text-center">
+                          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                          <p className="mt-4 text-lg font-semibold text-primary">
+                            Procesando archivo... ({progress}%)
+                          </p>
+                          <Progress value={progress} className="w-full max-w-sm mt-2" />
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            Por favor espera. Archivos grandes pueden tomar varios
+                            minutos.
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </CardContent>
+                )}
+              </Card>
+            )}
 
-          {error && (
-            <div className="mt-4 text-red-600 font-medium p-4 bg-red-100 border border-red-300 rounded-lg">
-              {error}
-            </div>
-          )}
+            {error && (
+              <div className="mt-4 text-red-600 font-medium p-4 bg-red-100 border border-red-300 rounded-lg">
+                {error}
+              </div>
+            )}
+          </div>
           
           {data.length > 0 && !isProcessing && (
               <>
-                <Card className="mt-6">
-                  <CardHeader>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div>
-                        <CardTitle>Vista Previa de Datos</CardTitle>
-                        <CardDescription className="pt-1 text-muted-foreground">
-                            {isFiltered ? (
-                            <>
-                                Mostrando{' '}
-                                <span className="font-semibold text-foreground">
-                                {filteredData.length}
-                                </span>{' '}
-                                de {data.length} registros.
-                                {data.length > 0 && (
-                                    <span className="text-sm text-muted-foreground ml-1">
-                                        ({((filteredData.length / data.length) * 100).toFixed(1)}%)
-                                    </span>
-                                )}
-                            </>
-                            ) : (
-                            <>
-                                <span className="font-semibold text-foreground">
-                                {data.length}
-                                </span>
-                                {data.length === 1 ? ' registro' : ' registros'} en
-                                total.
-                            </>
-                            )}
-                        </CardDescription>
-                      </div>
-
-                      <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">
-                        <div className="relative w-full sm:w-auto">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar SKU, Fila, # de Publicación..."
-                                value={skuSearchTerm}
-                                onChange={(e) => setSkuSearchTerm(e.target.value)}
-                                className="pl-8 w-full sm:w-48 h-9"
-                            />
+                <Card className={cn("mt-6", isFocusMode && "fixed inset-0 z-[100] m-0 h-screen w-screen rounded-none border-none")}>
+                  <div className={cn(isFocusMode && "hidden")}>
+                    <CardHeader>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                          <CardTitle>Vista Previa de Datos</CardTitle>
+                          <CardDescription className="pt-1 text-muted-foreground">
+                              {isFiltered ? (
+                              <>
+                                  Mostrando{' '}
+                                  <span className="font-semibold text-foreground">
+                                  {filteredData.length}
+                                  </span>{' '}
+                                  de {data.length} registros.
+                                  {data.length > 0 && (
+                                      <span className="text-sm text-muted-foreground ml-1">
+                                          ({((filteredData.length / data.length) * 100).toFixed(1)}%)
+                                      </span>
+                                  )}
+                              </>
+                              ) : (
+                              <>
+                                  <span className="font-semibold text-foreground">
+                                  {data.length}
+                                  </span>
+                                  {data.length === 1 ? ' registro' : ' registros'} en
+                                  total.
+                              </>
+                              )}
+                          </CardDescription>
                         </div>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-9">
-                                    <Filter className="mr-2 h-4 w-4" />
-                                    Filtros
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Filtrar Utilidad Bruta</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuCheckboxItem
-                                    checked={granTotalFilter === 'negative'}
-                                    onCheckedChange={(checked) => {
-                                        setGranTotalFilter(checked ? 'negative' : 'all');
-                                        if (checked) setMarkupFilter('all');
-                                    }}
-                                >
-                                    Mostrar solo negativos
-                                </DropdownMenuCheckboxItem>
-                                <DropdownMenuCheckboxItem
-                                    checked={granTotalFilter === 'positive'}
-                                    onCheckedChange={(checked) => {
-                                        setGranTotalFilter(checked ? 'positive' : 'all');
-                                        if (checked) setMarkupFilter('all');
-                                    }}
-                                >
-                                    Mostrar 0 o positivos
-                                </DropdownMenuCheckboxItem>
-                                 <DropdownMenuCheckboxItem
-                                    checked={granTotalFilter === 'low_profit'}
-                                    onCheckedChange={(checked) => {
-                                        setGranTotalFilter(checked ? 'low_profit' : 'all');
-                                        if (checked) setMarkupFilter('all');
-                                    }}
-                                >
-                                    Utilidad Bruta &lt; $30
-                                </DropdownMenuCheckboxItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuLabel>Otros Filtros</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuCheckboxItem
-                                    checked={showHighShippingCost}
-                                    onCheckedChange={(checked) =>
-                                        setShowHighShippingCost(checked as boolean)
-                                    }
-                                >
-                                    Costo Envío &lt;= -$300
-                                </DropdownMenuCheckboxItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
 
-                        <div className="flex items-center space-x-2">
-                            <Switch id="row-coloring" checked={isRowColoringActive} onCheckedChange={setIsRowColoringActive} />
-                            <Label htmlFor="row-coloring">Colorear Filas</Label>
+                        <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">
+                          <div className="relative w-full sm:w-auto">
+                              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                  placeholder="Buscar SKU, Fila, # de Publicación..."
+                                  value={skuSearchTerm}
+                                  onChange={(e) => setSkuSearchTerm(e.target.value)}
+                                  className="pl-8 w-full sm:w-48 h-9"
+                              />
+                          </div>
+                          <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm" className="h-9">
+                                      <Filter className="mr-2 h-4 w-4" />
+                                      Filtros
+                                  </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Filtrar Utilidad Bruta</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuCheckboxItem
+                                      checked={granTotalFilter === 'negative'}
+                                      onCheckedChange={(checked) => {
+                                          setGranTotalFilter(checked ? 'negative' : 'all');
+                                          if (checked) setMarkupFilter('all');
+                                      }}
+                                  >
+                                      Mostrar solo negativos
+                                  </DropdownMenuCheckboxItem>
+                                  <DropdownMenuCheckboxItem
+                                      checked={granTotalFilter === 'positive'}
+                                      onCheckedChange={(checked) => {
+                                          setGranTotalFilter(checked ? 'positive' : 'all');
+                                          if (checked) setMarkupFilter('all');
+                                      }}
+                                  >
+                                      Mostrar 0 o positivos
+                                  </DropdownMenuCheckboxItem>
+                                  <DropdownMenuCheckboxItem
+                                      checked={granTotalFilter === 'low_profit'}
+                                      onCheckedChange={(checked) => {
+                                          setGranTotalFilter(checked ? 'low_profit' : 'all');
+                                          if (checked) setMarkupFilter('all');
+                                      }}
+                                  >
+                                      Utilidad Bruta &lt; $30
+                                  </DropdownMenuCheckboxItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel>Otros Filtros</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuCheckboxItem
+                                      checked={showHighShippingCost}
+                                      onCheckedChange={(checked) =>
+                                          setShowHighShippingCost(checked as boolean)
+                                      }
+                                  >
+                                      Costo Envío &lt;= -$300
+                                  </DropdownMenuCheckboxItem>
+                              </DropdownMenuContent>
+                          </DropdownMenu>
+
+                          <div className="flex items-center space-x-2">
+                              <Switch id="row-coloring" checked={isRowColoringActive} onCheckedChange={setIsRowColoringActive} />
+                              <Label htmlFor="row-coloring">Colorear Filas</Label>
+                          </div>
+                          
+                          <Button variant="outline" size="sm" className="h-9" onClick={handleCopyAllSaleIds}>
+                              <Copy className="mr-2 h-4 w-4" />
+                              Copiar IDs
+                          </Button>
+                          <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm" className="h-9">
+                                  <Download className="mr-2 h-4 w-4" />
+                                  Descargar
+                                  </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={handleDownloadCSV}>
+                                  CSV
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={handleDownloadXLSX}>
+                                  XLSX
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={handleDownloadPDF}>
+                                  PDF
+                                  </DropdownMenuItem>
+                              </DropdownMenuContent>
+                          </DropdownMenu>
+                           <Button variant="outline" size="sm" className="h-9" onClick={() => setIsFocusMode(true)}>
+                                <Maximize className="mr-2 h-4 w-4" />
+                                Enfocar
+                            </Button>
                         </div>
-                        
-                        <Button variant="outline" size="sm" className="h-9" onClick={handleCopyAllSaleIds}>
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copiar IDs
-                        </Button>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-9">
-                                <Download className="mr-2 h-4 w-4" />
-                                Descargar
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={handleDownloadCSV}>
-                                CSV
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleDownloadXLSX}>
-                                XLSX
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleDownloadPDF}>
-                                PDF
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
                       </div>
-                    </div>
-                     <div className="flex flex-col sm:flex-row sm:flex-wrap items-end gap-4 border-t pt-4 mt-4">
+                      <div className="flex flex-col sm:flex-row sm:flex-wrap items-end gap-4 border-t pt-4 mt-4">
                         <div className="grid gap-1.5 flex-grow min-w-[180px]">
                             <Label htmlFor="fecha-inicio">Fecha Inicio</Label>
                             <DatePicker
@@ -2057,225 +2069,185 @@ export default function ExcelVentasPage() {
                                 Limpiar
                             </Button>
                         </div>
-                    </div>
-                    <div className="pt-4 mt-4 border-t">
-                      <h4 className="text-sm font-medium mb-2">
-                        Resumen de Totales (Filtrado)
-                      </h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                        <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">Utilidad Bruta</div>
-                          <div
-                            className={cn(
-                              'font-bold text-lg',
-                              utilidadBrutaSum >= 0
-                                ? 'text-green-700'
-                                : 'text-red-700'
-                            )}
-                          >
-                            {utilidadBrutaSum.toLocaleString('es-MX', {
-                              style: 'currency',
-                              currency: 'MXN',
-                            })}
-                          </div>
-                          {isFiltered ? (
-                            <div className="flex justify-between items-baseline text-sm mt-1">
-                              <span className="text-muted-foreground">
-                                de{' '}
-                                {unfilteredUtilidadBrutaSum.toLocaleString(
-                                  'es-MX',
-                                  {
-                                    style: 'currency',
-                                    currency: 'MXN',
-                                  }
-                                )}
-                              </span>
-                              <span className="font-mono font-semibold">
-                                {unfilteredUtilidadBrutaSum !== 0
-                                  ? `${(
-                                      (utilidadBrutaSum /
-                                        unfilteredUtilidadBrutaSum) *
-                                      100
-                                    ).toFixed(1)}%`
-                                  : '0.0%'}
-                              </span>
+                      </div>
+                      <div className="pt-4 mt-4 border-t">
+                        <h4 className="text-sm font-medium mb-2">
+                          Resumen de Totales (Filtrado)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">Utilidad Bruta</div>
+                            <div
+                              className={cn(
+                                'font-bold text-lg',
+                                utilidadBrutaSum >= 0
+                                  ? 'text-green-700'
+                                  : 'text-red-700'
+                              )}
+                            >
+                              {utilidadBrutaSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
                             </div>
-                          ) : (
-                            <div className="mt-1 space-y-1 text-xs">
-                              <div className="flex justify-between">
+                            {isFiltered ? (
+                              <div className="flex justify-between items-baseline text-sm mt-1">
                                 <span className="text-muted-foreground">
-                                  vs Landed Cost
+                                  de{' '}
+                                  {unfilteredUtilidadBrutaSum.toLocaleString(
+                                    'es-MX',
+                                    {
+                                      style: 'currency',
+                                      currency: 'MXN',
+                                    }
+                                  )}
                                 </span>
                                 <span className="font-mono font-semibold">
-                                  {unfilteredLandedCostSum > 0
+                                  {unfilteredUtilidadBrutaSum !== 0
                                     ? `${(
-                                        (unfilteredUtilidadBrutaSum /
-                                          unfilteredLandedCostSum) *
+                                        (utilidadBrutaSum /
+                                          unfilteredUtilidadBrutaSum) *
                                         100
                                       ).toFixed(1)}%`
-                                    : 'N/A'}
+                                    : '0.0%'}
                                 </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">
-                                  vs Costo de Venta en Mercado Libre
-                                </span>
-                                <span className="font-mono font-semibold">
-                                  {unfilteredIngresosPorProductosSum > 0
-                                    ? `${(
-                                        (unfilteredUtilidadBrutaSum /
-                                          unfilteredIngresosPorProductosSum) *
-                                        100
-                                      ).toFixed(1)}%`
-                                    : 'N/A'}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">Total</div>
-                          <div className="font-bold text-lg text-foreground">
-                            {totalSum.toLocaleString('es-MX', {
-                              style: 'currency',
-                              currency: 'MXN',
-                            })}
-                          </div>
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">
-                            Landed Cost Total
-                          </div>
-                          <div className="font-bold text-lg text-foreground">
-                            {landedCostSum.toLocaleString('es-MX', {
-                              style: 'currency',
-                              currency: 'MXN',
-                            })}
-                          </div>
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">
-                            Costo de Venta en Mercado Libre
-                          </div>
-                          <div className="font-bold text-lg text-foreground">
-                            {ingresosPorProductosSum.toLocaleString('es-MX', {
-                              style: 'currency',
-                              currency: 'MXN',
-                            })}
-                          </div>
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">
-                            Cargos x Venta
-                          </div>
-                          <div className="font-bold text-lg text-foreground">
-                            {cargoVentaSum.toLocaleString('es-MX', {
-                              style: 'currency',
-                              currency: 'MXN',
-                            })}
-                          </div>
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">
-                            Costos x Envío
-                          </div>
-                          <div className="font-bold text-lg text-foreground">
-                            {costoEnvioSum.toLocaleString('es-MX', {
-                              style: 'currency',
-                              currency: 'MXN',
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                     <div className="pt-4">
-                        <h4 className="text-sm font-medium mb-2">Resumen de Rentabilidad (Filtrado)</h4>
-                        <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('darkGreen')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-green-200 border border-green-400", markupFilter === 'darkGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
-                                <span className="font-bold">{colorCounters.darkGreen}</span>
-                                <span className="text-muted-foreground">{'>'}=30%</span>
-                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '>= 30%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
-                            </div>
-                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('lightGreen')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-green-100 border border-green-300", markupFilter === 'lightGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
-                                <span className="font-bold">{colorCounters.lightGreen}</span>
-                                <span className="text-muted-foreground">20-29.9%</span>
-                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '20-29.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
-                            </div>
-                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('orange')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-orange-100 border border-orange-300", markupFilter === 'orange' && 'ring-2 ring-primary ring-offset-1')}></div>
-                                <span className="font-bold">{colorCounters.orange}</span>
-                                <span className="text-muted-foreground">10-19.9%</span>
-                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '10-19.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
-                            </div>
-                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('yellow')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300", markupFilter === 'yellow' && 'ring-2 ring-primary ring-offset-1')}></div>
-                                <span className="font-bold">{colorCounters.yellow}</span>
-                                <span className="text-muted-foreground">5-9.9%</span>
-                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '5-9.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
-                            </div>
-                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('red')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-red-100 border border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
-                                <span className="font-bold">{colorCounters.red}</span>
-                                <span className="text-muted-foreground">{'<'}5%</span>
-                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '< 5%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
-                            </div>
-                        </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="pt-4 mt-4 border-t">
-                      <h4 className="text-lg font-semibold mb-2">KPIs Ejecutivos</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                          <div className="p-4 rounded-lg bg-muted/50">
-                              <p className="text-sm text-muted-foreground">Utilidad Promedio por Pedido</p>
-                              <p className="text-2xl font-bold">{executiveKpis.gananciaPromedioPorPedido.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</p>
-                          </div>
-                          <div className="p-4 rounded-lg bg-muted/50">
-                              <p className="text-sm text-muted-foreground">Utilidad Promedio por Unidad</p>
-                              <p className="text-2xl font-bold">{executiveKpis.utilidadPromedioPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</p>
-                          </div>
-                          <div className="p-4 rounded-lg bg-muted/50">
-                              <p className="text-sm text-muted-foreground">% Pedidos con Margen Bajo (&lt;5%)</p>
-                              <p className="text-2xl font-bold">{executiveKpis.porcentajePedidosMargenBajo.toFixed(2)}%</p>
-                          </div>
-                      </div>
-                    </div>
-                     <Card className="mt-6">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5 text-primary" />
-                                Top 5 Ventas por Markup
-                            </CardTitle>
-                            <CardDescription>Las 5 ventas con el mayor markup en los datos filtrados.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {topMarkupSales.length > 0 ? (
-                                <ul className="space-y-2">
-                                    {topMarkupSales.map((sale, index) => (
-                                        <li key={index} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
-                                            <div>
-                                                <span
-                                                    className="font-mono cursor-pointer hover:text-primary"
-                                                    onClick={() => handleCopyToClipboard(String(sale[headers.indexOf('ID')]))}
-                                                >
-                                                    #{sale[headers.indexOf('ID')]}
-                                                </span>
-                                                <p className="text-xs text-muted-foreground">SKU: {sale[headers.indexOf('SKU')]}</p>
-                                            </div>
-                                            <Badge variant="outline" className="font-semibold text-primary border-primary">
-                                                {formatPercentage(sale[headers.indexOf('Markup (%)')] as number)}
-                                            </Badge>
-                                        </li>
-                                    ))}
-                                </ul>
                             ) : (
-                                <p className="text-sm text-muted-foreground text-center">No hay datos de markup para mostrar.</p>
+                              <div className="mt-1 space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">
+                                    vs Landed Cost
+                                  </span>
+                                  <span className="font-mono font-semibold">
+                                    {unfilteredLandedCostSum > 0
+                                      ? `${(
+                                          (unfilteredUtilidadBrutaSum /
+                                            unfilteredLandedCostSum) *
+                                          100
+                                        ).toFixed(1)}%`
+                                      : 'N/A'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">
+                                    vs Costo de Venta en Mercado Libre
+                                  </span>
+                                  <span className="font-mono font-semibold">
+                                    {unfilteredIngresosPorProductosSum > 0
+                                      ? `${(
+                                          (unfilteredUtilidadBrutaSum /
+                                            unfilteredIngresosPorProductosSum) *
+                                          100
+                                        ).toFixed(1)}%`
+                                      : 'N/A'}
+                                  </span>
+                                </div>
+                              </div>
                             )}
-                        </CardContent>
-                    </Card>
-                    <div ref={tableContainerRef} className="h-[70vh] w-full overflow-auto mt-6">
+                          </div>
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">Total</div>
+                            <div className="font-bold text-lg text-foreground">
+                              {totalSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">
+                              Landed Cost Total
+                            </div>
+                            <div className="font-bold text-lg text-foreground">
+                              {landedCostSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">
+                              Costo de Venta en Mercado Libre
+                            </div>
+                            <div className="font-bold text-lg text-foreground">
+                              {ingresosPorProductosSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">
+                              Cargos x Venta
+                            </div>
+                            <div className="font-bold text-lg text-foreground">
+                              {cargoVentaSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">
+                              Costos x Envío
+                            </div>
+                            <div className="font-bold text-lg text-foreground">
+                              {costoEnvioSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="pt-4">
+                          <h4 className="text-sm font-medium mb-2">Resumen de Rentabilidad (Filtrado)</h4>
+                          <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                              <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('darkGreen')}>
+                                  <div className={cn("w-3 h-3 rounded-full bg-green-200 border border-green-400", markupFilter === 'darkGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                  <span className="font-bold">{colorCounters.darkGreen}</span>
+                                  <span className="text-muted-foreground">{'>'}=30%</span>
+                                  <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '>= 30%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                              </div>
+                              <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('lightGreen')}>
+                                  <div className={cn("w-3 h-3 rounded-full bg-green-100 border border-green-300", markupFilter === 'lightGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                  <span className="font-bold">{colorCounters.lightGreen}</span>
+                                  <span className="text-muted-foreground">20-29.9%</span>
+                                  <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '20-29.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                              </div>
+                              <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('orange')}>
+                                  <div className={cn("w-3 h-3 rounded-full bg-orange-100 border border-orange-300", markupFilter === 'orange' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                  <span className="font-bold">{colorCounters.orange}</span>
+                                  <span className="text-muted-foreground">10-19.9%</span>
+                                  <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '10-19.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                              </div>
+                              <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('yellow')}>
+                                  <div className={cn("w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300", markupFilter === 'yellow' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                  <span className="font-bold">{colorCounters.yellow}</span>
+                                  <span className="text-muted-foreground">5-9.9%</span>
+                                  <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '5-9.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                              </div>
+                              <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('red')}>
+                                  <div className={cn("w-3 h-3 rounded-full bg-red-100 border border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                  <span className="font-bold">{colorCounters.red}</span>
+                                  <span className="text-muted-foreground">{'<'}5%</span>
+                                  <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '< 5%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                              </div>
+                          </div>
+                      </div>
+                    </CardHeader>
+                  </div>
+                  <CardContent className={cn(isFocusMode && "p-0 h-full flex flex-col")}>
+                    {isFocusMode && (
+                        <div className="p-2 border-b flex justify-between items-center bg-background">
+                            <h3 className="font-semibold text-lg px-2">Vista Enfocada de la Tabla</h3>
+                            <Button variant="outline" size="sm" onClick={() => setIsFocusMode(false)}>
+                                <Minimize className="mr-2 h-4 w-4" />
+                                Vista Normal
+                            </Button>
+                        </div>
+                    )}
+                    <div ref={tableContainerRef} className={cn("w-full overflow-auto", isFocusMode ? "flex-1" : "h-[70vh] mt-6")}>
                       <Table>
                         <TableHeader className="sticky top-0 bg-background z-10">
                           <TableRow>
@@ -2472,344 +2444,346 @@ export default function ExcelVentasPage() {
                   </CardContent>
                 </Card>
 
-                {validationIssues && (
-                  <Card className="mt-6 border-amber-500">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-amber-700">
-                        <AlertTriangle className="h-5 w-5" />
-                        Revisión de Datos
-                      </CardTitle>
-                      <CardDescription>
-                        Se encontraron posibles problemas en los siguientes registros. Te recomendamos verificarlos.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {validationIssues.invalidLandedCosts.rows.length > 0 && (
-                        <div>
-                          <h4 className="font-semibold">
-                            {validationIssues.invalidLandedCosts.rows.length} registros con "Landed Cost Total" de 0 o 1
-                          </h4>
-                          <div className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2">
-                              <span>Filas de Excel:</span>
-                              {validationIssues.invalidLandedCosts.rows.map((rowNum, index) => (
-                                  <React.Fragment key={rowNum}>
-                                      <button
-                                          className="underline text-primary hover:text-primary/80"
-                                          onClick={() => scrollToRow(rowNum)}
-                                      >
-                                          {rowNum}
-                                      </button>
-                                      {index < validationIssues.invalidLandedCosts.rows.length - 1 && <span className="text-gray-400">,</span>}
-                                  </React.Fragment>
-                              ))}
-                          </div>
-                        </div>
-                      )}
-                      {validationIssues.emptySkus.rows.length > 0 && (
-                        <div>
-                          <h4 className="font-semibold">
-                            {validationIssues.emptySkus.rows.length} registros con SKU vacío
-                          </h4>
-                          <div className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2">
-                            <span>Filas de Excel:</span>
-                            {validationIssues.emptySkus.rows.map((rowNum, index) => (
-                                  <React.Fragment key={rowNum}>
-                                    <button
-                                        className="underline text-primary hover:text-primary/80"
-                                        onClick={() => scrollToRow(rowNum)}
-                                    >
-                                        {rowNum}
-                                    </button>
-                                    {index < validationIssues.emptySkus.rows.length - 1 && <span className="text-gray-400">,</span>}
-                                </React.Fragment>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-                
-                {data.length > 0 && (
-                  <Tabs 
-                    defaultValue="color" 
-                    value={activeTab} 
-                    onValueChange={(value) => setActiveTab(value as 'sku' | 'color' | 'subcategoria')} 
-                    className="mt-6"
-                  >
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="sku">Resumen por SKU</TabsTrigger>
-                        <TabsTrigger value="color">Resumen por Rentabilidad</TabsTrigger>
-                        <TabsTrigger value="subcategoria">Por Subcategoría</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="sku">
-                        {skuSummary.length > 0 ? (
+                <div className={cn(isFocusMode && "hidden")}>
+                    {validationIssues && (
+                    <Card className="mt-6 border-amber-500">
+                        <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-amber-700">
+                            <AlertTriangle className="h-5 w-5" />
+                            Revisión de Datos
+                        </CardTitle>
+                        <CardDescription>
+                            Se encontraron posibles problemas en los siguientes registros. Te recomendamos verificarlos.
+                        </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                        {validationIssues.invalidLandedCosts.rows.length > 0 && (
+                            <div>
+                            <h4 className="font-semibold">
+                                {validationIssues.invalidLandedCosts.rows.length} registros con "Landed Cost Total" de 0 o 1
+                            </h4>
+                            <div className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2">
+                                <span>Filas de Excel:</span>
+                                {validationIssues.invalidLandedCosts.rows.map((rowNum, index) => (
+                                    <React.Fragment key={rowNum}>
+                                        <button
+                                            className="underline text-primary hover:text-primary/80"
+                                            onClick={() => scrollToRow(rowNum)}
+                                        >
+                                            {rowNum}
+                                        </button>
+                                        {index < validationIssues.invalidLandedCosts.rows.length - 1 && <span className="text-gray-400">,</span>}
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                            </div>
+                        )}
+                        {validationIssues.emptySkus.rows.length > 0 && (
+                            <div>
+                            <h4 className="font-semibold">
+                                {validationIssues.emptySkus.rows.length} registros con SKU vacío
+                            </h4>
+                            <div className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2">
+                                <span>Filas de Excel:</span>
+                                {validationIssues.emptySkus.rows.map((rowNum, index) => (
+                                    <React.Fragment key={rowNum}>
+                                        <button
+                                            className="underline text-primary hover:text-primary/80"
+                                            onClick={() => scrollToRow(rowNum)}
+                                        >
+                                            {rowNum}
+                                        </button>
+                                        {index < validationIssues.emptySkus.rows.length - 1 && <span className="text-gray-400">,</span>}
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                            </div>
+                        )}
+                        </CardContent>
+                    </Card>
+                    )}
+                    
+                    {data.length > 0 && (
+                    <Tabs 
+                        defaultValue="color" 
+                        value={activeTab} 
+                        onValueChange={(value) => setActiveTab(value as 'sku' | 'color' | 'subcategoria')} 
+                        className="mt-6"
+                    >
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="sku">Resumen por SKU</TabsTrigger>
+                            <TabsTrigger value="color">Resumen por Rentabilidad</TabsTrigger>
+                            <TabsTrigger value="subcategoria">Por Subcategoría</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="sku">
+                            {skuSummary.length > 0 ? (
+                                <Card className="mt-6">
+                                    <CardHeader>
+                                        <CardTitle>Resumen de IDs y SKUs Filtrados</CardTitle>
+                                        <CardDescription>
+                                            Listas de todos los números de publicación y SKUs únicos que coinciden con los filtros aplicados.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="grid md:grid-cols-2 gap-6">
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <h4 className="font-semibold"># de Publicación ({filteredPublications.length})</h4>
+                                                <Button variant="outline" size="sm" onClick={handleCopyAllPublications}>
+                                                    <Copy className="mr-2 h-4 w-4" />
+                                                    Copiar Todos
+                                                </Button>
+                                            </div>
+                                            <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
+                                            {filteredPublications.map(pubId => (
+                                                <div
+                                                key={pubId}
+                                                onClick={() => handleCopyToClipboard(pubId)}
+                                                className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
+                                                title={`Copiar ${pubId}`}
+                                                >
+                                                {pubId}
+                                                </div>
+                                            ))}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-semibold mb-2">SKUs ({filteredSkus.length})</h4>
+                                            <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
+                                            {filteredSkus.map(sku => (
+                                                <div
+                                                key={sku}
+                                                onClick={() => handleCopyToClipboard(sku)}
+                                                className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
+                                                title={`Copiar ${sku}`}
+                                                >
+                                                {sku}
+                                                </div>
+                                            ))}
+                                            </div>
+                                        </div>
+                                        </div>
+                                        <div className="mt-6 pt-6 border-t">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h4 className="font-semibold">Detalle por SKU</h4>
+                                            <Button variant="outline" size="sm" onClick={handleDownloadSkuSummaryXLSX}>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Descargar Resumen
+                                            </Button>
+                                        </div>
+                                        <div className="border rounded-md max-h-96 overflow-y-auto">
+                                            <Table>
+                                                <TableHeader className="sticky top-0 bg-background z-10">
+                                                    <TableRow>
+                                                        <TableHead onClick={() => handleSkuSummarySort('sku')} className="cursor-pointer">
+                                                            <div className="flex items-center gap-1">SKU <ChevronsUpDown className="h-4 w-4" /></div>
+                                                        </TableHead>
+                                                        <TableHead># de Publicación</TableHead>
+                                                        <TableHead onClick={() => handleSkuSummarySort('unidades')} className="cursor-pointer text-right">
+                                                        <div className="flex items-center justify-end gap-1">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
+                                                        </TableHead>
+                                                        <TableHead onClick={() => handleSkuSummarySort('totalPorUnidad')} className="cursor-pointer text-right">
+                                                        <div className="flex items-center justify-end gap-1">Total x Unidad <ChevronsUpDown className="h-4 w-4" /></div>
+                                                        </TableHead>
+                                                        <TableHead onClick={() => handleSkuSummarySort('total')} className="cursor-pointer text-right">
+                                                        <div className="flex items-center justify-end gap-1">Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                                        </TableHead>
+                                                        <TableHead onClick={() => handleSkuSummarySort('porcentajeDelTotal')} className="cursor-pointer text-right">
+                                                        <div className="flex items-center justify-end gap-1">% del Total <ChevronsUpDown className="h-4 w-4" /></div>
+                                                        </TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                {Object.entries(groupedSkuSummary).map(([sku, items]) => {
+                                                    const typedItems = items as { unidades: number, total: number, porcentajeDelTotal: number, totalPorUnidad: number, pubId: string }[];
+                                                    const totalUnidades = typedItems.reduce((sum, item) => sum + item.unidades, 0);
+                                                    const totalTotal = typedItems.reduce((sum, item) => sum + item.total, 0);
+                                                    const totalPorcentaje = typedItems.reduce((sum, item) => sum + item.porcentajeDelTotal, 0);
+                                                    const totalPorUnidad = totalUnidades > 0 ? totalTotal / totalUnidades : 0;
+
+                                                    return (
+                                                        <React.Fragment key={sku}>
+                                                        <TableRow className="bg-muted/50 font-semibold hover:bg-muted/60">
+                                                            <TableCell>
+                                                            <div>{sku}</div>
+                                                            <div className="text-xs font-normal text-muted-foreground">{typedItems.length} {typedItems.length === 1 ? 'publicación' : 'publicaciones'}</div>
+                                                            </TableCell>
+                                                            <TableCell></TableCell>
+                                                            <TableCell className="text-right">{totalUnidades}</TableCell>
+                                                            <TableCell className="text-right">{totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                            <TableCell className={cn("text-right font-bold", totalTotal >= 0 ? "text-green-800" : "text-red-800")}>
+                                                            {totalTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                                                            </TableCell>
+                                                            <TableCell className="text-right font-mono font-bold">{totalPorcentaje.toFixed(2)}%</TableCell>
+                                                        </TableRow>
+                                                        {typedItems.map((item) => (
+                                                            <TableRow key={item.pubId} className="hover:bg-transparent">
+                                                            <TableCell className="pl-10 font-mono text-xs text-muted-foreground"></TableCell>
+                                                            <TableCell>
+                                                                <span
+                                                                className="cursor-pointer hover:text-primary"
+                                                                onClick={() => handleCopyToClipboard(item.pubId)}
+                                                                title={`Copiar ${item.pubId}`}
+                                                                >
+                                                                {item.pubId}
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-muted-foreground">{item.unidades}</TableCell>
+                                                            <TableCell className="text-right text-muted-foreground">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                            <TableCell className={cn("text-right text-sm", item.total >= 0 ? "text-green-700" : "text-red-700")}>{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                            <TableCell className="text-right font-mono text-sm text-muted-foreground">{item.porcentajeDelTotal.toFixed(2)}%</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                        </React.Fragment>
+                                                    );
+                                                })}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </div>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <Card className="mt-6"><CardContent className="p-6 text-center text-muted-foreground">No hay datos de resumen para mostrar.</CardContent></Card>
+                            )}
+                        </TabsContent>
+                        <TabsContent value="color">
+                            {colorSummary.length > 0 ? (
+                                <Card className="mt-6">
+                                    <CardHeader>
+                                        <div className="flex justify-between items-center">
+                                        <div>
+                                            <CardTitle>Resumen por Rentabilidad</CardTitle>
+                                            <CardDescription>
+                                                Agrupación de datos por color de rentabilidad para los registros filtrados.
+                                            </CardDescription>
+                                        </div>
+                                        <Button variant="outline" size="sm" onClick={handleDownloadSummaryXLSX}>
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Descargar XLSX
+                                        </Button>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                    <div className="overflow-auto max-h-96">
+                                    <Table>
+                                        <TableHeader className="sticky top-0 bg-background z-10">
+                                        <TableRow>
+                                            <TableHead>Color</TableHead>
+                                            <TableHead onClick={() => handleColorSummarySort('count')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">Registros <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                            <TableHead onClick={() => handleColorSummarySort('pedidos')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">Pedidos <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                            <TableHead onClick={() => handleColorSummarySort('porcentaje_pedidos_rango')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">% Pedidos <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                            <TableHead onClick={() => handleColorSummarySort('publications')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                            <TableHead onClick={() => handleColorSummarySort('skus')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">SKU's <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                            <TableHead onClick={() => handleColorSummarySort('unidades')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Unidades <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                            <TableHead onClick={() => handleColorSummarySort('porcentaje_unidades_rango')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">% Unidades <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                            <TableHead onClick={() => handleColorSummarySort('utilidad_promedio_por_pedido_rango')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Utilidad Prom/Pedido <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                            <TableHead onClick={() => handleColorSummarySort('total')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Total <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                            <TableHead onClick={() => handleColorSummarySort('percentageOfTotal')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">% del Total <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
+                                        </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                        {sortedColorSummary.map((item, index) => (
+                                            <TableRow key={index}>
+                                            <TableCell><div className="flex items-center gap-2 font-medium"><div className={cn("w-4 h-4 rounded-full border", item.colorClass)}></div><span>{item.label}</span></div></TableCell>
+                                            <TableCell>{item.count.toLocaleString()}</TableCell>
+                                            <TableCell>{item.pedidos.size.toLocaleString()}</TableCell>
+                                            <TableCell>{item.porcentaje_pedidos_rango.toFixed(2)}%</TableCell>
+                                            <TableCell>{item.publications.size}</TableCell>
+                                            <TableCell>{item.skus.size}</TableCell>
+                                            <TableCell className="text-right">{item.unidades.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right">{item.porcentaje_unidades_rango.toFixed(2)}%</TableCell>
+                                            <TableCell className="text-right">{item.utilidad_promedio_por_pedido_rango.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                            <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                            <TableCell className="text-right font-semibold">{item.percentageOfTotal.toFixed(2)}%</TableCell>
+                                            </TableRow>
+                                        ))}
+                                        </TableBody>
+                                        <TableFooter>
+                                            <TableRow>
+                                                <TableCell className="font-bold">Total</TableCell>
+                                                <TableCell className="font-bold">{colorSummary.reduce((acc, item) => acc + item.count, 0).toLocaleString()}</TableCell>
+                                                <TableCell className="font-bold">{totalUniquePedidos.toLocaleString()}</TableCell>
+                                                <TableCell className="font-bold">100.00%</TableCell>
+                                                <TableCell className="font-bold">{totalUniquePubs.toLocaleString()}</TableCell>
+                                                <TableCell className="font-bold">{totalUniqueSkus.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right font-bold">{totalUnidades.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right font-bold">100.00%</TableCell>
+                                                <TableCell className="text-right font-bold">{executiveKpis.gananciaPromedioPorPedido.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                                                <TableCell className="text-right font-bold">{new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(colorSummary.reduce((acc, item) => acc + item.total, 0))}</TableCell>
+                                                <TableCell className="text-right font-bold">100.00%</TableCell>
+                                            </TableRow>
+                                        </TableFooter>
+                                    </Table>
+                                    </div>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <Card className="mt-6"><CardContent className="p-6 text-center text-muted-foreground">No hay datos de resumen para mostrar.</CardContent></Card>
+                            )}
+                        </TabsContent>
+                        <TabsContent value="subcategoria">
                             <Card className="mt-6">
                                 <CardHeader>
-                                    <CardTitle>Resumen de IDs y SKUs Filtrados</CardTitle>
+                                    <CardTitle>Resumen por Subcategoría</CardTitle>
                                     <CardDescription>
-                                        Listas de todos los números de publicación y SKUs únicos que coinciden con los filtros aplicados.
+                                        Markup (%) promedio y desglose de publicaciones para cada subcategoría en los datos filtrados.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                    <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h4 className="font-semibold"># de Publicación ({filteredPublications.length})</h4>
-                                            <Button variant="outline" size="sm" onClick={handleCopyAllPublications}>
-                                                <Copy className="mr-2 h-4 w-4" />
-                                                Copiar Todos
-                                            </Button>
-                                        </div>
-                                        <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
-                                        {filteredPublications.map(pubId => (
-                                            <div
-                                            key={pubId}
-                                            onClick={() => handleCopyToClipboard(pubId)}
-                                            className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
-                                            title={`Copiar ${pubId}`}
-                                            >
-                                            {pubId}
-                                            </div>
-                                        ))}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold mb-2">SKUs ({filteredSkus.length})</h4>
-                                        <div className="border rounded-md max-h-72 overflow-y-auto p-2 space-y-1">
-                                        {filteredSkus.map(sku => (
-                                            <div
-                                            key={sku}
-                                            onClick={() => handleCopyToClipboard(sku)}
-                                            className="p-2 text-sm rounded-md hover:bg-muted cursor-pointer truncate"
-                                            title={`Copiar ${sku}`}
-                                            >
-                                            {sku}
-                                            </div>
-                                        ))}
-                                        </div>
-                                    </div>
-                                    </div>
-                                    <div className="mt-6 pt-6 border-t">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h4 className="font-semibold">Detalle por SKU</h4>
-                                        <Button variant="outline" size="sm" onClick={handleDownloadSkuSummaryXLSX}>
-                                            <Download className="mr-2 h-4 w-4" />
-                                            Descargar Resumen
-                                        </Button>
-                                    </div>
-                                    <div className="border rounded-md max-h-96 overflow-y-auto">
-                                        <Table>
-                                            <TableHeader className="sticky top-0 bg-background z-10">
-                                                <TableRow>
-                                                    <TableHead onClick={() => handleSkuSummarySort('sku')} className="cursor-pointer">
-                                                        <div className="flex items-center gap-1">SKU <ChevronsUpDown className="h-4 w-4" /></div>
-                                                    </TableHead>
-                                                    <TableHead># de Publicación</TableHead>
-                                                    <TableHead onClick={() => handleSkuSummarySort('unidades')} className="cursor-pointer text-right">
-                                                      <div className="flex items-center justify-end gap-1">Unidades <ChevronsUpDown className="h-4 w-4" /></div>
-                                                    </TableHead>
-                                                    <TableHead onClick={() => handleSkuSummarySort('totalPorUnidad')} className="cursor-pointer text-right">
-                                                      <div className="flex items-center justify-end gap-1">Total x Unidad <ChevronsUpDown className="h-4 w-4" /></div>
-                                                    </TableHead>
-                                                    <TableHead onClick={() => handleSkuSummarySort('total')} className="cursor-pointer text-right">
-                                                      <div className="flex items-center justify-end gap-1">Total <ChevronsUpDown className="h-4 w-4" /></div>
-                                                    </TableHead>
-                                                    <TableHead onClick={() => handleSkuSummarySort('porcentajeDelTotal')} className="cursor-pointer text-right">
-                                                      <div className="flex items-center justify-end gap-1">% del Total <ChevronsUpDown className="h-4 w-4" /></div>
-                                                    </TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                              {Object.entries(groupedSkuSummary).map(([sku, items]) => {
-                                                  const typedItems = items as { unidades: number, total: number, porcentajeDelTotal: number, totalPorUnidad: number, pubId: string }[];
-                                                  const totalUnidades = typedItems.reduce((sum, item) => sum + item.unidades, 0);
-                                                  const totalTotal = typedItems.reduce((sum, item) => sum + item.total, 0);
-                                                  const totalPorcentaje = typedItems.reduce((sum, item) => sum + item.porcentajeDelTotal, 0);
-                                                  const totalPorUnidad = totalUnidades > 0 ? totalTotal / totalUnidades : 0;
-
-                                                  return (
-                                                    <React.Fragment key={sku}>
-                                                      <TableRow className="bg-muted/50 font-semibold hover:bg-muted/60">
-                                                        <TableCell>
-                                                          <div>{sku}</div>
-                                                          <div className="text-xs font-normal text-muted-foreground">{typedItems.length} {typedItems.length === 1 ? 'publicación' : 'publicaciones'}</div>
-                                                        </TableCell>
-                                                        <TableCell></TableCell>
-                                                        <TableCell className="text-right">{totalUnidades}</TableCell>
-                                                        <TableCell className="text-right">{totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                        <TableCell className={cn("text-right font-bold", totalTotal >= 0 ? "text-green-800" : "text-red-800")}>
-                                                          {totalTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
-                                                        </TableCell>
-                                                        <TableCell className="text-right font-mono font-bold">{totalPorcentaje.toFixed(2)}%</TableCell>
-                                                      </TableRow>
-                                                      {typedItems.map((item) => (
-                                                        <TableRow key={item.pubId} className="hover:bg-transparent">
-                                                          <TableCell className="pl-10 font-mono text-xs text-muted-foreground"></TableCell>
-                                                          <TableCell>
-                                                            <span
-                                                              className="cursor-pointer hover:text-primary"
-                                                              onClick={() => handleCopyToClipboard(item.pubId)}
-                                                              title={`Copiar ${item.pubId}`}
-                                                            >
-                                                              {item.pubId}
+                                    <Accordion type="multiple" className="w-full">
+                                        {subCategorySummary.length > 0 ? subCategorySummary.map((item) => (
+                                            <AccordionItem value={item.subCategory} key={item.subCategory}>
+                                                <AccordionTrigger>
+                                                    <div className="flex justify-between items-center w-full pr-4">
+                                                        <span className="font-medium text-left">{item.subCategory}</span>
+                                                        <div className="flex items-center gap-4 text-right">
+                                                            <Badge variant="outline">{item.publications.length} pub.</Badge>
+                                                            <span className={cn("font-semibold", 
+                                                                item.averageMarkup >= 30 ? "text-green-700" :
+                                                                item.averageMarkup >= 20 ? "text-green-500" :
+                                                                item.averageMarkup >= 10 ? "text-yellow-600" :
+                                                                item.averageMarkup >= 5 ? "text-orange-500" :
+                                                                "text-red-600"
+                                                            )}>
+                                                                {formatPercentage(item.averageMarkup)}
                                                             </span>
-                                                          </TableCell>
-                                                          <TableCell className="text-right text-muted-foreground">{item.unidades}</TableCell>
-                                                          <TableCell className="text-right text-muted-foreground">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                          <TableCell className={cn("text-right text-sm", item.total >= 0 ? "text-green-700" : "text-red-700")}>{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                                          <TableCell className="text-right font-mono text-sm text-muted-foreground">{item.porcentajeDelTotal.toFixed(2)}%</TableCell>
-                                                        </TableRow>
-                                                      ))}
-                                                    </React.Fragment>
-                                                  );
-                                              })}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </div>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <Card className="mt-6"><CardContent className="p-6 text-center text-muted-foreground">No hay datos de resumen para mostrar.</CardContent></Card>
-                        )}
-                    </TabsContent>
-                    <TabsContent value="color">
-                        {colorSummary.length > 0 ? (
-                            <Card className="mt-6">
-                                <CardHeader>
-                                    <div className="flex justify-between items-center">
-                                      <div>
-                                        <CardTitle>Resumen por Rentabilidad</CardTitle>
-                                        <CardDescription>
-                                            Agrupación de datos por color de rentabilidad para los registros filtrados.
-                                        </CardDescription>
-                                      </div>
-                                      <Button variant="outline" size="sm" onClick={handleDownloadSummaryXLSX}>
-                                          <Download className="mr-2 h-4 w-4" />
-                                          Descargar XLSX
-                                      </Button>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                <div className="overflow-auto max-h-96">
-                                <Table>
-                                    <TableHeader className="sticky top-0 bg-background z-10">
-                                    <TableRow>
-                                        <TableHead>Color</TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('count')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">Registros <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('pedidos')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">Pedidos <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('porcentaje_pedidos_rango')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">% Pedidos <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('publications')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap"># de Publicación <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('skus')} className="cursor-pointer"><div className="flex items-center gap-1 whitespace-nowrap">SKU's <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('unidades')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Unidades <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('porcentaje_unidades_rango')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">% Unidades <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('utilidad_promedio_por_pedido_rango')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Utilidad Prom/Pedido <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('total')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">Total <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
-                                        <TableHead onClick={() => handleColorSummarySort('percentageOfTotal')} className="cursor-pointer text-right"><div className="flex items-center justify-end gap-1 whitespace-nowrap">% del Total <ChevronsUpDown className="h-4 w-4" /></div></TableHead>
-                                    </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                    {sortedColorSummary.map((item, index) => (
-                                        <TableRow key={index}>
-                                        <TableCell><div className="flex items-center gap-2 font-medium"><div className={cn("w-4 h-4 rounded-full border", item.colorClass)}></div><span>{item.label}</span></div></TableCell>
-                                        <TableCell>{item.count.toLocaleString()}</TableCell>
-                                        <TableCell>{item.pedidos.size.toLocaleString()}</TableCell>
-                                        <TableCell>{item.porcentaje_pedidos_rango.toFixed(2)}%</TableCell>
-                                        <TableCell>{item.publications.size}</TableCell>
-                                        <TableCell>{item.skus.size}</TableCell>
-                                        <TableCell className="text-right">{item.unidades.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">{item.porcentaje_unidades_rango.toFixed(2)}%</TableCell>
-                                        <TableCell className="text-right">{item.utilidad_promedio_por_pedido_rango.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                        <TableCell className={cn("text-right font-semibold", item.total >= 0 ? "text-green-700" : "text-red-700")}>{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                        <TableCell className="text-right font-semibold">{item.percentageOfTotal.toFixed(2)}%</TableCell>
-                                        </TableRow>
-                                    ))}
-                                    </TableBody>
-                                    <TableFooter>
-                                        <TableRow>
-                                            <TableCell className="font-bold">Total</TableCell>
-                                            <TableCell className="font-bold">{colorSummary.reduce((acc, item) => acc + item.count, 0).toLocaleString()}</TableCell>
-                                            <TableCell className="font-bold">{totalUniquePedidos.toLocaleString()}</TableCell>
-                                            <TableCell className="font-bold">100.00%</TableCell>
-                                            <TableCell className="font-bold">{totalUniquePubs.toLocaleString()}</TableCell>
-                                            <TableCell className="font-bold">{totalUniqueSkus.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right font-bold">{totalUnidades.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right font-bold">100.00%</TableCell>
-                                            <TableCell className="text-right font-bold">{executiveKpis.gananciaPromedioPorPedido.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
-                                            <TableCell className="text-right font-bold">{new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(colorSummary.reduce((acc, item) => acc + item.total, 0))}</TableCell>
-                                            <TableCell className="text-right font-bold">100.00%</TableCell>
-                                        </TableRow>
-                                    </TableFooter>
-                                </Table>
-                                </div>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <Card className="mt-6"><CardContent className="p-6 text-center text-muted-foreground">No hay datos de resumen para mostrar.</CardContent></Card>
-                        )}
-                    </TabsContent>
-                    <TabsContent value="subcategoria">
-                        <Card className="mt-6">
-                            <CardHeader>
-                                <CardTitle>Resumen por Subcategoría</CardTitle>
-                                <CardDescription>
-                                    Markup (%) promedio y desglose de publicaciones para cada subcategoría en los datos filtrados.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Accordion type="multiple" className="w-full">
-                                    {subCategorySummary.length > 0 ? subCategorySummary.map((item) => (
-                                        <AccordionItem value={item.subCategory} key={item.subCategory}>
-                                            <AccordionTrigger>
-                                                <div className="flex justify-between items-center w-full pr-4">
-                                                    <span className="font-medium text-left">{item.subCategory}</span>
-                                                    <div className="flex items-center gap-4 text-right">
-                                                        <Badge variant="outline">{item.publications.length} pub.</Badge>
-                                                        <span className={cn("font-semibold", 
-                                                            item.averageMarkup >= 30 ? "text-green-700" :
-                                                            item.averageMarkup >= 20 ? "text-green-500" :
-                                                            item.averageMarkup >= 10 ? "text-yellow-600" :
-                                                            item.averageMarkup >= 5 ? "text-orange-500" :
-                                                            "text-red-600"
-                                                        )}>
-                                                            {formatPercentage(item.averageMarkup)}
-                                                        </span>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </AccordionTrigger>
-                                            <AccordionContent>
-                                                 <ul className="pl-8 pt-2 space-y-1 list-disc list-inside">
-                                                    {item.publications.map((pub: string) => (
-                                                        <li key={pub} className="text-sm text-muted-foreground">
-                                                            <span
-                                                                className="cursor-pointer hover:text-primary hover:underline"
-                                                                onClick={() => handleCopyToClipboard(pub)}
-                                                                title={`Copiar ${pub}`}
-                                                            >
-                                                                # de publicación: {pub}
-                                                            </span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    )) : (
-                                        <div className="text-center text-muted-foreground p-6">
-                                            No hay datos de subcategorías para mostrar.
-                                        </div>
-                                    )}
-                                </Accordion>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                  </Tabs>
-                )}
+                                                </AccordionTrigger>
+                                                <AccordionContent>
+                                                    <ul className="pl-8 pt-2 space-y-1 list-disc list-inside">
+                                                        {item.publications.map((pub: string) => (
+                                                            <li key={pub} className="text-sm text-muted-foreground">
+                                                                <span
+                                                                    className="cursor-pointer hover:text-primary hover:underline"
+                                                                    onClick={() => handleCopyToClipboard(pub)}
+                                                                    title={`Copiar ${pub}`}
+                                                                >
+                                                                    # de publicación: {pub}
+                                                                </span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        )) : (
+                                            <div className="text-center text-muted-foreground p-6">
+                                                No hay datos de subcategorías para mostrar.
+                                            </div>
+                                        )}
+                                    </Accordion>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
+                    )}
+                </div>
               </>
             )
           }
 
-          <div className="flex justify-center items-center py-8">
+          <div className={cn("flex justify-center items-center py-8", isFocusMode && "hidden")}>
             <Button
               onClick={handleSaveData}
               disabled={data.length === 0 || isSaving || isProcessing}
