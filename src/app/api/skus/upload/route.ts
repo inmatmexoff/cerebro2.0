@@ -1,8 +1,3 @@
-
-
-
-
-
 import { NextResponse } from 'next/server';
 import { supabasePROD } from '@/lib/supabase';
 
@@ -68,7 +63,7 @@ export async function POST(request: Request) {
             const chunk = allMdrFromFile.slice(i, i + CHUNK_SIZE);
             const { data: mChunk, error: mError } = await supabase
                 .from('sku_m')
-                .select('sku_mdr, sku, cat_mdr, sub_cat, esti_time, piezas_por_sku')
+                .select('sku_mdr, sku, cat_mdr, sub_cat, esti_time, piezas_por_sku, empaquetado_master, tip_empa, pz_empaquetado_master')
                 .in('sku_mdr', chunk);
             if (mError) throw new Error(`Error fetching existing sku_m data: ${mError.message}`);
             if (mChunk) existingMData.push(...mChunk);
@@ -78,14 +73,14 @@ export async function POST(request: Request) {
             const chunk = allSkusFromFile.slice(i, i + CHUNK_SIZE);
             const { data: alternoChunk, error: alternoError } = await supabase
                 .from('sku_alterno')
-                .select('sku, sku_mdr')
+                .select('sku, sku_mdr, empresa')
                 .in('sku', chunk);
             if (alternoError) throw new Error(`Error fetching existing sku_alterno data: ${alternoError.message}`);
             if (alternoChunk) existingAlternoData.push(...alternoChunk);
         }
 
         const existingMMap = new Map((existingMData || []).map(r => [r.sku_mdr, r]));
-        const existingAlternoMap = new Map((existingAlternoData || []).map(r => [r.sku, r.sku_mdr]));
+        const existingAlternoMap = new Map((existingAlternoData || []).map(r => [r.sku, r]));
 
 
         // --- Prepare records for DB operations ---
@@ -95,7 +90,7 @@ export async function POST(request: Request) {
 
         // De-duplicate incoming data to process each sku_mdr and sku once
         const uniqueMdrData = new Map<string, any>();
-        const uniqueAlternoData = new Map<string, string>();
+        const uniqueAlternoData = new Map<string, any>();
         
         data.forEach(row => {
             const sku_mdr = String(row.sku_mdr || '').trim();
@@ -104,8 +99,8 @@ export async function POST(request: Request) {
             if (sku_mdr && !uniqueMdrData.has(sku_mdr)) {
                 uniqueMdrData.set(sku_mdr, row);
             }
-            if (sku && sku_mdr && !uniqueAlternoData.has(sku)) {
-                uniqueAlternoData.set(sku, sku_mdr);
+            if (sku && !uniqueAlternoData.has(sku)) {
+                uniqueAlternoData.set(sku, row);
             }
         });
 
@@ -120,6 +115,9 @@ export async function POST(request: Request) {
                 sub_cat: row.sub_categoria || null,
                 esti_time: parseNumeric(row.esti_time, true),
                 piezas_por_sku: parseNumeric(row.piezas_por_sku, true),
+                empaquetado_master: row.empaquetado_master || null,
+                tip_empa: row.tip_empa || null,
+                pz_empaquetado_master: parseNumeric(row.pz_empaquetado_master, true),
                 ...(uploadType === 'oficial' && { sku: String(row.sku || '').trim() || null }),
             };
 
@@ -129,22 +127,14 @@ export async function POST(request: Request) {
                 const mergedRecord = { ...existingRecord };
                 let hasChanged = false;
 
-                if (recordFromFile.cat_mdr !== null && recordFromFile.cat_mdr !== existingRecord.cat_mdr) {
-                    mergedRecord.cat_mdr = recordFromFile.cat_mdr;
-                    hasChanged = true;
-                }
-                if (recordFromFile.sub_cat !== null && recordFromFile.sub_cat !== existingRecord.sub_cat) {
-                    mergedRecord.sub_cat = recordFromFile.sub_cat;
-                    hasChanged = true;
-                }
-                if (recordFromFile.esti_time !== null && recordFromFile.esti_time !== existingRecord.esti_time) {
-                    mergedRecord.esti_time = recordFromFile.esti_time;
-                    hasChanged = true;
-                }
-                if (recordFromFile.piezas_por_sku !== null && recordFromFile.piezas_por_sku !== existingRecord.piezas_por_sku) {
-                    mergedRecord.piezas_por_sku = recordFromFile.piezas_por_sku;
-                    hasChanged = true;
-                }
+                if (recordFromFile.cat_mdr !== null && recordFromFile.cat_mdr !== existingRecord.cat_mdr) { mergedRecord.cat_mdr = recordFromFile.cat_mdr; hasChanged = true; }
+                if (recordFromFile.sub_cat !== null && recordFromFile.sub_cat !== existingRecord.sub_cat) { mergedRecord.sub_cat = recordFromFile.sub_cat; hasChanged = true; }
+                if (recordFromFile.esti_time !== null && recordFromFile.esti_time !== existingRecord.esti_time) { mergedRecord.esti_time = recordFromFile.esti_time; hasChanged = true; }
+                if (recordFromFile.piezas_por_sku !== null && recordFromFile.piezas_por_sku !== existingRecord.piezas_por_sku) { mergedRecord.piezas_por_sku = recordFromFile.piezas_por_sku; hasChanged = true; }
+                if (recordFromFile.empaquetado_master !== null && recordFromFile.empaquetado_master !== existingRecord.empaquetado_master) { mergedRecord.empaquetado_master = recordFromFile.empaquetado_master; hasChanged = true; }
+                if (recordFromFile.tip_empa !== null && recordFromFile.tip_empa !== existingRecord.tip_empa) { mergedRecord.tip_empa = recordFromFile.tip_empa; hasChanged = true; }
+                if (recordFromFile.pz_empaquetado_master !== null && recordFromFile.pz_empaquetado_master !== existingRecord.pz_empaquetado_master) { mergedRecord.pz_empaquetado_master = recordFromFile.pz_empaquetado_master; hasChanged = true; }
+
                 if (uploadType === 'oficial' && recordFromFile.sku && recordFromFile.sku !== existingRecord.sku) {
                     mergedRecord.sku = recordFromFile.sku;
                     hasChanged = true;
@@ -158,10 +148,13 @@ export async function POST(request: Request) {
 
         // 2. Process sku_alterno records (only for 'alterno' type)
         if (uploadType === 'alterno') {
-            uniqueAlternoData.forEach((sku_mdr, sku) => {
-                const existingMdr = existingAlternoMap.get(sku);
-                if (!existingMdr || existingMdr !== sku_mdr) {
-                    skuAlternoRecordsToUpsert.push({ sku, sku_mdr });
+            uniqueAlternoData.forEach((row, sku) => {
+                const existingRecord = existingAlternoMap.get(sku);
+                const sku_mdr = String(row.sku_mdr || '').trim();
+                const empresa = row.empresa || null;
+
+                if (!existingRecord || existingRecord.sku_mdr !== sku_mdr || existingRecord.empresa !== empresa) {
+                    skuAlternoRecordsToUpsert.push({ sku, sku_mdr, empresa });
                 }
             });
         }

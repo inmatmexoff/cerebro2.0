@@ -38,6 +38,10 @@ const manualSkuSchema = z.object({
     piezas_xcontenedor: z.coerce.number().int({ message: "Debe ser un número entero." }).positive({ message: "Debe ser un número positivo."}).optional().nullable(),
     esti_time: z.coerce.number().int({ message: "Debe ser un número entero." }).positive({ message: "Debe ser un número positivo."}).optional().nullable(),
     piezas_por_sku: z.coerce.number().int({ message: "Debe ser un número entero." }).positive({ message: "Debe ser un número positivo."}).optional().nullable(),
+    empresa: z.string().optional().nullable(),
+    empaquetado_master: z.string().optional().nullable(),
+    tip_empa: z.string().optional().nullable(),
+    pz_empaquetado_master: z.coerce.number().int({ message: "Debe ser un número entero." }).optional().nullable(),
 });
 
 export default function CargaSkuPage() {
@@ -61,7 +65,11 @@ export default function CargaSkuPage() {
             proveedor: '',
             piezas_xcontenedor: null,
             esti_time: null,
-            piezas_por_sku: null
+            piezas_por_sku: null,
+            empresa: '',
+            empaquetado_master: '',
+            tip_empa: '',
+            pz_empaquetado_master: null,
         },
     });
 
@@ -231,9 +239,13 @@ export default function CargaSkuPage() {
                 sub_categoria: String(row[3] || '').trim(),
                 landed_cost: row[4], 
                 piezas_xcontenedor: row[5],
-                proveedor: row[12] || null,
                 esti_time: row[6],
                 piezas_por_sku: row[7],
+                empresa: row[8] || null,
+                empaquetado_master: row[9] || null,
+                tip_empa: row[10] || null,
+                pz_empaquetado_master: row[11],
+                proveedor: row[12] || null,
             }));
 
             const response = await fetch('/api/skus/upload', {
@@ -324,123 +336,19 @@ export default function CargaSkuPage() {
                             <Form {...manualForm}>
                                 <form onSubmit={manualForm.handleSubmit(onManualSubmit)} className="space-y-6">
                                     <div className="grid md:grid-cols-3 gap-4">
-                                        <FormField
-                                            control={manualForm.control}
-                                            name="sku"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>SKU</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="Ej. SKU12345" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={manualForm.control}
-                                            name="sku_mdr"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>NOMBRE MADRE</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="Ej. SKU_MDR_123" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={manualForm.control}
-                                            name="cat_mdr"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Categoría Madre</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="Ej. RACKS" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={manualForm.control}
-                                            name="sub_categoria"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Sub-Categoría</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="Ej. Accesorios" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''}/>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={manualForm.control}
-                                            name="landed_cost"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Landed Cost</FormLabel>
-                                                    <FormControl>
-                                                        <Input type="number" step="0.01" placeholder="Ej. 199.99" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''}/>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={manualForm.control}
-                                            name="proveedor"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Proveedor</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="Ej. Proveedor A" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''}/>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={manualForm.control}
-                                            name="piezas_xcontenedor"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Piezas por Contenedor</FormLabel>
-                                                    <FormControl>
-                                                        <Input type="number" placeholder="Ej. 100" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={manualForm.control}
-                                            name="esti_time"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Tiempo Estimado (min)</FormLabel>
-                                                    <FormControl>
-                                                        <Input type="number" placeholder="Ej. 30" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={manualForm.control}
-                                            name="piezas_por_sku"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Piezas por SKU</FormLabel>
-                                                    <FormControl>
-                                                        <Input type="number" placeholder="Ej. 50" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
+                                        <FormField control={manualForm.control} name="sku" render={({ field }) => (<FormItem><FormLabel>SKU</FormLabel><FormControl><Input placeholder="Ej. SKU12345" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="sku_mdr" render={({ field }) => (<FormItem><FormLabel>NOMBRE MADRE</FormLabel><FormControl><Input placeholder="Ej. SKU_MDR_123" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="cat_mdr" render={({ field }) => (<FormItem><FormLabel>Categoría Madre</FormLabel><FormControl><Input placeholder="Ej. RACKS" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="sub_categoria" render={({ field }) => (<FormItem><FormLabel>Sub-Categoría</FormLabel><FormControl><Input placeholder="Ej. Accesorios" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="landed_cost" render={({ field }) => (<FormItem><FormLabel>Landed Cost</FormLabel><FormControl><Input type="number" step="0.01" placeholder="Ej. 199.99" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="proveedor" render={({ field }) => (<FormItem><FormLabel>Proveedor</FormLabel><FormControl><Input placeholder="Ej. Proveedor A" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="piezas_xcontenedor" render={({ field }) => (<FormItem><FormLabel>Piezas por Contenedor</FormLabel><FormControl><Input type="number" placeholder="Ej. 100" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="esti_time" render={({ field }) => (<FormItem><FormLabel>Tiempo Estimado (min)</FormLabel><FormControl><Input type="number" placeholder="Ej. 30" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="piezas_por_sku" render={({ field }) => (<FormItem><FormLabel>Piezas por SKU</FormLabel><FormControl><Input type="number" placeholder="Ej. 50" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="empresa" render={({ field }) => (<FormItem><FormLabel>Empresa</FormLabel><FormControl><Input placeholder="Ej. INMATMEX" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="empaquetado_master" render={({ field }) => (<FormItem><FormLabel>Empaquetado Master</FormLabel><FormControl><Input placeholder="Ej. Caja" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="tip_empa" render={({ field }) => (<FormItem><FormLabel>Tipo de Empaquetado</FormLabel><FormControl><Input placeholder="Ej. Individual" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={manualForm.control} name="pz_empaquetado_master" render={({ field }) => (<FormItem><FormLabel>Piezas por Master</FormLabel><FormControl><Input type="number" placeholder="Ej. 10" {...field} onChange={event => field.onChange(event.target.value === '' ? null : event.target.value)} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
                                     </div>
                                     <Button type="submit" disabled={isSavingManual}>
                                         {isSavingManual ? (
