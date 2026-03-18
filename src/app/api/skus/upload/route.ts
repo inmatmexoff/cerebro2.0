@@ -52,27 +52,39 @@ export async function POST(request: Request) {
         }
 
         // --- Fetch existing data for comparison ---
+        const CHUNK_SIZE = 500; // Safe chunk size for .in() filter
         const allSkusFromFile = [...new Set(data.map(r => String(r.sku || '').trim()).filter(Boolean))];
         const allMdrFromFile = [...new Set(data.map(r => String(r.sku_mdr || '').trim()).filter(Boolean))];
         
-        const { data: existingAlternoData, error: alternoError } = await supabase
-            .from('sku_alterno')
-            .select('sku, sku_mdr, empresa')
-            .in('sku', allSkusFromFile);
-        if (alternoError) throw new Error(`Error fetching existing sku_alterno data: ${alternoError.message}`);
+        let existingAlternoData: any[] = [];
+        for (let i = 0; i < allSkusFromFile.length; i += CHUNK_SIZE) {
+            const chunk = allSkusFromFile.slice(i, i + CHUNK_SIZE);
+            const { data: chunkData, error: alternoError } = await supabase
+                .from('sku_alterno')
+                .select('sku, sku_mdr, empresa')
+                .in('sku', chunk);
 
+            if (alternoError) throw new Error(`Error fetching existing sku_alterno data: ${alternoError.message}`);
+            if (chunkData) existingAlternoData.push(...chunkData);
+        }
+        
         const allMdrFromDb = (existingAlternoData || []).map(r => r.sku_mdr).filter(Boolean);
         const allMdrsToFetch = [...new Set([...allMdrFromFile, ...allMdrFromDb])];
 
         let existingMData: any[] = [];
         if (allMdrsToFetch.length > 0) {
-             const { data: mData, error: mError } = await supabase
-                .from('sku_m')
-                .select('sku_mdr, sku, cat_mdr, sub_cat, esti_time, piezas_por_sku, empaquetado_master, tip_empa, pz_empaquetado_master')
-                .in('sku_mdr', allMdrsToFetch);
-            if (mError) throw new Error(`Error fetching existing sku_m data: ${mError.message}`);
-            if (mData) existingMData = mData;
+             for (let i = 0; i < allMdrsToFetch.length; i += CHUNK_SIZE) {
+                const chunk = allMdrsToFetch.slice(i, i + CHUNK_SIZE);
+                const { data: mData, error: mError } = await supabase
+                    .from('sku_m')
+                    .select('sku_mdr, sku, cat_mdr, sub_cat, esti_time, piezas_por_sku, empaquetado_master, tip_empa, pz_empaquetado_master')
+                    .in('sku_mdr', chunk);
+                
+                if (mError) throw new Error(`Error fetching existing sku_m data: ${mError.message}`);
+                if (mData) existingMData.push(...mData);
+             }
         }
+
 
         const existingMMap = new Map(existingMData.map(r => [r.sku_mdr, r]));
         const existingAlternoMap = new Map((existingAlternoData || []).map(r => [r.sku, r]));
@@ -122,7 +134,7 @@ export async function POST(request: Request) {
                 Object.keys(recordFromFileForM).forEach(key => {
                     const fileValue = recordFromFileForM[key as keyof typeof recordFromFileForM];
                     const dbValue = existingMRecord[key];
-                    if (key !== 'sku_mdr' && fileValue !== null && fileValue !== dbValue) {
+                    if (key !== 'sku_mdr' && fileValue !== null && fileValue !== undefined && fileValue !== '' && fileValue !== dbValue) {
                         mergedRecord[key] = fileValue;
                         hasChanged = true;
                     }
