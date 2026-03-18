@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { CompanySelect } from '@/components/company-select';
 
 type SkuM = {
   sku_mdr: string;
@@ -32,6 +33,7 @@ type SkuM = {
 type SkuAlterno = {
   sku: string;
   sku_mdr: string;
+  empresa: string | null;
 };
 
 type GroupedSkus = {
@@ -59,6 +61,7 @@ export default function DirectorioSkusPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [companyFilter, setCompanyFilter] = useState<string | undefined>();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -73,7 +76,7 @@ export default function DirectorioSkusPage() {
         if (skuMError) throw skuMError;
 
         const { data: skuAlternoData, error: skuAlternoError } =
-          await supabasePROD.from('sku_alterno').select('sku, sku_mdr');
+          await supabasePROD.from('sku_alterno').select('sku, sku_mdr, empresa');
 
         if (skuAlternoError) throw skuAlternoError;
 
@@ -110,21 +113,35 @@ export default function DirectorioSkusPage() {
     if (skuMList.length === 0) return {};
 
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    const effectiveCompanyFilter = (companyFilter && companyFilter !== 'all') ? companyFilter.replace(/-/g, ' ').toUpperCase() : null;
+
+    // Filter alterno list by company
+    const companyFilteredAlternoList = effectiveCompanyFilter
+      ? skuAlternoList.filter(sa => sa.empresa && sa.empresa.toUpperCase() === effectiveCompanyFilter)
+      : skuAlternoList;
 
     // Filter skus first to find relevant sku_mdr
-    const filteredAlternoBySku = skuAlternoList.filter(
+    const filteredAlternoBySku = companyFilteredAlternoList.filter(
       (sa) => sa.sku.toLowerCase().includes(lowerCaseSearchTerm)
     );
     const relevantSkuMdrsFromAlterno = new Set(filteredAlternoBySku.map(sa => sa.sku_mdr));
 
+    // Get visible sku_mdrs from the company filter. If no company is selected, all are visible.
+    const companyVisibleSkuMdrs = new Set(companyFilteredAlternoList.map(sa => sa.sku_mdr));
+
     // Filter sku_m based on search term or if they are related to a found SKU
     const filteredSkuM = skuMList.filter(
       (sm) =>
-        sm.sku_mdr.toLowerCase().includes(lowerCaseSearchTerm) ||
-        sm.cat_mdr?.toLowerCase().includes(lowerCaseSearchTerm) ||
-        sm.sub_cat?.toLowerCase().includes(lowerCaseSearchTerm) ||
-        relevantSkuMdrsFromAlterno.has(sm.sku_mdr) ||
-        (sm.sku && sm.sku.toLowerCase().includes(lowerCaseSearchTerm))
+        // Company filter check
+        (!effectiveCompanyFilter || companyVisibleSkuMdrs.has(sm.sku_mdr)) &&
+        // Search filter check
+        (
+            sm.sku_mdr.toLowerCase().includes(lowerCaseSearchTerm) ||
+            sm.cat_mdr?.toLowerCase().includes(lowerCaseSearchTerm) ||
+            sm.sub_cat?.toLowerCase().includes(lowerCaseSearchTerm) ||
+            relevantSkuMdrsFromAlterno.has(sm.sku_mdr) ||
+            (sm.sku && sm.sku.toLowerCase().includes(lowerCaseSearchTerm))
+        )
     );
 
     const finalSkuMdrsInScope = new Set(filteredSkuM.map(sm => sm.sku_mdr));
@@ -151,7 +168,7 @@ export default function DirectorioSkusPage() {
         }
     });
     
-    skuAlternoList.forEach((sa) => {
+    companyFilteredAlternoList.forEach((sa) => {
       if (!finalSkuMdrsInScope.has(sa.sku_mdr)) return;
 
       const skuM = skuMList.find((sm) => sm.sku_mdr === sa.sku_mdr);
@@ -160,7 +177,7 @@ export default function DirectorioSkusPage() {
         const subCategory = skuM.sub_cat || 'Sin Subcategoría';
         
         if (grouped[category]?.subCategories[subCategory]?.skuMdr[sa.sku_mdr]) {
-          if (!searchTerm || sa.sku.toLowerCase().includes(lowerCaseSearchTerm) || skuM.sku?.toLowerCase().includes(lowerCaseSearchTerm)) {
+          if (!searchTerm || sa.sku.toLowerCase().includes(lowerCaseSearchTerm) || (skuM.sku && skuM.sku.toLowerCase().includes(lowerCaseSearchTerm))) {
               grouped[category].subCategories[subCategory].skuMdr[sa.sku_mdr].skus.push(sa.sku);
           } else if (filteredSkuM.some(fsm => fsm.sku_mdr === sa.sku_mdr)) {
              grouped[category].subCategories[subCategory].skuMdr[sa.sku_mdr].skus.push(sa.sku);
@@ -211,7 +228,7 @@ export default function DirectorioSkusPage() {
     });
 
     return grouped;
-  }, [skuMList, skuAlternoList, searchTerm]);
+  }, [skuMList, skuAlternoList, searchTerm, companyFilter]);
 
   const summaryStats = useMemo(() => {
     const categories = Object.keys(groupedAndFilteredSkus);
@@ -262,16 +279,19 @@ export default function DirectorioSkusPage() {
               <CardTitle>Buscar en el Directorio</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search-skus"
-                  placeholder="Buscar por SKU, Nombre Madre, Categoría..."
-                  className="pl-8 w-full"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  disabled={isLoading}
-                />
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="search-skus"
+                    placeholder="Buscar por SKU, Nombre Madre, Categoría..."
+                    className="pl-8 w-full"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <CompanySelect value={companyFilter} onValueChange={setCompanyFilter} />
               </div>
             </CardContent>
           </Card>
