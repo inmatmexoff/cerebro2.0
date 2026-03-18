@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         }
 
         // --- Fetch existing data for comparison ---
-        const CHUNK_SIZE = 500; // Safe chunk size for .in() filter
+        const CHUNK_SIZE = 100; // Safe chunk size for .in() filter
         const allSkusFromFile = [...new Set(data.map(r => String(r.sku || '').trim()).filter(Boolean))];
         const allMdrFromFile = [...new Set(data.map(r => String(r.sku_mdr || '').trim()).filter(Boolean))];
         
