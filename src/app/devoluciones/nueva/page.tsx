@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Save, Loader2, ChevronsUpDown, Check, UploadCloud, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -78,9 +78,6 @@ export default function NuevaDevolucionPage() {
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
     
-    const [salesByDate, setSalesByDate] = useState<{ value: string; label: string; producto: string; sku: string | null }[]>([]);
-    const [isLoadingSales, setIsLoadingSales] = useState(false);
-    
     const [modalState, setModalState] = useState<{type: ModalType | null, open: boolean}>({ type: null, open: false });
     const [saldoNegativoDateAlert, setSaldoNegativoDateAlert] = useState(false);
     
@@ -130,14 +127,13 @@ export default function NuevaDevolucionPage() {
         maxFiles: 1,
     });
 
-    const { setValue } = form;
-    const watchFechaVenta = form.watch('fecha_venta');
-    const watchNumVenta = form.watch('num_venta');
-    const watchReporte = form.watch('reporte');
-    const watchErrorNosotros = form.watch('error_nosotros');
-    const watchFactura = form.watch('factura');
-    const watchFechaRegistroSaldoNegativo = form.watch('fecha_registro_saldo_negativo');
-    const watchSaldoCobrado = form.watch('saldo_cobrado');
+    const { setValue, watch, getValues } = form;
+    const watchNumVenta = watch('num_venta');
+    const watchReporte = watch('reporte');
+    const watchErrorNosotros = watch('error_nosotros');
+    const watchFactura = watch('factura');
+    const watchFechaRegistroSaldoNegativo = watch('fecha_registro_saldo_negativo');
+    const watchSaldoCobrado = watch('saldo_cobrado');
 
     useEffect(() => {
         if (watchFechaRegistroSaldoNegativo && !watchSaldoCobrado) {
@@ -161,18 +157,21 @@ export default function NuevaDevolucionPage() {
         if (watchReporte && !modalState.open) {
           handleModalOpen('reporte');
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [watchReporte, modalState.open]);
     
     useEffect(() => {
         if (watchErrorNosotros && !modalState.open) {
           handleModalOpen('error');
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [watchErrorNosotros, modalState.open]);
     
     useEffect(() => {
         if (watchFactura && !modalState.open) {
           handleModalOpen('factura');
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [watchFactura, modalState.open]);
 
 
@@ -211,56 +210,6 @@ export default function NuevaDevolucionPage() {
         }
     }, [watchReporte, form]);
 
-    // Effect for fetching sales when date changes
-    useEffect(() => {
-        if (!watchFechaVenta) {
-            setSalesByDate([]);
-            return;
-        }
-        
-        const fetchSalesForDate = async () => {
-            setIsLoadingSales(true);
-            try {
-                const startOfDay = new Date(watchFechaVenta);
-                startOfDay.setHours(0, 0, 0, 0);
-                const endOfDay = new Date(watchFechaVenta);
-                endOfDay.setHours(23, 59, 59, 999);
-
-                const { data, error } = await supabasePROD
-                    .from('devoluciones_ml')
-                    .select('num_venta, titulo_publi, sku')
-                    .gte('fecha_venta', startOfDay.toISOString())
-                    .lte('fecha_venta', endOfDay.toISOString())
-                    .order('num_venta', { ascending: false });
-
-                if (error) throw error;
-                
-                const salesMap = new Map<string, typeof data[0]>();
-                (data || []).forEach(item => {
-                    if (!salesMap.has(String(item.num_venta))) {
-                        salesMap.set(String(item.num_venta), item);
-                    }
-                });
-
-                setSalesByDate(Array.from(salesMap.values()).map(item => ({ 
-                    value: String(item.num_venta), 
-                    label: String(item.num_venta),
-                    producto: item.titulo_publi || '',
-                    sku: item.sku || null
-                })));
-            } catch (err: any) {
-                setSalesByDate([]);
-                toast({ variant: "destructive", title: "Error al cargar ventas" });
-            } finally {
-                setIsLoadingSales(false);
-            }
-        };
-
-        fetchSalesForDate();
-    }, [watchFechaVenta, toast]);
-
-
-    // Effect for sale number changes
     useEffect(() => {
         if (!watchNumVenta) {
             return;
@@ -311,9 +260,9 @@ export default function NuevaDevolucionPage() {
                     setValue('responsable_barra', personalData.name_inc || '');
                     setValue('responsable_calificar', personalData.name_cali || '');
                 } else {
-                    setValue('responsable_picking', '');
-                    setValue('responsable_barra', '');
-                    setValue('responsable_calificar', '');
+                    setValue('responsable_picking', getValues('responsable_picking') || '');
+                    setValue('responsable_barra', getValues('responsable_barra') || '');
+                    setValue('responsable_calificar', getValues('responsable_calificar') || '');
                 }
             } catch (err: any) {
                 console.error("Error fetching from personal DB:", err.message);
@@ -331,7 +280,7 @@ export default function NuevaDevolucionPage() {
 
         return () => clearTimeout(debounceTimer);
 
-    }, [watchNumVenta, setValue, toast]);
+    }, [watchNumVenta, setValue, toast, getValues]);
 
 
     async function onSubmit(values: DevolucionFormValues) {
@@ -447,10 +396,7 @@ export default function NuevaDevolucionPage() {
                                                 value={field.value} 
                                                 onChange={(date) => {
                                                     field.onChange(date);
-                                                    // Manual change, so clear dependent fields
                                                     setValue('num_venta', '');
-                                                    setValue('producto', '');
-                                                    setValue('sku', '');
                                                 }} 
                                             />
                                         </FormControl><FormMessage /></FormItem>)} />
@@ -463,32 +409,11 @@ export default function NuevaDevolucionPage() {
                                                     <FormLabel># Venta</FormLabel>
                                                     <FormControl>
                                                         <Input
-                                                            placeholder="Escribe o selecciona un # de venta"
+                                                            placeholder="Escribe un # de venta"
                                                             {...field}
                                                             value={field.value || ''}
-                                                            list="sales-list"
-                                                            onChange={(e) => {
-                                                                const value = e.target.value;
-                                                                field.onChange(value);
-                                                                
-                                                                const selectedSale = salesByDate.find(s => s.label === value);
-                                                                if (selectedSale) {
-                                                                    form.setValue("producto", selectedSale.producto, { shouldValidate: true });
-                                                                    if (selectedSale.sku) {
-                                                                        form.setValue("sku", selectedSale.sku, { shouldValidate: true });
-                                                                    }
-                                                                }
-                                                            }}
                                                         />
                                                     </FormControl>
-                                                    <datalist id="sales-list">
-                                                        {salesByDate.map((sale) => (
-                                                            <option key={sale.value} value={sale.label} />
-                                                        ))}
-                                                    </datalist>
-                                                    <FormDescription>
-                                                       {isLoadingSales ? "Cargando ventas..." : watchFechaVenta ? `Se encontraron ${salesByDate.length} ventas.` : "Selecciona una fecha para ver sugerencias."}
-                                                    </FormDescription>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
