@@ -213,6 +213,7 @@ export default function NuevaDevolucionPage() {
         }
     }, [watchReporte, form]);
 
+    // Effect for manual date changes
     useEffect(() => {
         if (isAutomaticChange.current) {
             isAutomaticChange.current = false;
@@ -224,21 +225,19 @@ export default function NuevaDevolucionPage() {
             setValue('producto', '');
             setValue('sku', '');
         }
-        
+
         if (!watchFechaVenta) {
             setSalesByDate([]);
             return;
         }
-
-        const fetchSales = async () => {
+        
+        const fetchSalesForDate = async () => {
             setIsLoadingSales(true);
             try {
                 const startOfDay = new Date(watchFechaVenta);
                 startOfDay.setHours(0, 0, 0, 0);
-
                 const endOfDay = new Date(watchFechaVenta);
                 endOfDay.setHours(23, 59, 59, 999);
-                
 
                 const { data, error } = await supabasePROD
                     .from('devoluciones_ml')
@@ -248,53 +247,40 @@ export default function NuevaDevolucionPage() {
                     .order('num_venta', { ascending: false });
 
                 if (error) throw error;
+                
+                const salesMap = new Map<string, typeof data[0]>();
+                (data || []).forEach(item => {
+                    if (!salesMap.has(String(item.num_venta))) {
+                        salesMap.set(String(item.num_venta), item);
+                    }
+                });
 
-                if (data) {
-                    const salesMap = new Map<string, typeof data[0]>();
-                    data.forEach(item => {
-                        const ventaNum = String(item.num_venta);
-                        if (!salesMap.has(ventaNum)) {
-                            salesMap.set(ventaNum, item);
-                        }
-                    });
-                    const uniqueSales = Array.from(salesMap.values());
-
-                    setSalesByDate(uniqueSales.map(item => ({ 
-                        value: String(item.num_venta), 
-                        label: String(item.num_venta),
-                        producto: item.titulo_publi || '',
-                        sku: item.sku || null
-                    })));
-                } else {
-                    setSalesByDate([]);
-                }
+                setSalesByDate(Array.from(salesMap.values()).map(item => ({ 
+                    value: String(item.num_venta), 
+                    label: String(item.num_venta),
+                    producto: item.titulo_publi || '',
+                    sku: item.sku || null
+                })));
             } catch (err: any) {
                 setSalesByDate([]);
-                toast({
-                    variant: "destructive",
-                    title: "Error al cargar ventas",
-                    description: "No se pudieron cargar las ventas para la fecha seleccionada.",
-                });
+                toast({ variant: "destructive", title: "Error al cargar ventas" });
             } finally {
                 setIsLoadingSales(false);
             }
         };
 
-        fetchSales();
-    }, [watchFechaVenta, toast, setValue]);
+        fetchSalesForDate();
+    }, [watchFechaVenta, setValue, toast]);
 
+
+    // Effect for sale number changes
     useEffect(() => {
         if (!watchNumVenta) {
-            setValue('responsable_picking', '');
-            setValue('responsable_barra', '');
-            setValue('responsable_calificar', '');
-            setValue('tienda', '');
             return;
         }
 
         const fetchDataForSale = async () => {
             let foundAnyData = false;
-
             setValue('fecha_revision', new Date());
 
             try {
@@ -311,22 +297,15 @@ export default function NuevaDevolucionPage() {
                     if (devData.tienda) setValue('tienda', devData.tienda.toUpperCase());
                     
                     if (devData.fecha_venta) {
-                         const newFechaVenta = new Date(devData.fecha_venta);
-                         const currentFechaVenta = form.getValues('fecha_venta');
-                         if (!currentFechaVenta || newFechaVenta.getTime() !== currentFechaVenta.getTime()) {
-                             isAutomaticChange.current = true;
-                             setValue('fecha_venta', newFechaVenta);
-                         }
+                        const newFechaVenta = new Date(devData.fecha_venta);
+                        isAutomaticChange.current = true; // Set flag to prevent date change effect from clearing num_venta
+                        setValue('fecha_venta', newFechaVenta);
                     }
                     if (devData.date_entregado) setValue('fecha_llegada', new Date(devData.date_entregado));
                 }
             } catch (err: any) {
                 console.error("Error fetching from devoluciones_ml:", err.message);
-                toast({
-                    variant: "destructive",
-                    title: "Error en Devoluciones ML",
-                    description: `No se pudieron cargar los detalles de la venta #${watchNumVenta}.`,
-                });
+                toast({ variant: "destructive", title: "Error en Devoluciones ML" });
             }
 
             try {
@@ -352,18 +331,11 @@ export default function NuevaDevolucionPage() {
                 }
             } catch (err: any) {
                 console.error("Error fetching from personal DB:", err.message);
-                toast({
-                    variant: "destructive",
-                    title: "Error en BD Personal",
-                    description: `No se pudo buscar el personal para la venta #${watchNumVenta}.`,
-                });
+                toast({ variant: "destructive", title: "Error en BD Personal" });
             }
 
             if (!foundAnyData) {
-                toast({
-                    title: "Sin Coincidencias",
-                    description: `No se encontró información para la venta #${watchNumVenta}.`,
-                });
+                toast({ title: "Sin Coincidencias", description: `No se encontró información para la venta #${watchNumVenta}.` });
             }
         };
 
@@ -372,6 +344,7 @@ export default function NuevaDevolucionPage() {
         }, 300);
 
         return () => clearTimeout(debounceTimer);
+
     }, [watchNumVenta, setValue, toast, form]);
 
 
