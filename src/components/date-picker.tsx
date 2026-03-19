@@ -28,23 +28,6 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
 
     onChangeRef.current = onChange;
 
-    React.useEffect(() => {
-      if (localInputRef.current) {
-        dpInstanceRef.current = new AirDatepicker(localInputRef.current, {
-          locale: localeEs,
-          autoClose: true,
-          onSelect: ({ date }) => {
-            onChangeRef.current(date as Date | null);
-          },
-        });
-      }
-      return () => {
-        dpInstanceRef.current?.destroy();
-        dpInstanceRef.current = null;
-      };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); 
-
     const dateFormat = React.useCallback((d: Date | Date[]) => {
       if (!d || Array.isArray(d)) {
         return '';
@@ -56,10 +39,26 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
     }, []);
 
     React.useEffect(() => {
+      if (localInputRef.current) {
+        dpInstanceRef.current = new AirDatepicker(localInputRef.current, {
+          locale: localeEs,
+          autoClose: true,
+          onSelect: ({ date }) => {
+            onChangeRef.current(date as Date | null);
+          },
+          dateFormat: dateFormat,
+        });
+      }
+      return () => {
+        dpInstanceRef.current?.destroy();
+        dpInstanceRef.current = null;
+      };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dateFormat]); 
+
+    React.useEffect(() => {
       const dp = dpInstanceRef.current;
       if (!dp) return;
-
-      dp.update({ dateFormat });
 
       if (value) {
         const selectedDate = dp.selectedDates[0];
@@ -67,17 +66,16 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
           dp.selectDate(value, true);
         }
       } else {
-        dp.clear();
+        if (dp.selectedDates.length > 0) {
+           dp.clear();
+        }
       }
-    }, [value, dateFormat]);
-
-    const formattedValue = value ? dateFormat(value) : '';
+    }, [value]);
 
     return (
       <input
         ref={combinedRef}
         readOnly
-        value={formattedValue}
         placeholder="Seleccionar fecha"
         className={cn(
           "flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
