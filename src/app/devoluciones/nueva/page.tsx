@@ -166,19 +166,19 @@ export default function NuevaDevolucionPage() {
         if (watchReporte && !modalState.open) {
           handleModalOpen('reporte');
         }
-    }, [watchReporte]);
+    }, [watchReporte, modalState.open]);
     
     useEffect(() => {
         if (watchErrorNosotros && !modalState.open) {
           handleModalOpen('error');
         }
-    }, [watchErrorNosotros]);
+    }, [watchErrorNosotros, modalState.open]);
     
     useEffect(() => {
         if (watchFactura && !modalState.open) {
           handleModalOpen('factura');
         }
-    }, [watchFactura]);
+    }, [watchFactura, modalState.open]);
 
 
     const handleModalClose = (saved: boolean) => {
@@ -310,42 +310,80 @@ export default function NuevaDevolucionPage() {
             return;
         }
 
-        const fetchPersonalData = async () => {
+        const fetchDataForSale = async () => {
+            let foundAnyData = false;
+
+            // 1. Set today's date for 'Fecha Revisión'
+            setValue('fecha_revision', new Date());
+
+            // 2. Fetch from 'devoluciones_ml'
             try {
-                const { data, error } = await supabasePERSONAL
+                const { data: devData, error: devError } = await supabasePROD
+                    .from('devoluciones_ml')
+                    .select('fecha_entregado, fecha_venta')
+                    .eq('num_venta', watchNumVenta)
+                    .maybeSingle();
+
+                if (devError) throw devError;
+
+                if (devData) {
+                    foundAnyData = true;
+                    if (devData.fecha_venta) setValue('fecha_venta', new Date(devData.fecha_venta));
+                    if (devData.fecha_entregado) setValue('fecha_llegada', new Date(devData.fecha_entregado));
+                }
+            } catch (err: any) {
+                console.error("Error fetching from devoluciones_ml:", err.message);
+                toast({
+                    variant: "destructive",
+                    title: "Error en Devoluciones ML",
+                    description: `No se pudieron cargar los detalles de la venta #${watchNumVenta}.`,
+                });
+            }
+
+            // 3. Fetch from 'personal'
+            try {
+                const { data: personalData, error: personalError } = await supabasePERSONAL
                     .from('personal')
-                    .select('name, name_inc, name_cali')
+                    .select('product, sku, name, name_inc, name_cali')
                     .eq('sales_num', watchNumVenta)
                     .single();
+                
+                if (personalError && personalError.code !== 'PGRST116') throw personalError;
 
-                if (error && error.code !== 'PGRST116') { // PGRST116: No rows found
-                    throw error;
-                }
-
-                if (data) {
-                    setValue('responsable_picking', data.name || '');
-                    setValue('responsable_barra', data.name_inc || '');
-                    setValue('responsable_calificar', data.name_cali || '');
+                if (personalData) {
+                    foundAnyData = true;
+                    setValue('producto', personalData.product || '');
+                    setValue('sku', personalData.sku || '');
+                    setValue('responsable_picking', personalData.name || '');
+                    setValue('responsable_barra', personalData.name_inc || '');
+                    setValue('responsable_calificar', personalData.name_cali || '');
                 } else {
                     setValue('responsable_picking', '');
                     setValue('responsable_barra', '');
                     setValue('responsable_calificar', '');
-                    toast({
-                        title: "Sin coincidencias",
-                        description: `No se encontró personal para la venta #${watchNumVenta}.`,
-                    });
                 }
             } catch (err: any) {
-                console.error("Error fetching personal data:", err.message);
+                console.error("Error fetching from personal DB:", err.message);
                 toast({
                     variant: "destructive",
-                    title: "Error al buscar personal",
-                    description: "No se pudo conectar con la base de datos de personal.",
+                    title: "Error en BD Personal",
+                    description: `No se pudo buscar el personal para la venta #${watchNumVenta}.`,
+                });
+            }
+
+            if (!foundAnyData) {
+                toast({
+                    title: "Sin Coincidencias",
+                    description: `No se encontró información para la venta #${watchNumVenta}.`,
                 });
             }
         };
 
-        fetchPersonalData();
+        const debounceTimer = setTimeout(() => {
+            fetchDataForSale();
+        }, 300);
+
+        return () => clearTimeout(debounceTimer);
     }, [watchNumVenta, setValue, toast]);
 
 
