@@ -71,12 +71,6 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
       }
     }, [value, dateFormat]);
 
-    React.useEffect(() => {
-      if (localInputRef.current && !value) {
-        localInputRef.current.value = '';
-      }
-    }, [value]);
-
     return (
       <input
         ref={combinedRef}

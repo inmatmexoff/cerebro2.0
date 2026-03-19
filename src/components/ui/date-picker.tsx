@@ -54,12 +54,6 @@ export function DatePicker({ value, onChange, id }: { value: Date | null, onChan
     }
   }, [value, dateFormat]);
 
-  React.useEffect(() => {
-    if (inputRef.current && !value) {
-      inputRef.current.value = '';
-    }
-  }, [value]);
-
   return (
     <input
       id={id}
