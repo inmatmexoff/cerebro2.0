@@ -66,11 +66,11 @@ type ModalType = 'reporte' | 'error' | 'factura';
 
 const defaultCasoValues = {
     numero_caso: '',
-    fecha_apertura: null,
+    fecha_apertura: null as Date | null,
     tiempo_respuesta: '',
     veredicto: null as 'FAVORABLE' | 'EN_CONTRA' | null,
     saldo: null,
-    fecha_verificacion: null,
+    fecha_verificacion: null as Date | null,
 };
 
 
@@ -127,13 +127,12 @@ export default function NuevaDevolucionPage() {
         maxFiles: 1,
     });
 
-    const { setValue, watch, getValues } = form;
+    const { setValue, watch, getValues, reset } = form;
     const watchNumVenta = watch('num_venta');
-    const watchReporte = watch('reporte');
-    const watchErrorNosotros = watch('error_nosotros');
-    const watchFactura = watch('factura');
     const watchFechaRegistroSaldoNegativo = watch('fecha_registro_saldo_negativo');
     const watchSaldoCobrado = watch('saldo_cobrado');
+    
+    const isFetchingSaleData = React.useRef(false);
 
     useEffect(() => {
         if (watchFechaRegistroSaldoNegativo && !watchSaldoCobrado) {
@@ -152,28 +151,6 @@ export default function NuevaDevolucionPage() {
         }
         setModalState({ type, open: true });
     };
-
-    useEffect(() => {
-        if (watchReporte && !modalState.open) {
-          handleModalOpen('reporte');
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [watchReporte, modalState.open]);
-    
-    useEffect(() => {
-        if (watchErrorNosotros && !modalState.open) {
-          handleModalOpen('error');
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [watchErrorNosotros, modalState.open]);
-    
-    useEffect(() => {
-        if (watchFactura && !modalState.open) {
-          handleModalOpen('factura');
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [watchFactura, modalState.open]);
-
 
     const handleModalClose = (saved: boolean) => {
         const { type } = modalState;
@@ -203,12 +180,6 @@ export default function NuevaDevolucionPage() {
         }
         setModalState({ type: null, open: false });
     };
-    
-    useEffect(() => {
-        if (!watchReporte) {
-            form.setValue('casos', []); // Clear the array when the switch is turned off
-        }
-    }, [watchReporte, form]);
 
     useEffect(() => {
         if (!watchNumVenta) {
@@ -216,8 +187,23 @@ export default function NuevaDevolucionPage() {
         }
 
         const fetchDataForSale = async () => {
+            isFetchingSaleData.current = true;
             let foundAnyData = false;
-            setValue('fecha_revision', new Date());
+            
+            const currentValues = getValues();
+            reset({
+                ...currentValues,
+                tienda: '',
+                fecha_venta: null,
+                fecha_llegada: null,
+                fecha_revision: new Date(),
+                producto: '',
+                sku: '',
+                responsable_picking: '',
+                responsable_barra: '',
+                responsable_calificar: '',
+            });
+
 
             try {
                 const { data: devData, error: devError } = await supabasePROD
@@ -230,7 +216,7 @@ export default function NuevaDevolucionPage() {
 
                 if (devData) {
                     foundAnyData = true;
-                    if (devData.tienda) setValue('tienda', devData.tienda.toUpperCase());
+                    if (devData.tienda) setValue('tienda', devData.tienda.toUpperCase(), { shouldValidate: true });
                     
                     if (devData.fecha_venta) {
                         const newFechaVenta = new Date(devData.fecha_venta);
@@ -259,28 +245,29 @@ export default function NuevaDevolucionPage() {
                     setValue('responsable_picking', personalData.name || '');
                     setValue('responsable_barra', personalData.name_inc || '');
                     setValue('responsable_calificar', personalData.name_cali || '');
-                } else {
-                    setValue('responsable_picking', getValues('responsable_picking') || '');
-                    setValue('responsable_barra', getValues('responsable_barra') || '');
-                    setValue('responsable_calificar', getValues('responsable_calificar') || '');
                 }
             } catch (err: any) {
                 console.error("Error fetching from personal DB:", err.message);
                 toast({ variant: "destructive", title: "Error en BD Personal" });
             }
+            
+            setValue('fecha_revision', new Date());
 
             if (!foundAnyData) {
                 toast({ title: "Sin Coincidencias", description: `No se encontró información para la venta #${watchNumVenta}.` });
             }
+
+            setTimeout(() => {
+                isFetchingSaleData.current = false;
+            }, 100);
         };
 
         const debounceTimer = setTimeout(() => {
             fetchDataForSale();
-        }, 300);
+        }, 500);
 
         return () => clearTimeout(debounceTimer);
-
-    }, [watchNumVenta, setValue, toast, getValues]);
+    }, [watchNumVenta, setValue, toast, getValues, reset]);
 
 
     async function onSubmit(values: DevolucionFormValues) {
@@ -396,7 +383,9 @@ export default function NuevaDevolucionPage() {
                                                 value={field.value} 
                                                 onChange={(date) => {
                                                     field.onChange(date);
-                                                    setValue('num_venta', '');
+                                                    if (!isFetchingSaleData.current) {
+                                                      setValue('num_venta', '');
+                                                    }
                                                 }} 
                                             />
                                         </FormControl><FormMessage /></FormItem>)} />
@@ -502,7 +491,14 @@ export default function NuevaDevolucionPage() {
                                                     <FormControl>
                                                         <Switch
                                                             checked={field.value}
-                                                            onCheckedChange={field.onChange}
+                                                            onCheckedChange={(checked) => {
+                                                              field.onChange(checked);
+                                                              if (checked) {
+                                                                handleModalOpen('reporte');
+                                                              } else {
+                                                                form.setValue('casos', []);
+                                                              }
+                                                            }}
                                                         />
                                                     </FormControl>
                                                 </FormItem>
@@ -522,7 +518,12 @@ export default function NuevaDevolucionPage() {
                                                     <FormControl>
                                                         <Switch
                                                             checked={field.value}
-                                                            onCheckedChange={field.onChange}
+                                                            onCheckedChange={(checked) => {
+                                                              field.onChange(checked);
+                                                              if (checked) {
+                                                                handleModalOpen('error');
+                                                              }
+                                                            }}
                                                         />
                                                     </FormControl>
                                                 </FormItem>
@@ -542,7 +543,12 @@ export default function NuevaDevolucionPage() {
                                                     <FormControl>
                                                         <Switch
                                                             checked={field.value}
-                                                            onCheckedChange={field.onChange}
+                                                            onCheckedChange={(checked) => {
+                                                              field.onChange(checked);
+                                                              if (checked) {
+                                                                handleModalOpen('factura');
+                                                              }
+                                                            }}
                                                         />
                                                     </FormControl>
                                                 </FormItem>
