@@ -11,7 +11,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { DatePicker } from '@/components/ui/date-picker';
+import { DatePicker } from '@/components/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -84,8 +84,6 @@ export default function NuevaDevolucionPage() {
     const [modalState, setModalState] = useState<{type: ModalType | null, open: boolean}>({ type: null, open: false });
     const [saldoNegativoDateAlert, setSaldoNegativoDateAlert] = useState(false);
     
-    const isAutomaticChange = useRef(false);
-
     const form = useForm<DevolucionFormValues>({
         resolver: zodResolver(devolucionSchema),
         defaultValues: {
@@ -213,19 +211,8 @@ export default function NuevaDevolucionPage() {
         }
     }, [watchReporte, form]);
 
-    // Effect for manual date changes
+    // Effect for fetching sales when date changes
     useEffect(() => {
-        if (isAutomaticChange.current) {
-            isAutomaticChange.current = false;
-            return;
-        }
-
-        if (watchFechaVenta) {
-            setValue('num_venta', '');
-            setValue('producto', '');
-            setValue('sku', '');
-        }
-
         if (!watchFechaVenta) {
             setSalesByDate([]);
             return;
@@ -270,7 +257,7 @@ export default function NuevaDevolucionPage() {
         };
 
         fetchSalesForDate();
-    }, [watchFechaVenta, setValue, toast]);
+    }, [watchFechaVenta, toast]);
 
 
     // Effect for sale number changes
@@ -298,8 +285,7 @@ export default function NuevaDevolucionPage() {
                     
                     if (devData.fecha_venta) {
                         const newFechaVenta = new Date(devData.fecha_venta);
-                        isAutomaticChange.current = true; // Set flag to prevent date change effect from clearing num_venta
-                        setValue('fecha_venta', newFechaVenta);
+                        setValue('fecha_venta', newFechaVenta, { shouldValidate: true });
                     }
                     if (devData.date_entregado) setValue('fecha_llegada', new Date(devData.date_entregado));
                 }
@@ -345,7 +331,7 @@ export default function NuevaDevolucionPage() {
 
         return () => clearTimeout(debounceTimer);
 
-    }, [watchNumVenta, setValue, toast, form]);
+    }, [watchNumVenta, setValue, toast]);
 
 
     async function onSubmit(values: DevolucionFormValues) {
@@ -456,7 +442,18 @@ export default function NuevaDevolucionPage() {
                                             )}
                                         />
                                         
-                                        <FormField control={form.control} name="fecha_venta" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Venta</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={form.control} name="fecha_venta" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Venta</FormLabel><FormControl>
+                                            <DatePicker 
+                                                value={field.value} 
+                                                onChange={(date) => {
+                                                    field.onChange(date);
+                                                    // Manual change, so clear dependent fields
+                                                    setValue('num_venta', '');
+                                                    setValue('producto', '');
+                                                    setValue('sku', '');
+                                                }} 
+                                            />
+                                        </FormControl><FormMessage /></FormItem>)} />
 
                                         <FormField
                                             control={form.control}
