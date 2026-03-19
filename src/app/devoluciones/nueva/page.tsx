@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Save, Loader2, ChevronsUpDown, Check, UploadCloud, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -83,7 +83,8 @@ export default function NuevaDevolucionPage() {
     
     const [modalState, setModalState] = useState<{type: ModalType | null, open: boolean}>({ type: null, open: false });
     const [saldoNegativoDateAlert, setSaldoNegativoDateAlert] = useState(false);
-    const [isManualDateChange, setIsManualDateChange] = useState(false);
+    
+    const isAutomaticChange = useRef(false);
 
     const form = useForm<DevolucionFormValues>({
         resolver: zodResolver(devolucionSchema),
@@ -213,13 +214,17 @@ export default function NuevaDevolucionPage() {
     }, [watchReporte, form]);
 
     useEffect(() => {
-        if (isManualDateChange) {
+        if (isAutomaticChange.current) {
+            isAutomaticChange.current = false;
+            return;
+        }
+
+        if (watchFechaVenta) {
             setValue('num_venta', '');
             setValue('producto', '');
             setValue('sku', '');
-            setIsManualDateChange(false);
         }
-
+        
         if (!watchFechaVenta) {
             setSalesByDate([]);
             return;
@@ -276,7 +281,7 @@ export default function NuevaDevolucionPage() {
         };
 
         fetchSales();
-    }, [watchFechaVenta, toast, isManualDateChange, setValue]);
+    }, [watchFechaVenta, toast, setValue]);
 
     useEffect(() => {
         if (!watchNumVenta) {
@@ -290,10 +295,8 @@ export default function NuevaDevolucionPage() {
         const fetchDataForSale = async () => {
             let foundAnyData = false;
 
-            // 1. Set today's date for 'Fecha Revisión'
             setValue('fecha_revision', new Date());
 
-            // 2. Fetch from 'devoluciones_ml'
             try {
                 const { data: devData, error: devError } = await supabasePROD
                     .from('devoluciones_ml')
@@ -305,8 +308,16 @@ export default function NuevaDevolucionPage() {
 
                 if (devData) {
                     foundAnyData = true;
-                    if (devData.tienda) setValue('tienda', devData.tienda);
-                    if (devData.fecha_venta) setValue('fecha_venta', new Date(devData.fecha_venta));
+                    if (devData.tienda) setValue('tienda', devData.tienda.toUpperCase());
+                    
+                    if (devData.fecha_venta) {
+                         const newFechaVenta = new Date(devData.fecha_venta);
+                         const currentFechaVenta = form.getValues('fecha_venta');
+                         if (!currentFechaVenta || newFechaVenta.getTime() !== currentFechaVenta.getTime()) {
+                             isAutomaticChange.current = true;
+                             setValue('fecha_venta', newFechaVenta);
+                         }
+                    }
                     if (devData.date_entregado) setValue('fecha_llegada', new Date(devData.date_entregado));
                 }
             } catch (err: any) {
@@ -318,7 +329,6 @@ export default function NuevaDevolucionPage() {
                 });
             }
 
-            // 3. Fetch from 'personal'
             try {
                 const { data: personalData, error: personalError } = await supabasePERSONAL
                     .from('personal')
@@ -362,7 +372,7 @@ export default function NuevaDevolucionPage() {
         }, 300);
 
         return () => clearTimeout(debounceTimer);
-    }, [watchNumVenta, setValue, toast]);
+    }, [watchNumVenta, setValue, toast, form]);
 
 
     async function onSubmit(values: DevolucionFormValues) {
@@ -392,12 +402,8 @@ export default function NuevaDevolucionPage() {
                 foto_error: undefined 
             };
 
-            // Note: File upload logic is not implemented, as it requires a backend with storage.
-            // In a real scenario, you'd upload the file and save the URL.
             if (values.foto_error) {
                 console.log("File to upload:", values.foto_error.name);
-                // Here you would typically call a function to upload values.foto_error to your storage
-                // and get a URL to save in the database.
             }
 
             const response = await fetch('/api/devoluciones/nueva', {
@@ -477,10 +483,7 @@ export default function NuevaDevolucionPage() {
                                             )}
                                         />
                                         
-                                        <FormField control={form.control} name="fecha_venta" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Venta</FormLabel><FormControl><DatePicker value={field.value} onChange={(date) => {
-                                            setIsManualDateChange(true);
-                                            field.onChange(date);
-                                        }} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={form.control} name="fecha_venta" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Venta</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
 
                                         <FormField
                                             control={form.control}
