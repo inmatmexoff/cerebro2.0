@@ -9,6 +9,7 @@ import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 //Subset of headers for the preview table
 const TABLE_HEADERS = [
@@ -68,7 +69,14 @@ const parseSaleDate = (value: any, contextDate?: Date): Date | null => {
         
         if (!isNaN(day) && month !== undefined) {
             const referenceDate = contextDate || new Date();
-            const year = referenceDate.getFullYear();
+            let year = referenceDate.getFullYear();
+            // If the month of the return is later in the year than the sale month, it's likely the same year.
+            // If it's earlier (e.g. sale in Dec, return in Jan), it's likely the next year.
+            // This logic is imperfect but better than nothing.
+            if (month < referenceDate.getMonth()) {
+                // This logic was causing issues like 2026 -> 2027, removing it.
+                // The year should be inferred from the context date (fecha_venta)
+            }
             const date = new Date(year, month, day);
             if (!isNaN(date.getTime())) return date;
         }
@@ -104,6 +112,8 @@ export default function ImportDevolucionesPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const { toast } = useToast();
+    const [changesModalOpen, setChangesModalOpen] = useState(false);
+    const [changes, setChanges] = useState<any[]>([]);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         const file = acceptedFiles[0];
@@ -364,9 +374,14 @@ export default function ImportDevolucionesPage() {
             }
 
             toast({
-                title: "Datos guardados",
+                title: "Proceso Completado",
                 description: result.message,
             });
+
+            if (result.changes && result.changes.length > 0) {
+                setChanges(result.changes);
+                setChangesModalOpen(true);
+            }
 
             clearFile();
 
@@ -504,6 +519,36 @@ export default function ImportDevolucionesPage() {
                 </Card>
             )}
         </main>
+        <Dialog open={changesModalOpen} onOpenChange={setChangesModalOpen}>
+            <DialogContent className="max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Registros Actualizados</DialogTitle>
+                    <DialogDescription>
+                        Se detectaron y aplicaron cambios en los siguientes registros.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-96 overflow-y-auto my-4 pr-4">
+                    <ul className="space-y-3">
+                        {changes.map((change, index) => (
+                            <li key={index} className="text-sm p-3 bg-muted/50 rounded-md">
+                                <p className="font-semibold text-primary">Venta #{change.num_venta}</p>
+                                <div className="pl-2 border-l-2 border-primary/50 ml-1 mt-1 space-y-1">
+                                    {change.fecha_status && (
+                                        <p><span className="font-medium">Fecha Estado:</span> '{change.fecha_status.from}' &rarr; '{change.fecha_status.to}'</p>
+                                    )}
+                                    {change.resultado && (
+                                        <p><span className="font-medium">Resultado:</span> '{change.resultado.from}' &rarr; '{change.resultado.to}'</p>
+                                    )}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                <DialogFooter>
+                    <Button onClick={() => setChangesModalOpen(false)}>Cerrar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
