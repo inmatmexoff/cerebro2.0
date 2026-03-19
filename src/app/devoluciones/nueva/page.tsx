@@ -15,8 +15,6 @@ import { DatePicker } from '@/components/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { supabasePROD, supabasePERSONAL } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -79,10 +77,7 @@ const defaultCasoValues = {
 export default function NuevaDevolucionPage() {
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
-    const [allSkus, setAllSkus] = useState<{ value: string; label: string }[]>([]);
-    const [isLoadingSkus, setIsLoadingSkus] = useState(true);
-    const [skuPopoverOpen, setSkuPopoverOpen] = useState(false);
-
+    
     const [salesByDate, setSalesByDate] = useState<{ value: string; label: string; producto: string; sku: string | null }[]>([]);
     const [isLoadingSales, setIsLoadingSales] = useState(false);
     
@@ -215,33 +210,6 @@ export default function NuevaDevolucionPage() {
             form.setValue('casos', []); // Clear the array when the switch is turned off
         }
     }, [watchReporte, form]);
-
-    useEffect(() => {
-        const fetchSkus = async () => {
-            setIsLoadingSkus(true);
-            try {
-                const { data, error } = await supabasePROD
-                    .from('sku_alterno')
-                    .select('sku')
-                    .order('sku', { ascending: true });
-
-                if (error) throw error;
-
-                if (data) {
-                    setAllSkus(data.map(item => ({ value: item.sku, label: item.sku })));
-                }
-            } catch (err: any) {
-                toast({
-                    variant: "destructive",
-                    title: "Error al cargar SKUs",
-                    description: "No se pudieron cargar los SKUs para la búsqueda.",
-                });
-            } finally {
-                setIsLoadingSkus(false);
-            }
-        };
-        fetchSkus();
-    }, [toast]);
 
     useEffect(() => {
         if (!watchFechaVenta) {
@@ -553,67 +521,16 @@ export default function NuevaDevolucionPage() {
                                             control={form.control}
                                             name="sku"
                                             render={({ field }) => (
-                                                <FormItem className="flex flex-col">
+                                                <FormItem>
                                                     <FormLabel>SKU</FormLabel>
-                                                    <Popover open={skuPopoverOpen} onOpenChange={setSkuPopoverOpen}>
-                                                        <PopoverTrigger asChild>
-                                                            <FormControl>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    role="combobox"
-                                                                    className={cn(
-                                                                        "w-full justify-between font-normal text-left",
-                                                                        !field.value && "text-muted-foreground"
-                                                                    )}
-                                                                    disabled={isLoadingSkus}
-                                                                >
-                                                                    <span className="truncate">
-                                                                        {isLoadingSkus ? (<Loader2 className="inline mr-2 h-4 w-4 animate-spin" />) : null}
-                                                                        {field.value
-                                                                            ? allSkus.find(
-                                                                                (sku) => sku.value === field.value
-                                                                            )?.label
-                                                                            : "Selecciona un SKU"}
-                                                                    </span>
-                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                </Button>
-                                                            </FormControl>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                            <Command>
-                                                                <CommandInput placeholder="Buscar SKU..." />
-                                                                <CommandList>
-                                                                    <CommandEmpty>No se encontró SKU.</CommandEmpty>
-                                                                    <CommandGroup>
-                                                                        {allSkus.map((sku) => (
-                                                                            <CommandItem
-                                                                                value={sku.label}
-                                                                                key={sku.value}
-                                                                                onSelect={() => {
-                                                                                    form.setValue("sku", sku.value)
-                                                                                    setSkuPopoverOpen(false)
-                                                                                }}
-                                                                            >
-                                                                                <Check
-                                                                                    className={cn(
-                                                                                        "mr-2 h-4 w-4",
-                                                                                        sku.value === field.value
-                                                                                            ? "opacity-100"
-                                                                                            : "opacity-0"
-                                                                                    )}
-                                                                                />
-                                                                                {sku.label}
-                                                                            </CommandItem>
-                                                                        ))}
-                                                                    </CommandGroup>
-                                                                </CommandList>
-                                                            </Command>
-                                                        </PopoverContent>
-                                                    </Popover>
+                                                    <FormControl>
+                                                        <Input placeholder="SKU del producto" {...field} value={field.value ?? ''} />
+                                                    </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
                                         />
+
                                         <FormField
                                             control={form.control}
                                             name="motivo_devolucion"
