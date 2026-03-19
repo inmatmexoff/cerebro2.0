@@ -11,7 +11,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { DatePicker } from '@/components/date-picker';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -275,6 +275,7 @@ export default function NuevaDevolucionPage() {
             setValue('responsable_picking', '');
             setValue('responsable_barra', '');
             setValue('responsable_calificar', '');
+            setValue('tienda', '');
             return;
         }
 
@@ -288,7 +289,7 @@ export default function NuevaDevolucionPage() {
             try {
                 const { data: devData, error: devError } = await supabasePROD
                     .from('devoluciones_ml')
-                    .select('date_entregado, fecha_venta')
+                    .select('date_entregado, fecha_venta, tienda')
                     .eq('num_venta', watchNumVenta)
                     .maybeSingle();
 
@@ -296,6 +297,7 @@ export default function NuevaDevolucionPage() {
 
                 if (devData) {
                     foundAnyData = true;
+                    if (devData.tienda) setValue('tienda', devData.tienda);
                     if (devData.fecha_venta) setValue('fecha_venta', new Date(devData.fecha_venta));
                     if (devData.date_entregado) setValue('fecha_llegada', new Date(devData.date_entregado));
                 }
