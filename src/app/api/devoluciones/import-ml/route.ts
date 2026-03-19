@@ -28,64 +28,106 @@ export async function POST(request: Request) {
         }
         
         const existingDevosMap = new Map(existingDevos.map(d => [String(d.num_venta), d]));
+        
+        const recordsToInsert: any[] = [];
+        const recordsToUpdate: any[] = [];
         const changedRecordsInfo: any[] = [];
 
         devoluciones.forEach(dev => {
-            const existing = existingDevosMap.get(String(dev.num_venta));
+            if (!dev.num_venta) return;
+
+            const numVenta = String(dev.num_venta);
+            const existing = existingDevosMap.get(numVenta);
+            
             if (existing) {
                 const changes: any = {};
+                let hasChanged = false;
 
-                const oldDateStr = existing.fecha_status ? new Date(existing.fecha_status).toLocaleDateString('es-MX') : 'ninguna';
-                const newDateStr = dev.fecha_status ? new Date(dev.fecha_status).toLocaleDateString('es-MX') : 'ninguna';
-
-                if (oldDateStr !== newDateStr) {
-                    changes.fecha_status = { from: oldDateStr, to: newDateStr };
+                const oldDate = existing.fecha_status ? new Date(existing.fecha_status).toISOString().split('T')[0] : null;
+                const newDate = dev.fecha_status ? new Date(dev.fecha_status).toISOString().split('T')[0] : null;
+                if (oldDate !== newDate) {
+                    changes.fecha_status = { from: existing.fecha_status, to: dev.fecha_status };
+                    hasChanged = true;
                 }
 
-                const oldResultado = existing.resultado || 'ninguno';
-                const newResultado = dev.resultado || 'ninguno';
-                if(oldResultado !== newResultado) {
+                const oldResultado = existing.resultado || null;
+                const newResultado = dev.resultado || null;
+                if (oldResultado !== newResultado) {
                     changes.resultado = { from: oldResultado, to: newResultado };
+                    hasChanged = true;
                 }
-
-                if (Object.keys(changes).length > 0) {
+                
+                if (hasChanged) {
+                    const updatePayload: { [key: string]: any } = {};
+                    for (const key in dev) {
+                        if (dev[key] !== undefined) {
+                            updatePayload[key] = dev[key];
+                        }
+                    }
+                    recordsToUpdate.push(updatePayload);
                     changedRecordsInfo.push({
                         num_venta: dev.num_venta,
                         ...changes,
                     });
                 }
+            } else {
+                recordsToInsert.push(dev);
             }
         });
 
-        const { data: upsertedData, error: upsertError } = await supabasePROD
-            .from('devoluciones_ml')
-            .upsert(devoluciones, { onConflict: 'num_venta' })
-            .select();
+        const insertedData: any[] = [];
+        const updatedData: any[] = [];
+        const errors: string[] = [];
 
-        if (upsertError) {
-            console.error('Error importing ML devolutions:', upsertError);
-            if (upsertError.code === '23505') { 
-                 return NextResponse.json({ message: `Error: Se encontraron registros duplicados. Detalles: ${upsertError.details}` }, { status: 409 });
+        if (recordsToInsert.length > 0) {
+            const { data, error } = await supabasePROD
+                .from('devoluciones_ml')
+                .insert(recordsToInsert)
+                .select();
+            if (error) {
+                errors.push(`Error al insertar nuevos registros: ${error.message}`);
             }
-             if (upsertError.code === '22P02') { 
-                 return NextResponse.json({ message: `Error de formato en los datos. Revisa que los números y fechas sean correctos. Detalles: ${upsertError.details}` }, { status: 400 });
-            }
-             if (upsertError.message.includes('column "fecha_status" of relation "devoluciones_ml" does not exist')) {
-                return NextResponse.json({ message: 'La columna "fecha_status" no existe en la base de datos. Por favor, añádela antes de importar.' }, { status: 400 });
-            }
-            throw new Error(`Error en la base de datos: ${upsertError.message}`);
+            if(data) insertedData.push(...data);
         }
         
-        const insertedCount = (upsertedData?.length || 0) - existingDevos.length;
-        const updatedCount = existingDevos.length;
+        if (recordsToUpdate.length > 0) {
+            for (const record of recordsToUpdate) {
+                 const { data, error } = await supabasePROD
+                    .from('devoluciones_ml')
+                    .update(record)
+                    .eq('num_venta', record.num_venta)
+                    .select();
+                if (error) {
+                    errors.push(`Error al actualizar el registro ${record.num_venta}: ${error.message}`);
+                }
+                if (data) updatedData.push(...data);
+            }
+        }
+
+        if (errors.length > 0) {
+            throw new Error(errors.join('; '));
+        }
         
-        let message = `Proceso completado. ${insertedCount > 0 ? insertedCount : 0} nuevos registros. ${updatedCount} registros existentes verificados/actualizados.`;
+        const insertedCount = insertedData.length;
+        const updatedCount = updatedData.length;
+        
+        let message = `Proceso completado. ${insertedCount} nuevos registros insertados. ${updatedCount} registros actualizados.`;
 
         return NextResponse.json({ 
             message, 
-            data: upsertedData,
-            changes: changedRecordsInfo,
-            inserted: insertedCount > 0 ? insertedCount : 0,
+            data: [...insertedData, ...updatedData],
+            changes: changedRecordsInfo.map(c => ({
+                num_venta: c.num_venta,
+                fecha_status: c.fecha_status ? {
+                    from: c.fecha_status.from ? new Date(c.fecha_status.from).toLocaleDateString('es-MX') : 'ninguna',
+                    to: c.fecha_status.to ? new Date(c.fecha_status.to).toLocaleDateString('es-MX') : 'ninguna',
+                } : undefined,
+                resultado: c.resultado ? {
+                    from: c.resultado.from || 'ninguno',
+                    to: c.resultado.to || 'ninguno',
+                } : undefined
+            })),
+            inserted: insertedCount,
             updated: updatedCount,
         });
 
