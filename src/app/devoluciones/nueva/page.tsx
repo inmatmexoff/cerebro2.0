@@ -17,7 +17,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { supabasePROD } from '@/lib/supabase';
+import { supabasePROD, supabasePERSONAL } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useDropzone } from 'react-dropzone';
@@ -136,6 +136,7 @@ export default function NuevaDevolucionPage() {
     });
 
     const watchFechaVenta = form.watch('fecha_venta');
+    const watchNumVenta = form.watch('num_venta');
     const watchReporte = form.watch('reporte');
     const watchErrorNosotros = form.watch('error_nosotros');
     const watchFactura = form.watch('factura');
@@ -299,6 +300,40 @@ export default function NuevaDevolucionPage() {
 
         fetchSales();
     }, [watchFechaVenta, toast]);
+
+    useEffect(() => {
+        if (!watchNumVenta) {
+            return;
+        }
+
+        const fetchPersonalData = async () => {
+            try {
+                const { data, error } = await supabasePERSONAL
+                    .from('personal')
+                    .select('name, name_inc, name_cali')
+                    .eq('num_venta', watchNumVenta)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') { // PGRST116: No rows found
+                    throw error;
+                }
+
+                if (data) {
+                    form.setValue('responsable_picking', data.name || '');
+                    form.setValue('responsable_barra', data.name_inc || '');
+                    form.setValue('responsable_calificar', data.name_cali || '');
+                } else {
+                    form.setValue('responsable_picking', '');
+                    form.setValue('responsable_barra', '');
+                    form.setValue('responsable_calificar', '');
+                }
+            } catch (err: any) {
+                console.error("Error fetching personal data:", err.message);
+            }
+        };
+
+        fetchPersonalData();
+    }, [watchNumVenta, form]);
 
 
     async function onSubmit(values: DevolucionFormValues) {
