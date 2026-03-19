@@ -315,7 +315,7 @@ export default function NuevaDevolucionPage() {
                 const { data, error } = await supabasePERSONAL
                     .from('personal')
                     .select('name, name_inc, name_cali')
-                    .eq('num_venta', watchNumVenta)
+                    .eq('sales_num', watchNumVenta)
                     .single();
 
                 if (error && error.code !== 'PGRST116') { // PGRST116: No rows found
