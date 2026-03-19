@@ -288,7 +288,7 @@ export default function NuevaDevolucionPage() {
             try {
                 const { data: devData, error: devError } = await supabasePROD
                     .from('devoluciones_ml')
-                    .select('fecha_entregado, fecha_venta')
+                    .select('date_entregado, fecha_venta')
                     .eq('num_venta', watchNumVenta)
                     .maybeSingle();
 
@@ -297,7 +297,7 @@ export default function NuevaDevolucionPage() {
                 if (devData) {
                     foundAnyData = true;
                     if (devData.fecha_venta) setValue('fecha_venta', new Date(devData.fecha_venta));
-                    if (devData.fecha_entregado) setValue('fecha_llegada', new Date(devData.fecha_entregado));
+                    if (devData.date_entregado) setValue('fecha_llegada', new Date(devData.date_entregado));
                 }
             } catch (err: any) {
                 console.error("Error fetching from devoluciones_ml:", err.message);
