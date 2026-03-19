@@ -135,6 +135,7 @@ export default function NuevaDevolucionPage() {
         maxFiles: 1,
     });
 
+    const { setValue } = form;
     const watchFechaVenta = form.watch('fecha_venta');
     const watchNumVenta = form.watch('num_venta');
     const watchReporte = form.watch('reporte');
@@ -303,6 +304,9 @@ export default function NuevaDevolucionPage() {
 
     useEffect(() => {
         if (!watchNumVenta) {
+            setValue('responsable_picking', '');
+            setValue('responsable_barra', '');
+            setValue('responsable_calificar', '');
             return;
         }
 
@@ -319,21 +323,30 @@ export default function NuevaDevolucionPage() {
                 }
 
                 if (data) {
-                    form.setValue('responsable_picking', data.name || '');
-                    form.setValue('responsable_barra', data.name_inc || '');
-                    form.setValue('responsable_calificar', data.name_cali || '');
+                    setValue('responsable_picking', data.name || '');
+                    setValue('responsable_barra', data.name_inc || '');
+                    setValue('responsable_calificar', data.name_cali || '');
                 } else {
-                    form.setValue('responsable_picking', '');
-                    form.setValue('responsable_barra', '');
-                    form.setValue('responsable_calificar', '');
+                    setValue('responsable_picking', '');
+                    setValue('responsable_barra', '');
+                    setValue('responsable_calificar', '');
+                    toast({
+                        title: "Sin coincidencias",
+                        description: `No se encontró personal para la venta #${watchNumVenta}.`,
+                    });
                 }
             } catch (err: any) {
                 console.error("Error fetching personal data:", err.message);
+                toast({
+                    variant: "destructive",
+                    title: "Error al buscar personal",
+                    description: "No se pudo conectar con la base de datos de personal.",
+                });
             }
         };
 
         fetchPersonalData();
-    }, [watchNumVenta, form]);
+    }, [watchNumVenta, setValue, toast]);
 
 
     async function onSubmit(values: DevolucionFormValues) {
