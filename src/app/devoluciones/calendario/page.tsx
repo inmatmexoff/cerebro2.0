@@ -141,25 +141,6 @@ export default function CalendarioDevolucionesPage() {
                             )}
                         </CardContent>
                     </Card>
-                    <style jsx global>{\`
-                        .has-returns {
-                            position: relative;
-                        }
-                        .has-returns::after {
-                            content: '';
-                            position: absolute;
-                            bottom: 4px;
-                            left: 50%;
-                            transform: translateX(-50%);
-                            width: 6px;
-                            height: 6px;
-                            border-radius: 50%;
-                            background-color: hsl(var(--primary));
-                        }
-                        .rdp-day_selected.has-returns::after {
-                            background-color: hsl(var(--primary-foreground));
-                        }
-                    \`}</style>
                 </main>
             </div>
         </div>
