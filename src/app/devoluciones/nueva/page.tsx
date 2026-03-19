@@ -83,6 +83,7 @@ export default function NuevaDevolucionPage() {
     
     const [modalState, setModalState] = useState<{type: ModalType | null, open: boolean}>({ type: null, open: false });
     const [saldoNegativoDateAlert, setSaldoNegativoDateAlert] = useState(false);
+    const [isManualDateChange, setIsManualDateChange] = useState(false);
 
     const form = useForm<DevolucionFormValues>({
         resolver: zodResolver(devolucionSchema),
@@ -212,6 +213,13 @@ export default function NuevaDevolucionPage() {
     }, [watchReporte, form]);
 
     useEffect(() => {
+        if (isManualDateChange) {
+            setValue('num_venta', '');
+            setValue('producto', '');
+            setValue('sku', '');
+            setIsManualDateChange(false);
+        }
+
         if (!watchFechaVenta) {
             setSalesByDate([]);
             return;
@@ -268,7 +276,7 @@ export default function NuevaDevolucionPage() {
         };
 
         fetchSales();
-    }, [watchFechaVenta, toast]);
+    }, [watchFechaVenta, toast, isManualDateChange, setValue]);
 
     useEffect(() => {
         if (!watchNumVenta) {
@@ -470,10 +478,8 @@ export default function NuevaDevolucionPage() {
                                         />
                                         
                                         <FormField control={form.control} name="fecha_venta" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Fecha de Venta</FormLabel><FormControl><DatePicker value={field.value} onChange={(date) => {
+                                            setIsManualDateChange(true);
                                             field.onChange(date);
-                                            form.setValue('num_venta', '');
-                                            form.setValue('producto', '');
-                                            form.setValue('sku', '');
                                         }} /></FormControl><FormMessage /></FormItem>)} />
 
                                         <FormField
