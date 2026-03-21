@@ -23,7 +23,9 @@ export default function CalendarioDevolucionesPage() {
     const calendarRef = useRef<HTMLDivElement>(null);
     const datepickerRef = useRef<AirDatepicker|null>(null);
 
-    // Helper to get YYYY-MM-DD from a Date object, respecting local timezone
+    // Helper to get YYYY-MM-DD from a Date object, respecting local timezone.
+    // Important: Supabase timestamptz columns are parsed into local time by new Date().
+    // We use local date parts to match the calendar's local date parts.
     const dateToDayString = (date: Date): string => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -42,33 +44,52 @@ export default function CalendarioDevolucionesPage() {
                 const threeMonthsForward = new Date();
                 threeMonthsForward.setMonth(threeMonthsForward.getMonth() + 3);
 
-                const { data: returnsData, error } = await supabasePROD
-                    .from('devoluciones_ml')
-                    .select('fecha_status')
-                    .not('fecha_status', 'is', null)
-                    .gte('fecha_status', threeMonthsAgo.toISOString())
-                    .lte('fecha_status', threeMonthsForward.toISOString());
+                // Fetch from both tables in parallel
+                const [mlReturnsResult, manualReturnsResult] = await Promise.all([
+                    supabasePROD
+                        .from('devoluciones_ml')
+                        .select('fecha_status')
+                        .not('fecha_status', 'is', null)
+                        .gte('fecha_status', threeMonthsAgo.toISOString())
+                        .lte('fecha_status', threeMonthsForward.toISOString()),
+                    supabasePROD
+                        .from('devoluciones')
+                        .select('fecha_llegada')
+                        .not('fecha_llegada', 'is', null)
+                        .gte('fecha_llegada', threeMonthsAgo.toISOString())
+                        .lte('fecha_llegada', threeMonthsForward.toISOString())
+                ]);
 
-                if (error) {
-                    throw error;
-                }
+                if (mlReturnsResult.error) throw mlReturnsResult.error;
+                if (manualReturnsResult.error) throw manualReturnsResult.error;
 
-                if (returnsData) {
-                    const counts: { [key: string]: number } = returnsData.reduce((acc, curr) => {
+                const counts: { [key: string]: number } = {};
+
+                if (mlReturnsResult.data) {
+                    mlReturnsResult.data.forEach(curr => {
                         if(curr.fecha_status) {
                             const date = new Date(curr.fecha_status);
                             const day = dateToDayString(date);
-                            acc[day] = (acc[day] || 0) + 1;
+                            counts[day] = (counts[day] || 0) + 1;
                         }
-                        return acc;
-                    }, {} as { [key: string]: number });
-                    
-                    const formattedData = Object.entries(counts).map(([day, count]) => ({
-                        day,
-                        count,
-                    }));
-                    setData(formattedData);
+                    });
                 }
+                
+                if (manualReturnsResult.data) {
+                    manualReturnsResult.data.forEach(curr => {
+                        if(curr.fecha_llegada) {
+                            const date = new Date(curr.fecha_llegada);
+                            const day = dateToDayString(date);
+                            counts[day] = (counts[day] || 0) + 1;
+                        }
+                    });
+                }
+
+                const formattedData = Object.entries(counts).map(([day, count]) => ({
+                    day,
+                    count,
+                }));
+                setData(formattedData);
 
             } catch (err: any) {
                 setError("No se pudieron cargar las fechas de devolución.");
