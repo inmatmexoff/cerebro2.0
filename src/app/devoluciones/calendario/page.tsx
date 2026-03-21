@@ -1,14 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Calendar } from '@/components/ui/calendar';
 import { supabasePROD } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import AirDatepicker from 'air-datepicker';
+import localeEs from 'air-datepicker/locale/es';
 
 type ReturnData = {
     day: string;
@@ -21,20 +20,34 @@ export default function CalendarioDevolucionesPage() {
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+    const calendarRef = useRef<HTMLDivElement>(null);
+    const datepickerRef = useRef<AirDatepicker|null>(null);
+
+    // Helper to get YYYY-MM-DD from a Date object, respecting local timezone
+    const dateToDayString = (date: Date): string => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
 
     useEffect(() => {
         const fetchReturnDates = async () => {
             setIsLoading(true);
             setError(null);
             try {
-                const oneMonthAgo = new Date();
-                oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+                // Fetch a wide range to allow for month navigation in the calendar
+                const threeMonthsAgo = new Date();
+                threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+                const threeMonthsForward = new Date();
+                threeMonthsForward.setMonth(threeMonthsForward.getMonth() + 3);
 
                 const { data: returnsData, error } = await supabasePROD
                     .from('devoluciones_ml')
                     .select('fecha_status')
                     .not('fecha_status', 'is', null)
-                    .gte('fecha_status', oneMonthAgo.toISOString());
+                    .gte('fecha_status', threeMonthsAgo.toISOString())
+                    .lte('fecha_status', threeMonthsForward.toISOString());
 
                 if (error) {
                     throw error;
@@ -44,7 +57,7 @@ export default function CalendarioDevolucionesPage() {
                     const counts: { [key: string]: number } = returnsData.reduce((acc, curr) => {
                         if(curr.fecha_status) {
                             const date = new Date(curr.fecha_status);
-                            const day = date.toISOString().split('T')[0];
+                            const day = dateToDayString(date);
                             acc[day] = (acc[day] || 0) + 1;
                         }
                         return acc;
@@ -72,11 +85,49 @@ export default function CalendarioDevolucionesPage() {
         fetchReturnDates();
     }, [toast]);
     
-    const daysWithReturns = React.useMemo(() => {
-        return data.map(d => new Date(d.day + 'T12:00:00Z'));
+    // Initialize or update air-datepicker
+    useEffect(() => {
+        if (calendarRef.current) {
+            if (!datepickerRef.current) {
+                // Initialize
+                datepickerRef.current = new AirDatepicker(calendarRef.current, {
+                    locale: localeEs,
+                    inline: true,
+                    selectedDates: [new Date()],
+                    onSelect: ({ date }) => {
+                        const newDate = date instanceof Date ? date : Array.isArray(date) ? date[0] : undefined;
+                        setSelectedDate(newDate);
+                    },
+                });
+            }
+
+            // Update cells with dots whenever data changes
+            datepickerRef.current.update({
+                onRenderCell: ({ date, cellType }) => {
+                    if (cellType === 'day') {
+                        const dayString = dateToDayString(date);
+                        const hasReturn = data.some(d => d.day === dayString);
+                        if (hasReturn) {
+                            return {
+                                html: `${date.getDate()}<span class="air-datepicker-cell-decorator"></span>`
+                            }
+                        }
+                    }
+                    return false; // use default rendering
+                }
+            });
+        }
+        
+        // Cleanup on unmount
+        return () => {
+            if (datepickerRef.current) {
+                datepickerRef.current.destroy();
+                datepickerRef.current = null;
+            }
+        }
     }, [data]);
     
-    const returnsForSelectedDay = selectedDate ? data.find(d => d.day === selectedDate.toISOString().split('T')[0])?.count : 0;
+    const returnsForSelectedDay = selectedDate ? data.find(d => d.day === dateToDayString(selectedDate))?.count : 0;
 
     return (
         <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
@@ -106,24 +157,17 @@ export default function CalendarioDevolucionesPage() {
                         </CardHeader>
                         <CardContent className="flex flex-col md:flex-row items-center justify-center gap-8">
                             {isLoading ? (
-                                <div className="flex items-center justify-center h-64">
+                                <div className="flex items-center justify-center h-64 w-full">
                                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                                     <p className="ml-4">Cargando datos del calendario...</p>
                                 </div>
                             ) : error ? (
-                                <div className="text-destructive-foreground bg-destructive/90 p-4 rounded-md">
+                                <div className="text-destructive-foreground bg-destructive/90 p-4 rounded-md w-full">
                                     {error}
                                 </div>
                             ) : (
                                 <>
-                                    <Calendar
-                                        mode="single"
-                                        selected={selectedDate}
-                                        onSelect={setSelectedDate}
-                                        className="rounded-md border"
-                                        modifiers={{ hasReturns: daysWithReturns }}
-                                        modifiersClassNames={{ hasReturns: 'has-returns' }}
-                                    />
+                                    <div ref={calendarRef} className="w-full max-w-xs sm:max-w-sm [&_.air-datepicker]:w-full [&_.air-datepicker--content]:p-0"/>
                                     <div className="w-full md:w-64 text-center">
                                         {selectedDate ? (
                                             <>

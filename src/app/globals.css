@@ -89,11 +89,7 @@
   }
 }
 
-.has-returns {
-    position: relative;
-}
-.has-returns::after {
-    content: '';
+.air-datepicker-cell-decorator {
     position: absolute;
     bottom: 4px;
     left: 50%;
@@ -103,6 +99,7 @@
     border-radius: 50%;
     background-color: hsl(var(--primary));
 }
-.rdp-day_selected.has-returns::after {
+
+.air-datepicker-cell.-selected- .air-datepicker-cell-decorator {
     background-color: hsl(var(--primary-foreground));
 }
