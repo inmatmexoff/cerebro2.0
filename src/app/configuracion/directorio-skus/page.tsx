@@ -144,8 +144,8 @@ export default function DirectorioSkusPage() {
       const { data: allSkuCostosData, error: allSkuCostosError } =
         await supabasePROD
           .from('sku_costos')
-          .select('sku_mdr, landed_cost, proveedor, piezas_xcontenedor, created_at')
-          .order('created_at', { ascending: false });
+          .select('sku_mdr, landed_cost, proveedor, piezas_xcontenedor, fecha_desde')
+          .order('fecha_desde', { ascending: false });
       if (allSkuCostosError) throw allSkuCostosError;
 
       const latestCosts = new Map<string, any>();
@@ -177,7 +177,7 @@ export default function DirectorioSkusPage() {
           'Landed Cost (último)': cost?.landed_cost,
           'Proveedor (último costo)': cost?.proveedor,
           'Piezas por Contenedor (último costo)': cost?.piezas_xcontenedor,
-          'Fecha último costo': cost?.created_at,
+          'Fecha último costo': cost?.fecha_desde,
         };
       });
 

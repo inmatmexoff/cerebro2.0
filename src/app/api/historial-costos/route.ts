@@ -8,8 +8,8 @@ export async function GET(request: Request) {
     try {
         let query = supabasePROD
             .from('sku_costos')
-            .select('id, sku_mdr, landed_cost, proveedor, created_at')
-            .order('created_at', { ascending: false });
+            .select('id, sku_mdr, landed_cost, proveedor, fecha_desde')
+            .order('fecha_desde', { ascending: false });
 
         if (sku_mdr) {
             query = query.ilike('sku_mdr', `%${sku_mdr}%`);

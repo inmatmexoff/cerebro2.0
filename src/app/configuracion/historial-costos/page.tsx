@@ -12,7 +12,7 @@ type CostoHistorico = {
   sku_mdr: string;
   landed_cost: number | null;
   proveedor: string | null;
-  created_at: string;
+  fecha_desde: string;
 };
 
 export default function HistorialCostosPage() {
@@ -161,7 +161,7 @@ export default function HistorialCostosPage() {
                                 : '-'}
                           </TableCell>
                           <TableCell>{item.proveedor || '-'}</TableCell>
-                          <TableCell className="text-right">{formatDate(item.created_at)}</TableCell>
+                          <TableCell className="text-right">{formatDate(item.fecha_desde)}</TableCell>
                         </TableRow>
                       ))
                     ) : (
