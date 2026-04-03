@@ -32,6 +32,9 @@ export function DashboardCard({
   const isTalComercializadora = (val: any) =>
     typeof val === "string" && val.toUpperCase() === "TAL COMERCIALIZADORA";
 
+  const isInmatmex = (val: any) =>
+    typeof val === "string" && val.toUpperCase() === "INMATMEX";
+
   let displayValue = value;
   if (isTalComercializadora(value)) {
     displayValue = "TAL";
@@ -41,7 +44,9 @@ export function DashboardCard({
     "font-bold mt-1 sm:mt-2",
     "break-words",
     isFilled ? "text-primary-foreground" : "text-primary",
-    isPaloDeRosa(value)
+    isInmatmex(value)
+      ? "text-3xl sm:text-4xl"
+      : isPaloDeRosa(value)
       ? "text-lg sm:text-xl"
       : isDomeska(value)
       ? "text-2xl sm:text-3xl"
