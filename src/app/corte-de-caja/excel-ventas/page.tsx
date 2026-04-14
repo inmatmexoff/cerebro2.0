@@ -93,13 +93,14 @@ const COLUMN_MAPPING: { [key: string]: number } = {
   J: 9, // ing_xenvio
   K: 10, // costo_envio
   M: 12, // cargo_difpeso
-  N: 13, // anu_reembolsos
-  O: 14, // total
-  P: 15, // venta_xpublicidad
-  Q: 16, // sku
-  R: 17, // num_publi
-  S: 18, // tienda
-  W: 22, // tip_publi
+  N: 13, // descuentos y bonificaciones
+  O: 14, // anu_reembolsos
+  P: 15, // total
+  Q: 16, // venta_xpublicidad
+  R: 17, // sku
+  S: 18, // num_publi
+  T: 19, // tienda
+  X: 23, // tip_publi
 };
 const COLUMN_INDEXES = Object.values(COLUMN_MAPPING);
 
@@ -518,18 +519,19 @@ export default function ExcelVentasPage() {
             headerRow[COLUMN_MAPPING.B] || 'Fecha de venta',
             headerRow[COLUMN_MAPPING.C] || 'ESTADO',
             headerRow[COLUMN_MAPPING.G] || 'Unidades',
-            headerRow[COLUMN_MAPPING.Q] || 'SKU',
+            headerRow[COLUMN_MAPPING.R] || 'SKU',
             'Subcategoría',
             'Costo de Venta en Mercado Libre',
             'Cargo por venta e impuestos (MXN)',
             'Costos de envío (MXN)',
             headerRow[COLUMN_MAPPING.J] || 'Ingresos por envío (MXN)',
             headerRow[COLUMN_MAPPING.M] || 'Cargo por diferencia de peso (MXN)',
-            headerRow[COLUMN_MAPPING.N] || 'Anulaciones y reembolsos (MXN)',
-            headerRow[COLUMN_MAPPING.P] || 'Venta por Publicidad',
-            headerRow[COLUMN_MAPPING.R] || '# de publicación',
-            headerRow[COLUMN_MAPPING.S] || 'Tienda',
-            headerRow[COLUMN_MAPPING.W] || 'Tipo de publicación',
+            headerRow[COLUMN_MAPPING.N] || 'Descuentos y bonificaciones (MXN)',
+            headerRow[COLUMN_MAPPING.O] || 'Anulaciones y reembolsos (MXN)',
+            headerRow[COLUMN_MAPPING.Q] || 'Venta por Publicidad',
+            headerRow[COLUMN_MAPPING.S] || '# de publicación',
+            headerRow[COLUMN_MAPPING.T] || 'Tienda',
+            headerRow[COLUMN_MAPPING.X] || 'Tipo de publicación',
             'Total',
             'Landed Cost Total',
             'Utilidad Bruta',
@@ -561,7 +563,7 @@ export default function ExcelVentasPage() {
             const skusInChunk = [
               ...new Set(
                 chunk
-                  .map(({ row }) => String(row[COLUMN_MAPPING.Q] || ''))
+                  .map(({ row }) => String(row[COLUMN_MAPPING.R] || ''))
                   .filter((sku) => sku)
               ),
             ];
@@ -632,7 +634,7 @@ export default function ExcelVentasPage() {
             const enrichedChunk = chunk.map(({ row, excelRowNum }) => {
               const unidades =
                 parseInt(String(row[COLUMN_MAPPING.G] || '1')) || 1;
-              const sku = String(row[COLUMN_MAPPING.Q] || '');
+              const sku = String(row[COLUMN_MAPPING.R] || '');
               const skuMdr = skuToMdrMap.get(sku);
               const subCat = skuMdr ? mdrToSubCatMap.get(skuMdr) : null;
               const landedCostPerUnit = skuMdr
@@ -640,7 +642,7 @@ export default function ExcelVentasPage() {
                 : 0;
               const totalLandedCost = landedCostPerUnit * unidades;
               const totalFromExcel =
-                parseCurrency(row[COLUMN_MAPPING.O]) || 0;
+                parseCurrency(row[COLUMN_MAPPING.P]) || 0;
               
               let utilidadBruta = totalFromExcel - totalLandedCost;
               const estado = row[COLUMN_MAPPING.C] ? String(row[COLUMN_MAPPING.C]).trim() : '';
@@ -653,26 +655,27 @@ export default function ExcelVentasPage() {
 
               return [
                 excelRowNum,
-                row[COLUMN_MAPPING.A] || '',
-                row[COLUMN_MAPPING.B] || '',
-                estado,
-                unidades,
-                sku,
-                subCat,
-                parseCurrency(row[COLUMN_MAPPING.H]),
-                parseCurrency(row[COLUMN_MAPPING.I]),
-                parseCurrency(row[COLUMN_MAPPING.K]),
-                parseCurrency(row[COLUMN_MAPPING.J]),
-                parseCurrency(row[COLUMN_MAPPING.M]),
-                parseCurrency(row[COLUMN_MAPPING.N]),
-                parseBoolean(row[COLUMN_MAPPING.P]),
-                row[COLUMN_MAPPING.R] || '',
-                String(row[COLUMN_MAPPING.S] || ''),
-                row[COLUMN_MAPPING.W] || '',
-                totalFromExcel,
-                totalLandedCost,
-                parseFloat(utilidadBruta.toFixed(2)),
-                markup,
+                row[COLUMN_MAPPING.A] || '', // ID
+                row[COLUMN_MAPPING.B] || '', // Fecha de venta
+                estado, // ESTADO
+                unidades, // Unidades
+                sku, // SKU
+                subCat, // Subcategoría
+                parseCurrency(row[COLUMN_MAPPING.H]), // Costo de Venta en Mercado Libre
+                parseCurrency(row[COLUMN_MAPPING.I]), // Cargo por venta e impuestos (MXN)
+                parseCurrency(row[COLUMN_MAPPING.K]), // Costos de envío (MXN)
+                parseCurrency(row[COLUMN_MAPPING.J]), // Ingresos por envío (MXN)
+                parseCurrency(row[COLUMN_MAPPING.M]), // Cargo por diferencia de peso (MXN)
+                parseCurrency(row[COLUMN_MAPPING.N]), // NEW: Descuentos y bonificaciones (MXN)
+                parseCurrency(row[COLUMN_MAPPING.O]), // Anulaciones y reembolsos (MXN)
+                parseBoolean(row[COLUMN_MAPPING.Q]), // Venta por Publicidad
+                row[COLUMN_MAPPING.S] || '', // # de publicación
+                String(row[COLUMN_MAPPING.T] || ''), // Tienda
+                row[COLUMN_MAPPING.X] || '', // Tipo de publicación
+                totalFromExcel, // Total
+                totalLandedCost, // Landed Cost Total
+                parseFloat(utilidadBruta.toFixed(2)), // Utilidad Bruta
+                markup, // Markup (%)
               ];
             });
 
@@ -1207,6 +1210,7 @@ export default function ExcelVentasPage() {
   );
   const costoEnvioSum = createSumCalculator('Costos de envío (MXN)');
   const totalSum = createSumCalculator('Total');
+  const descuentosSum = createSumCalculator('Descuentos y bonificaciones (MXN)');
 
   const colorCounters = React.useMemo(() => {
     const counters = { darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
@@ -1423,15 +1427,15 @@ export default function ExcelVentasPage() {
       costo_envio: 9,
       ing_xenvio: 10,
       cargo_difpeso: 11,
-      anu_reembolsos: 12,
-      venta_xpublicidad: 13,
-      num_publi: 14,
-      tienda: 15,
-      tip_publi: 16,
-      total: 17,
-      landed_cost: 18,
-      total_final: 19,
-      markup: 20,
+      anu_reembolsos: 13,
+      venta_xpublicidad: 14,
+      num_publi: 15,
+      tienda: 16,
+      tip_publi: 17,
+      total: 18,
+      landed_cost: 19,
+      total_final: 20,
+      markup: 21,
     };
     
     const markupIndex = headers.indexOf('Markup (%)');
@@ -2137,7 +2141,7 @@ export default function ExcelVentasPage() {
                         <h4 className="text-sm font-medium mb-2">
                           Resumen de Totales (Filtrado)
                         </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div className="p-3 bg-muted/50 rounded-md">
                             <div className="text-muted-foreground">Utilidad Bruta</div>
                             <div
@@ -2256,6 +2260,17 @@ export default function ExcelVentasPage() {
                             </div>
                             <div className="font-bold text-lg text-foreground">
                               {costoEnvioSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">
+                              Descuentos y Bonificaciones
+                            </div>
+                            <div className="font-bold text-lg text-foreground">
+                              {descuentosSum.toLocaleString('es-MX', {
                                 style: 'currency',
                                 currency: 'MXN',
                               })}
