@@ -54,21 +54,29 @@ export default function ActualizarSkuPage() {
         }
     });
 
-    // Fetch all SKUs for the combobox
+    // Fetch all SKUs for the combobox from both sku_alterno and sku_m
     useEffect(() => {
         const fetchSkus = async () => {
             setIsLoadingSkus(true);
             try {
-                const { data, error } = await supabasePROD
-                    .from('sku_alterno')
-                    .select('sku')
-                    .order('sku', { ascending: true });
+                const [alternoResponse, mResponse] = await Promise.all([
+                    supabasePROD.from('sku_alterno').select('sku').not('sku', 'is', null),
+                    supabasePROD.from('sku_m').select('sku').not('sku', 'is', null)
+                ]);
 
-                if (error) throw error;
+                const { data: alternoData, error: alternoError } = alternoResponse;
+                const { data: mData, error: mError } = mResponse;
 
-                if (data) {
-                    setAllSkus(data.map(item => ({ value: item.sku, label: item.sku })));
-                }
+                if (alternoError) throw alternoError;
+                if (mError) throw mError;
+                
+                const alternoSkus = alternoData?.map(item => item.sku) || [];
+                const mSkus = mData?.map(item => item.sku) || [];
+
+                const allUniqueSkus = [...new Set([...alternoSkus, ...mSkus])].sort();
+                
+                setAllSkus(allUniqueSkus.map(sku => ({ value: sku, label: sku })));
+
             } catch (err: any) {
                 toast({
                     variant: "destructive",
