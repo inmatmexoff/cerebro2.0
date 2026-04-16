@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 // Zod schema for form validation
 const updateSkuSchema = z.object({
-    sku: z.string(), // Non-editable
+    sku: z.string(), // Non-editable but needed for submission
     sku_mdr: z.string().min(1, { message: "NOMBRE MADRE es requerido." }),
     cat_mdr: z.string().min(1, { message: "Categoría Madre es requerida." }),
     landed_cost: z.coerce.number().optional().nullable(),
@@ -233,58 +233,77 @@ export default function ActualizarSkuPage() {
 
                     {isLoadingData && (
                         <Card>
-                            <CardHeader>
+                             <CardHeader>
                                <Skeleton className="h-8 w-1/2" />
                                <Skeleton className="h-4 w-3/4" />
                             </CardHeader>
-                            <CardContent className="p-6 space-y-6">
-                               <div className="grid md:grid-cols-3 gap-4">
-                                 <div className="space-y-2"><Skeleton className="h-4 w-1/4" /><Skeleton className="h-10 w-full" /></div>
-                                 <div className="space-y-2"><Skeleton className="h-4 w-1/4" /><Skeleton className="h-10 w-full" /></div>
-                                 <div className="space-y-2"><Skeleton className="h-4 w-1/4" /><Skeleton className="h-10 w-full" /></div>
-                                 <div className="space-y-2"><Skeleton className="h-4 w-1/4" /><Skeleton className="h-10 w-full" /></div>
-                                 <div className="space-y-2"><Skeleton className="h-4 w-1/4" /><Skeleton className="h-10 w-full" /></div>
-                                 <div className="space-y-2"><Skeleton className="h-4 w-1/4" /><Skeleton className="h-10 w-full" /></div>
-                                 <div className="space-y-2"><Skeleton className="h-4 w-1/4" /><Skeleton className="h-10 w-full" /></div>
-                                 <div className="space-y-2"><Skeleton className="h-4 w-1/4" /><Skeleton className="h-10 w-full" /></div>
-                               </div>
-                               <Skeleton className="h-10 w-32" />
+                            <CardContent className="space-y-8 pt-6">
+                                <div className="space-y-6">
+                                    <div>
+                                        <Skeleton className="h-6 w-1/4 mb-4" />
+                                        <div className="grid md:grid-cols-2 gap-6">
+                                            <div className="space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-10 w-full" /></div>
+                                            <div className="space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-10 w-full" /></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Skeleton className="h-6 w-1/3 mb-4" />
+                                        <div className="grid md:grid-cols-2 gap-6">
+                                            <div className="space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-10 w-full" /></div>
+                                            <div className="space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-10 w-full" /></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Skeleton className="h-6 w-1/3 mb-4" />
+                                        <div className="grid md:grid-cols-3 gap-6">
+                                            <div className="space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-10 w-full" /></div>
+                                            <div className="space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-10 w-full" /></div>
+                                            <div className="space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-10 w-full" /></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <Skeleton className="h-12 w-40" />
                             </CardContent>
                         </Card>
                     )}
 
                     {!isLoadingData && selectedSku && (
                         <Card>
-                            <CardHeader>
-                                <CardTitle className="break-all">Editando SKU: {selectedSku}</CardTitle>
+                             <CardHeader>
+                                <CardTitle>
+                                    <span className="font-normal text-muted-foreground">Editando:</span>
+                                    <span className="break-all"> {selectedSku}</span>
+                                </CardTitle>
                                 <CardDescription>Modifica los campos y guarda los cambios. Al guardar un nuevo "Landed Cost", se creará un nuevo registro en el historial de costos.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                                     <div className="grid md:grid-cols-3 gap-4">
-                                         <FormField
-                                            control={form.control}
-                                            name="sku"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>SKU (No editable)</FormLabel>
-                                                    <FormControl>
-                                                        <Input {...field} disabled value={field.value ?? ''} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField control={form.control} name="sku_mdr" render={({ field }) => (<FormItem><FormLabel>NOMBRE MADRE</FormLabel><FormControl><Input placeholder="Ej. SKU_MDR_123" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name="cat_mdr" render={({ field }) => (<FormItem><FormLabel>Categoría Madre</FormLabel><FormControl><Input placeholder="Ej. RACKS" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name="landed_cost" render={({ field }) => (<FormItem><FormLabel>Landed Cost</FormLabel><FormControl><Input type="number" step="0.01" placeholder="Ej. 199.99" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name="proveedor" render={({ field }) => (<FormItem><FormLabel>Proveedor</FormLabel><FormControl><Input placeholder="Ej. Proveedor A" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name="piezas_xcontenedor" render={({ field }) => (<FormItem><FormLabel>Piezas por Contenedor</FormLabel><FormControl><Input type="number" placeholder="Ej. 100" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name="esti_time" render={({ field }) => (<FormItem><FormLabel>Tiempo Estimado (min)</FormLabel><FormControl><Input type="number" placeholder="Ej. 30" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name="piezas_por_sku" render={({ field }) => (<FormItem><FormLabel>Piezas por SKU</FormLabel><FormControl><Input type="number" placeholder="Ej. 50" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                     </div>
-                                      <Button type="submit" disabled={isUpdating}>
+                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                                    <div className="space-y-6">
+                                        <div>
+                                            <h4 className="text-lg font-medium border-b pb-2 mb-4">Información Principal</h4>
+                                            <div className="grid md:grid-cols-2 gap-6">
+                                                <FormField control={form.control} name="sku_mdr" render={({ field }) => (<FormItem><FormLabel>NOMBRE MADRE</FormLabel><FormControl><Input placeholder="Ej. SKU_MDR_123" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={form.control} name="cat_mdr" render={({ field }) => (<FormItem><FormLabel>Categoría Madre</FormLabel><FormControl><Input placeholder="Ej. RACKS" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-lg font-medium border-b pb-2 mb-4">Costos y Proveedor</h4>
+                                            <div className="grid md:grid-cols-2 gap-6">
+                                                <FormField control={form.control} name="landed_cost" render={({ field }) => (<FormItem><FormLabel>Landed Cost (Nuevo/Histórico)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="Ej. 199.99" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={form.control} name="proveedor" render={({ field }) => (<FormItem><FormLabel>Proveedor</FormLabel><FormControl><Input placeholder="Ej. Proveedor A" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-lg font-medium border-b pb-2 mb-4">Logística y Empaque</h4>
+                                            <div className="grid md:grid-cols-3 gap-6">
+                                                <FormField control={form.control} name="piezas_xcontenedor" render={({ field }) => (<FormItem><FormLabel>Piezas por Contenedor</FormLabel><FormControl><Input type="number" placeholder="Ej. 100" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={form.control} name="esti_time" render={({ field }) => (<FormItem><FormLabel>Tiempo Estimado (min)</FormLabel><FormControl><Input type="number" placeholder="Ej. 30" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={form.control} name="piezas_por_sku" render={({ field }) => (<FormItem><FormLabel>Piezas por SKU</FormLabel><FormControl><Input type="number" placeholder="Ej. 50" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Button type="submit" disabled={isUpdating} size="lg">
                                         {isUpdating ? (<Loader2 className="w-4 h-4 mr-2 animate-spin" />) : (<Save className="w-4 h-4 mr-2" />)}
                                         Guardar Cambios
                                     </Button>
