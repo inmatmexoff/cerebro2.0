@@ -1302,15 +1302,15 @@ export default function HistorialCortesPage() {
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                         <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">
-                            VENTA TOTAL MERCADO LIBRE
+                          <div className="text-muted-foreground uppercase">
+                            Venta Total Mercado Libre
                           </div>
                           <div className="font-bold text-lg text-foreground">
                             {formatCurrency(ingresosPorProductosSum)}
                           </div>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">
+                          <div className="text-muted-foreground uppercase">
                               Cargos x Venta
                           </div>
                           <div className="font-bold text-lg text-foreground">
@@ -1318,7 +1318,7 @@ export default function HistorialCortesPage() {
                           </div>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">
+                          <div className="text-muted-foreground uppercase">
                               Costos x Envío
                           </div>
                           <div className="font-bold text-lg text-foreground">
@@ -1326,21 +1326,21 @@ export default function HistorialCortesPage() {
                           </div>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">RECIBES</div>
+                          <div className="text-muted-foreground uppercase">RECIBES</div>
                           <div className="font-bold text-lg text-foreground">
                               {formatCurrency(totalSum)}
                           </div>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">
+                          <div className="text-muted-foreground uppercase">
                               Landed Cost Total
                           </div>
                           <div className="font-bold text-lg text-foreground">
-                              {formatCurrency(landedCostSum)}
+                              {formatCurrency(-landedCostSum)}
                           </div>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">Utilidad Bruta</div>
+                          <div className="text-muted-foreground uppercase">Utilidad Bruta</div>
                           <div className={cn('font-bold text-lg', utilidadBrutaSum >= 0 ? 'text-green-700' : 'text-red-700')}>
                               {formatCurrency(utilidadBrutaSum)}
                           </div>
@@ -1358,13 +1358,13 @@ export default function HistorialCortesPage() {
                               ) : (
                               <div className="mt-1 space-y-1 text-xs">
                                   <div className="flex justify-between">
-                                      <span className="text-muted-foreground">vs Landed Cost</span>
+                                      <span className="text-muted-foreground uppercase">vs Landed Cost</span>
                                       <span className="font-mono font-semibold">
                                           {landedCostSum > 0 ? `${((utilidadBrutaSum / landedCostSum) * 100).toFixed(1)}%` : 'N/A'}
                                       </span>
                                   </div>
                                   <div className="flex justify-between">
-                                      <span className="text-muted-foreground">vs Venta Total ML</span>
+                                      <span className="text-muted-foreground uppercase">vs Venta Total ML</span>
                                       <span className="font-mono font-semibold">
                                           {ingresosPorProductosSum > 0 ? `${((utilidadBrutaSum / ingresosPorProductosSum) * 100).toFixed(1)}%` : 'N/A'}
                                       </span>
@@ -1373,19 +1373,19 @@ export default function HistorialCortesPage() {
                           )}
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">Utilidad Promedio por Pedido</div>
+                          <div className="text-muted-foreground uppercase">Utilidad Promedio por Pedido</div>
                           <div className="font-bold text-lg text-foreground">
                             {formatCurrency(executiveKpis.gananciaPromedioPorPedido)}
                           </div>
                         </div>
                          <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">Utilidad Promedio por Unidad</div>
+                          <div className="text-muted-foreground uppercase">Utilidad Promedio por Unidad</div>
                           <div className="font-bold text-lg text-foreground">
                             {formatCurrency(executiveKpis.utilidadPromedioPorUnidad)}
                           </div>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground">% Pedidos Margen Bajo</div>
+                          <div className="text-muted-foreground uppercase">% Pedidos Margen Bajo</div>
                           <div className="font-bold text-lg text-foreground">
                             {executiveKpis.porcentajePedidosMargenBajo.toFixed(2)}%
                           </div>

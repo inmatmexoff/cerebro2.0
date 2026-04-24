@@ -2143,8 +2143,8 @@ export default function ExcelVentasPage() {
                         </h4>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                           <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">
-                              VENTA TOTAL MERCADO LIBRE
+                            <div className="text-muted-foreground uppercase">
+                              Venta Total Mercado Libre
                             </div>
                             <div className="font-bold text-lg text-foreground">
                               {ingresosPorProductosSum.toLocaleString('es-MX', {
@@ -2154,7 +2154,7 @@ export default function ExcelVentasPage() {
                             </div>
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">
+                            <div className="text-muted-foreground uppercase">
                               Cargos x Venta
                             </div>
                             <div className="font-bold text-lg text-foreground">
@@ -2165,7 +2165,7 @@ export default function ExcelVentasPage() {
                             </div>
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">
+                            <div className="text-muted-foreground uppercase">
                               Costos x Envío
                             </div>
                             <div className="font-bold text-lg text-foreground">
@@ -2176,7 +2176,7 @@ export default function ExcelVentasPage() {
                             </div>
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">RECIBES</div>
+                            <div className="text-muted-foreground uppercase">RECIBES</div>
                             <div className="font-bold text-lg text-foreground">
                               {totalSum.toLocaleString('es-MX', {
                                 style: 'currency',
@@ -2185,18 +2185,18 @@ export default function ExcelVentasPage() {
                             </div>
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">
+                            <div className="text-muted-foreground uppercase">
                               Landed Cost Total
                             </div>
                             <div className="font-bold text-lg text-foreground">
-                              {landedCostSum.toLocaleString('es-MX', {
+                              {(-landedCostSum).toLocaleString('es-MX', {
                                 style: 'currency',
                                 currency: 'MXN',
                               })}
                             </div>
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">Utilidad Bruta</div>
+                            <div className="text-muted-foreground uppercase">Utilidad Bruta</div>
                             <div
                               className={cn(
                                 'font-bold text-lg',
@@ -2235,7 +2235,7 @@ export default function ExcelVentasPage() {
                             ) : (
                               <div className="mt-1 space-y-1 text-xs">
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">
+                                  <span className="text-muted-foreground uppercase">
                                     vs Landed Cost
                                   </span>
                                   <span className="font-mono font-semibold">
@@ -2249,7 +2249,7 @@ export default function ExcelVentasPage() {
                                   </span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">
+                                  <span className="text-muted-foreground uppercase">
                                     vs VENTA TOTAL MERCADO LIBRE
                                   </span>
                                   <span className="font-mono font-semibold">
@@ -2266,7 +2266,7 @@ export default function ExcelVentasPage() {
                             )}
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">
+                            <div className="text-muted-foreground uppercase">
                               Descuentos y Bonificaciones
                             </div>
                             <div className="font-bold text-lg text-foreground">
