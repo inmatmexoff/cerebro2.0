@@ -1334,7 +1334,7 @@ export default function HistorialCortesPage() {
                         )}
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">Total</div>
+                        <div className="text-muted-foreground">RECIBES</div>
                         <div className="font-bold text-lg text-foreground">
                             {formatCurrency(totalSum)}
                         </div>
@@ -1544,7 +1544,7 @@ export default function HistorialCortesPage() {
                                             </TableCell>
                                         );
                                     })}
-                                </TableRow>
+                                    </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
