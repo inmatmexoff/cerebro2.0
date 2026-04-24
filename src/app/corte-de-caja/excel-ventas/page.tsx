@@ -230,7 +230,7 @@ export default function ExcelVentasPage() {
 
   const [checkedRows, setCheckedRows] = React.useState(new Set<number>());
   const [skuSearchTerm, setSkuSearchTerm] = React.useState('');
-  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit'>('all');
+  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit' | 'neg_and_zero' | 'gt_zero_lt_five'>('all');
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   const [editingInfo, setEditingInfo] = useState<{
@@ -457,7 +457,7 @@ export default function ExcelVentasPage() {
       });
     });
   };
-
+  
   const handleMarkupFilterClick = (filter: 'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red') => {
     const newFilter = markupFilter === filter ? 'all' : filter;
     if (newFilter !== 'all') {
@@ -871,6 +871,10 @@ export default function ExcelVentasPage() {
         utilidadBrutaMatch = typeof utilidadBrutaValue === 'number' && utilidadBrutaValue >= 0;
       } else if (granTotalFilter === 'low_profit') {
         utilidadBrutaMatch = typeof utilidadBrutaValue === 'number' && utilidadBrutaValue < 30;
+      } else if (granTotalFilter === 'neg_and_zero') {
+        utilidadBrutaMatch = typeof utilidadBrutaValue === 'number' && utilidadBrutaValue <= 0;
+      } else if (granTotalFilter === 'gt_zero_lt_five') {
+        utilidadBrutaMatch = typeof utilidadBrutaValue === 'number' && utilidadBrutaValue > 0 && utilidadBrutaValue < 5;
       }
 
       const shippingCost =
@@ -2045,6 +2049,15 @@ export default function ExcelVentasPage() {
                                       Mostrar solo negativos
                                   </DropdownMenuCheckboxItem>
                                   <DropdownMenuCheckboxItem
+                                      checked={granTotalFilter === 'neg_and_zero'}
+                                      onCheckedChange={(checked) => {
+                                          setGranTotalFilter(checked ? 'neg_and_zero' : 'all');
+                                          if (checked) setMarkupFilter('all');
+                                      }}
+                                  >
+                                      Mostrar negativos y 0
+                                  </DropdownMenuCheckboxItem>
+                                  <DropdownMenuCheckboxItem
                                       checked={granTotalFilter === 'positive'}
                                       onCheckedChange={(checked) => {
                                           setGranTotalFilter(checked ? 'positive' : 'all');
@@ -2052,6 +2065,15 @@ export default function ExcelVentasPage() {
                                       }}
                                   >
                                       Mostrar 0 o positivos
+                                  </DropdownMenuCheckboxItem>
+                                  <DropdownMenuCheckboxItem
+                                      checked={granTotalFilter === 'gt_zero_lt_five'}
+                                      onCheckedChange={(checked) => {
+                                          setGranTotalFilter(checked ? 'gt_zero_lt_five' : 'all');
+                                          if (checked) setMarkupFilter('all');
+                                      }}
+                                  >
+                                      Mostrar &gt;0 pero &lt;5
                                   </DropdownMenuCheckboxItem>
                                   <DropdownMenuCheckboxItem
                                       checked={granTotalFilter === 'low_profit'}
@@ -2144,7 +2166,7 @@ export default function ExcelVentasPage() {
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                           <div className="p-3 bg-muted/50 rounded-md">
                             <div className="text-muted-foreground uppercase">
-                              Venta Total Mercado Libre
+                              VENTA TOTAL MERCADO LIBRE
                             </div>
                             <div className="font-bold text-lg text-foreground">
                               {ingresosPorProductosSum.toLocaleString('es-MX', {
@@ -2155,7 +2177,7 @@ export default function ExcelVentasPage() {
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
                             <div className="text-muted-foreground uppercase">
-                              Cargos x Venta
+                              CARGOS X VENTA
                             </div>
                             <div className="font-bold text-lg text-foreground">
                               {cargoVentaSum.toLocaleString('es-MX', {
@@ -2166,7 +2188,7 @@ export default function ExcelVentasPage() {
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
                             <div className="text-muted-foreground uppercase">
-                              Costos x Envío
+                              COSTOS X ENVÍO
                             </div>
                             <div className="font-bold text-lg text-foreground">
                               {costoEnvioSum.toLocaleString('es-MX', {
@@ -2186,7 +2208,7 @@ export default function ExcelVentasPage() {
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
                             <div className="text-muted-foreground uppercase">
-                              Landed Cost Total
+                              LANDED COST TOTAL
                             </div>
                             <div className="font-bold text-lg text-foreground">
                               {(-landedCostSum).toLocaleString('es-MX', {
@@ -2267,7 +2289,7 @@ export default function ExcelVentasPage() {
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
                             <div className="text-muted-foreground uppercase">
-                              Descuentos y Bonificaciones
+                              DESCUENTOS Y BONIFICACIONES
                             </div>
                             <div className="font-bold text-lg text-foreground">
                               {descuentosSum.toLocaleString('es-MX', {

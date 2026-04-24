@@ -116,7 +116,7 @@ export default function HistorialCortesPage() {
     direction: 'descending',
   });
   
-  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit'>('all');
+  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit' | 'neg_and_zero' | 'gt_zero_lt_five'>('all');
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   
@@ -460,9 +460,9 @@ export default function HistorialCortesPage() {
 
                 const { data: skuCostosData, error: skuCostosError } = await supabasePROD
                     .from('sku_costos')
-                    .select('sku_mdr, landed_cost, id')
+                    .select('sku_mdr, landed_cost, fecha_desde')
                     .in('sku_mdr', mdrs)
-                    .order('id', { ascending: false });
+                    .order('fecha_desde', { ascending: false });
 
                 if (skuCostosError) throw skuCostosError;
                 if (skuCostosData) {
@@ -633,6 +633,10 @@ export default function HistorialCortesPage() {
             utilidadBrutaMatch = (sale.total_final ?? 0) >= 0;
         } else if (granTotalFilter === 'low_profit') {
             utilidadBrutaMatch = (sale.total_final ?? 0) < 30;
+        } else if (granTotalFilter === 'neg_and_zero') {
+            utilidadBrutaMatch = (sale.total_final ?? 0) <= 0;
+        } else if (granTotalFilter === 'gt_zero_lt_five') {
+            utilidadBrutaMatch = (sale.total_final ?? 0) > 0 && (sale.total_final ?? 0) < 5;
         }
 
         const highShippingCostMatch = !showHighShippingCost || (sale.costo_envio ?? 0) <= -300;
@@ -1177,6 +1181,16 @@ export default function HistorialCortesPage() {
                                     Solo negativos
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuCheckboxItem
+                                    checked={granTotalFilter === 'neg_and_zero'}
+                                    onCheckedChange={(checked) => {
+                                        setGranTotalFilter(checked ? 'neg_and_zero' : 'all');
+                                        if (checked) setMarkupFilter('all');
+                                        setPage(1);
+                                    }}
+                                >
+                                    Mostrar negativos y 0
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem
                                     checked={granTotalFilter === 'positive'}
                                     onCheckedChange={(checked) => {
                                         setGranTotalFilter(checked ? 'positive' : 'all');
@@ -1185,6 +1199,16 @@ export default function HistorialCortesPage() {
                                     }}
                                 >
                                     0 o positivos
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem
+                                    checked={granTotalFilter === 'gt_zero_lt_five'}
+                                    onCheckedChange={(checked) => {
+                                        setGranTotalFilter(checked ? 'gt_zero_lt_five' : 'all');
+                                        if (checked) setMarkupFilter('all');
+                                        setPage(1);
+                                    }}
+                                >
+                                    Mostrar &gt;0 pero &lt;5
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuCheckboxItem
                                     checked={granTotalFilter === 'low_profit'}
@@ -1303,7 +1327,7 @@ export default function HistorialCortesPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                         <div className="p-3 bg-muted/50 rounded-md">
                           <div className="text-muted-foreground uppercase">
-                            Venta Total Mercado Libre
+                            VENTA TOTAL MERCADO LIBRE
                           </div>
                           <div className="font-bold text-lg text-foreground">
                             {formatCurrency(ingresosPorProductosSum)}
@@ -1311,7 +1335,7 @@ export default function HistorialCortesPage() {
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
                           <div className="text-muted-foreground uppercase">
-                              Cargos x Venta
+                              CARGOS X VENTA
                           </div>
                           <div className="font-bold text-lg text-foreground">
                               {formatCurrency(cargoVentaSum)}
@@ -1319,7 +1343,7 @@ export default function HistorialCortesPage() {
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
                           <div className="text-muted-foreground uppercase">
-                              Costos x Envío
+                              COSTOS X ENVÍO
                           </div>
                           <div className="font-bold text-lg text-foreground">
                               {formatCurrency(costoEnvioSum)}
@@ -1333,7 +1357,7 @@ export default function HistorialCortesPage() {
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
                           <div className="text-muted-foreground uppercase">
-                              Landed Cost Total
+                              LANDED COST TOTAL
                           </div>
                           <div className="font-bold text-lg text-foreground">
                               {formatCurrency(-landedCostSum)}
