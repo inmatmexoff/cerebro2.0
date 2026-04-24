@@ -965,7 +965,7 @@ export default function HistorialCortesPage() {
     { key: 'sub_cat', label: 'Subcategoría' },
     { key: 'num_publi', label: '# de Publicación' },
     { key: 'unidades', label: 'Unidades' },
-    { key: 'ing_xunidad', label: 'Costo Venta ML' },
+    { key: 'ing_xunidad', label: 'Venta Total ML' },
     { key: 'cargo_venta', label: 'Cargo x Venta' },
     { key: 'costo_envio', label: 'Costo Envío' },
     { key: 'ing_xenvio', label: 'Ingreso x Envío' },
@@ -1325,7 +1325,7 @@ export default function HistorialCortesPage() {
                                     </span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">vs Costo Venta ML</span>
+                                    <span className="text-muted-foreground">vs Venta Total ML</span>
                                     <span className="font-mono font-semibold">
                                         {ingresosPorProductosSum > 0 ? `${((utilidadBrutaSum / ingresosPorProductosSum) * 100).toFixed(1)}%` : 'N/A'}
                                     </span>
@@ -1349,7 +1349,7 @@ export default function HistorialCortesPage() {
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
                         <div className="text-muted-foreground">
-                           Costo de Venta en Mercado Libre
+                           VENTA TOTAL MERCADO LIBRE
                         </div>
                         <div className="font-bold text-lg text-foreground">
                             {formatCurrency(ingresosPorProductosSum)}

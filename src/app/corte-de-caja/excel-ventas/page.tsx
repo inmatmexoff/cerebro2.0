@@ -370,7 +370,7 @@ export default function ExcelVentasPage() {
     const rowIndex = data.findIndex(d => d[0] === row[0]);
     if (rowIndex === -1) return;
 
-    const costoVentaMLIndex = headers.indexOf('Costo de Venta en Mercado Libre');
+    const costoVentaMLIndex = headers.indexOf('VENTA TOTAL MERCADO LIBRE');
     const cargoVentaIndex = headers.indexOf('Cargo por venta e impuestos (MXN)');
     const costoEnvioIndex = headers.indexOf('Costos de envío (MXN)');
 
@@ -391,7 +391,7 @@ export default function ExcelVentasPage() {
         
         const rowToUpdate = newData[rowIndex];
 
-        const costoVentaMLIndex = headers.indexOf('Costo de Venta en Mercado Libre');
+        const costoVentaMLIndex = headers.indexOf('VENTA TOTAL MERCADO LIBRE');
         const cargoVentaIndex = headers.indexOf('Cargo por venta e impuestos (MXN)');
         const costoEnvioIndex = headers.indexOf('Costos de envío (MXN)');
         const totalIndex = headers.indexOf('Total');
@@ -521,7 +521,7 @@ export default function ExcelVentasPage() {
             headerRow[COLUMN_MAPPING.G] || 'Unidades',
             headerRow[COLUMN_MAPPING.R] || 'SKU',
             'Subcategoría',
-            'Costo de Venta en Mercado Libre',
+            'VENTA TOTAL MERCADO LIBRE',
             'Cargo por venta e impuestos (MXN)',
             'Costos de envío (MXN)',
             headerRow[COLUMN_MAPPING.J] || 'Ingresos por envío (MXN)',
@@ -661,7 +661,7 @@ export default function ExcelVentasPage() {
                 unidades, // Unidades
                 sku, // SKU
                 subCat, // Subcategoría
-                parseCurrency(row[COLUMN_MAPPING.H]), // Costo de Venta en Mercado Libre
+                parseCurrency(row[COLUMN_MAPPING.H]), // VENTA TOTAL MERCADO LIBRE
                 parseCurrency(row[COLUMN_MAPPING.I]), // Cargo por venta e impuestos (MXN)
                 parseCurrency(row[COLUMN_MAPPING.K]), // Costos de envío (MXN)
                 parseCurrency(row[COLUMN_MAPPING.J]), // Ingresos por envío (MXN)
@@ -690,7 +690,7 @@ export default function ExcelVentasPage() {
           setProgress(92);
           await new Promise((resolve) => setTimeout(resolve, 0));
 
-          const ingresosIndex = finalHeaders.indexOf('Costo de Venta en Mercado Libre');
+          const ingresosIndex = finalHeaders.indexOf('VENTA TOTAL MERCADO LIBRE');
           const cargoVentaIndex = finalHeaders.indexOf('Cargo por venta e impuestos (MXN)');
           const costoEnvioIndex = finalHeaders.indexOf('Costos de envío (MXN)');
           const landedCostTotalIndex = finalHeaders.indexOf('Landed Cost Total');
@@ -982,7 +982,7 @@ export default function ExcelVentasPage() {
   }, [data, headers]);
 
   const unfilteredIngresosPorProductosSum = React.useMemo(() => {
-    const index = headers.indexOf('Costo de Venta en Mercado Libre');
+    const index = headers.indexOf('VENTA TOTAL MERCADO LIBRE');
     if (index === -1) return 0;
     return data.reduce((sum, row) => {
       const value = row[index];
@@ -1203,7 +1203,7 @@ export default function ExcelVentasPage() {
   
   const landedCostSum = createSumCalculator('Landed Cost Total');
   const ingresosPorProductosSum = createSumCalculator(
-    'Costo de Venta en Mercado Libre'
+    'VENTA TOTAL MERCADO LIBRE'
   );
   const cargoVentaSum = createSumCalculator(
     'Cargo por venta e impuestos (MXN)'
@@ -2197,7 +2197,7 @@ export default function ExcelVentasPage() {
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-muted-foreground">
-                                    vs Costo de Venta en Mercado Libre
+                                    vs VENTA TOTAL MERCADO LIBRE
                                   </span>
                                   <span className="font-mono font-semibold">
                                     {unfilteredIngresosPorProductosSum > 0
@@ -2234,7 +2234,7 @@ export default function ExcelVentasPage() {
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
                             <div className="text-muted-foreground">
-                              Costo de Venta en Mercado Libre
+                              VENTA TOTAL MERCADO LIBRE
                             </div>
                             <div className="font-bold text-lg text-foreground">
                               {ingresosPorProductosSum.toLocaleString('es-MX', {
@@ -2385,7 +2385,7 @@ export default function ExcelVentasPage() {
                             const markupValue = markupIndex > -1 ? row[markupIndex] : null;
                             const utilidadBrutaValue = utilidadBrutaIndex > -1 ? row[utilidadBrutaIndex] : null;
                             const editableColsForManualEntry = [
-                                'Costo de Venta en Mercado Libre',
+                                'VENTA TOTAL MERCADO LIBRE',
                                 'Cargo por venta e impuestos (MXN)',
                                 'Costos de envío (MXN)'
                             ];
@@ -2974,7 +2974,7 @@ export default function ExcelVentasPage() {
                   name="costoVentaML"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Costo de Venta en Mercado Libre</FormLabel>
+                      <FormLabel>VENTA TOTAL MERCADO LIBRE</FormLabel>
                       <FormControl>
                         <Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} value={field.value ?? ''} />
                       </FormControl>
