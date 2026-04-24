@@ -2141,7 +2141,60 @@ export default function ExcelVentasPage() {
                         <h4 className="text-sm font-medium mb-2">
                           Resumen de Totales (Filtrado)
                         </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">
+                              VENTA TOTAL MERCADO LIBRE
+                            </div>
+                            <div className="font-bold text-lg text-foreground">
+                              {ingresosPorProductosSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">
+                              Cargos x Venta
+                            </div>
+                            <div className="font-bold text-lg text-foreground">
+                              {cargoVentaSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">
+                              Costos x Envío
+                            </div>
+                            <div className="font-bold text-lg text-foreground">
+                              {costoEnvioSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">RECIBES</div>
+                            <div className="font-bold text-lg text-foreground">
+                              {totalSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <div className="text-muted-foreground">
+                              Landed Cost Total
+                            </div>
+                            <div className="font-bold text-lg text-foreground">
+                              {landedCostSum.toLocaleString('es-MX', {
+                                style: 'currency',
+                                currency: 'MXN',
+                              })}
+                            </div>
+                          </div>
                           <div className="p-3 bg-muted/50 rounded-md">
                             <div className="text-muted-foreground">Utilidad Bruta</div>
                             <div
@@ -2211,59 +2264,6 @@ export default function ExcelVentasPage() {
                                 </div>
                               </div>
                             )}
-                          </div>
-                          <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">RECIBES</div>
-                            <div className="font-bold text-lg text-foreground">
-                              {totalSum.toLocaleString('es-MX', {
-                                style: 'currency',
-                                currency: 'MXN',
-                              })}
-                            </div>
-                          </div>
-                          <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">
-                              Landed Cost Total
-                            </div>
-                            <div className="font-bold text-lg text-foreground">
-                              {landedCostSum.toLocaleString('es-MX', {
-                                style: 'currency',
-                                currency: 'MXN',
-                              })}
-                            </div>
-                          </div>
-                          <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">
-                              VENTA TOTAL MERCADO LIBRE
-                            </div>
-                            <div className="font-bold text-lg text-foreground">
-                              {ingresosPorProductosSum.toLocaleString('es-MX', {
-                                style: 'currency',
-                                currency: 'MXN',
-                              })}
-                            </div>
-                          </div>
-                          <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">
-                              Cargos x Venta
-                            </div>
-                            <div className="font-bold text-lg text-foreground">
-                              {cargoVentaSum.toLocaleString('es-MX', {
-                                style: 'currency',
-                                currency: 'MXN',
-                              })}
-                            </div>
-                          </div>
-                          <div className="p-3 bg-muted/50 rounded-md">
-                            <div className="text-muted-foreground">
-                              Costos x Envío
-                            </div>
-                            <div className="font-bold text-lg text-foreground">
-                              {costoEnvioSum.toLocaleString('es-MX', {
-                                style: 'currency',
-                                currency: 'MXN',
-                              })}
-                            </div>
                           </div>
                           <div className="p-3 bg-muted/50 rounded-md">
                             <div className="text-muted-foreground">

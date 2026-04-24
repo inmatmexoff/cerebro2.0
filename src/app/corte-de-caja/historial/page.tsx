@@ -110,6 +110,7 @@ export default function HistorialCortesPage() {
     subCategory: new Set(),
   });
 
+  // TABLE STATE
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
     column: 'fecha_venta',
     direction: 'descending',
@@ -1301,75 +1302,75 @@ export default function HistorialCortesPage() {
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                         <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">Utilidad Bruta</div>
-                        <div className={cn('font-bold text-lg', utilidadBrutaSum >= 0 ? 'text-green-700' : 'text-red-700')}>
-                            {formatCurrency(utilidadBrutaSum)}
-                        </div>
-                         {isFiltered ? (
-                            <div className="flex justify-between items-baseline text-sm mt-1">
-                                <span className="text-muted-foreground">
-                                    de {formatCurrency(unfilteredTotals.utilidadBruta)}
-                                </span>
-                                <span className="font-mono font-semibold">
-                                    {unfilteredTotals.utilidadBruta !== 0
-                                    ? `${((utilidadBrutaSum / unfilteredTotals.utilidadBruta) * 100).toFixed(1)}%`
-                                    : '0.0%'}
-                                </span>
-                            </div>
-                            ) : (
-                            <div className="mt-1 space-y-1 text-xs">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">vs Landed Cost</span>
-                                    <span className="font-mono font-semibold">
-                                        {landedCostSum > 0 ? `${((utilidadBrutaSum / landedCostSum) * 100).toFixed(1)}%` : 'N/A'}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">vs Venta Total ML</span>
-                                    <span className="font-mono font-semibold">
-                                        {ingresosPorProductosSum > 0 ? `${((utilidadBrutaSum / ingresosPorProductosSum) * 100).toFixed(1)}%` : 'N/A'}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">RECIBES</div>
-                        <div className="font-bold text-lg text-foreground">
-                            {formatCurrency(totalSum)}
-                        </div>
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">
-                            Landed Cost Total
-                        </div>
-                        <div className="font-bold text-lg text-foreground">
-                            {formatCurrency(landedCostSum)}
-                        </div>
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">
-                           VENTA TOTAL MERCADO LIBRE
-                        </div>
-                        <div className="font-bold text-lg text-foreground">
+                          <div className="text-muted-foreground">
+                            VENTA TOTAL MERCADO LIBRE
+                          </div>
+                          <div className="font-bold text-lg text-foreground">
                             {formatCurrency(ingresosPorProductosSum)}
-                        </div>
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">
-                            Cargos x Venta
-                        </div>
-                        <div className="font-bold text-lg text-foreground">
-                            {formatCurrency(cargoVentaSum)}
-                        </div>
+                          </div>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="text-muted-foreground">
-                            Costos x Envío
+                          <div className="text-muted-foreground">
+                              Cargos x Venta
+                          </div>
+                          <div className="font-bold text-lg text-foreground">
+                              {formatCurrency(cargoVentaSum)}
+                          </div>
                         </div>
-                        <div className="font-bold text-lg text-foreground">
-                            {formatCurrency(costoEnvioSum)}
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">
+                              Costos x Envío
+                          </div>
+                          <div className="font-bold text-lg text-foreground">
+                              {formatCurrency(costoEnvioSum)}
+                          </div>
                         </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">RECIBES</div>
+                          <div className="font-bold text-lg text-foreground">
+                              {formatCurrency(totalSum)}
+                          </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">
+                              Landed Cost Total
+                          </div>
+                          <div className="font-bold text-lg text-foreground">
+                              {formatCurrency(landedCostSum)}
+                          </div>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="text-muted-foreground">Utilidad Bruta</div>
+                          <div className={cn('font-bold text-lg', utilidadBrutaSum >= 0 ? 'text-green-700' : 'text-red-700')}>
+                              {formatCurrency(utilidadBrutaSum)}
+                          </div>
+                          {isFiltered ? (
+                              <div className="flex justify-between items-baseline text-sm mt-1">
+                                  <span className="text-muted-foreground">
+                                      de {formatCurrency(unfilteredTotals.utilidadBruta)}
+                                  </span>
+                                  <span className="font-mono font-semibold">
+                                      {unfilteredTotals.utilidadBruta !== 0
+                                      ? `${((utilidadBrutaSum / unfilteredTotals.utilidadBruta) * 100).toFixed(1)}%`
+                                      : '0.0%'}
+                                  </span>
+                              </div>
+                              ) : (
+                              <div className="mt-1 space-y-1 text-xs">
+                                  <div className="flex justify-between">
+                                      <span className="text-muted-foreground">vs Landed Cost</span>
+                                      <span className="font-mono font-semibold">
+                                          {landedCostSum > 0 ? `${((utilidadBrutaSum / landedCostSum) * 100).toFixed(1)}%` : 'N/A'}
+                                      </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                      <span className="text-muted-foreground">vs Venta Total ML</span>
+                                      <span className="font-mono font-semibold">
+                                          {ingresosPorProductosSum > 0 ? `${((utilidadBrutaSum / ingresosPorProductosSum) * 100).toFixed(1)}%` : 'N/A'}
+                                      </span>
+                                  </div>
+                              </div>
+                          )}
                         </div>
                         <div className="p-3 bg-muted/50 rounded-md">
                           <div className="text-muted-foreground">Utilidad Promedio por Pedido</div>
