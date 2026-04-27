@@ -121,7 +121,7 @@ export default function HistorialCortesPage() {
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   
   const [activeTab, setActiveTab] = useState<'sku' | 'color' | 'subcategoria'>('color');
-  const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red'>('all');
+  const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red' | 'superGreen' | 'ultraGreen'>('all');
   const [skuSummary, setSkuSummary] = useState<any[]>([]);
   const [colorSummary, setColorSummary] = useState<any[]>([]);
   const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
@@ -289,7 +289,7 @@ export default function HistorialCortesPage() {
     });
   };
   
-  const handleMarkupFilterClick = (filter: 'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red') => {
+  const handleMarkupFilterClick = (filter: 'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red' | 'superGreen' | 'ultraGreen') => {
     const newFilter = markupFilter === filter ? 'all' : filter;
     if (newFilter !== 'all') {
         setGranTotalFilter('all');
@@ -647,7 +647,9 @@ export default function HistorialCortesPage() {
             const utilidadBruta = sale.total_final;
              if (typeof markupValue === 'number') {
                 switch (markupFilter) {
-                    case 'darkGreen': markupMatch = markupValue >= 30; break;
+                    case 'ultraGreen': markupMatch = markupValue >= 80; break;
+                    case 'superGreen': markupMatch = markupValue >= 50 && markupValue < 80; break;
+                    case 'darkGreen': markupMatch = markupValue >= 30 && markupValue < 50; break;
                     case 'lightGreen': markupMatch = markupValue >= 20 && markupValue < 30; break;
                     case 'orange': markupMatch = markupValue >= 10 && markupValue < 20; break;
                     case 'yellow': markupMatch = markupValue >= 5 && markupValue < 10; break;
@@ -733,12 +735,14 @@ export default function HistorialCortesPage() {
   const costoEnvioSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.costo_envio || 0), 0), [filteredItems]);
 
   const colorCounters = React.useMemo(() => {
-    const counters = { darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
+    const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
     filteredItems.forEach(sale => {
       const markupValue = sale.markup;
       const utilidadBruta = sale.total_final;
        if (typeof markupValue === 'number') {
-        if (markupValue >= 30) counters.darkGreen++;
+        if (markupValue >= 80) counters.ultraGreen++;
+        else if (markupValue >= 50) counters.superGreen++;
+        else if (markupValue >= 30) counters.darkGreen++;
         else if (markupValue >= 20) counters.lightGreen++;
         else if (markupValue >= 10) counters.orange++;
         else if (markupValue >= 5) counters.yellow++;
@@ -866,7 +870,9 @@ export default function HistorialCortesPage() {
     setSkuSummary(enrichedSummary);
 
     const summaryByColor = {
-        darkGreen: { label: '>= 30%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
+        ultraGreen: { label: '>= 80%', colorClass: 'bg-indigo-200 border-indigo-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
+        superGreen: { label: '50-79.9%', colorClass: 'bg-sky-200 border-sky-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
+        darkGreen: { label: '30-49.9%', colorClass: 'bg-green-200 border-green-400', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
         lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
         orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
         yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
@@ -883,7 +889,9 @@ export default function HistorialCortesPage() {
         let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
 
         if (typeof markupValue === 'number') {
-            if (markupValue >= 30) category = summaryByColor.darkGreen;
+            if (markupValue >= 80) category = summaryByColor.ultraGreen;
+            else if (markupValue >= 50) category = summaryByColor.superGreen;
+            else if (markupValue >= 30) category = summaryByColor.darkGreen;
             else if (markupValue >= 20) category = summaryByColor.lightGreen;
             else if (markupValue >= 10) category = summaryByColor.orange;
             else if (markupValue >= 5) category = summaryByColor.yellow;
@@ -979,7 +987,7 @@ export default function HistorialCortesPage() {
     { key: 'venta_xpublicidad', label: 'Venta x Pub.' },
     { key: 'tienda', label: 'Tienda' },
     { key: 'tip_publi', label: 'Tipo Pub.' },
-    { key: 'total', label: 'Total' },
+    { key: 'total', label: 'RECIBES' },
     { key: 'landed_cost', label: 'Landed Cost Total' },
     { key: 'total_final', label: 'Utilidad Bruta' },
     { key: 'markup', label: 'Markup (%)' },
@@ -1419,32 +1427,44 @@ export default function HistorialCortesPage() {
                  <div className="pt-4 mt-4 border-t">
                     <h4 className="text-sm font-medium mb-2">Resumen de Rentabilidad (Filtrado)</h4>
                      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('ultraGreen')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-indigo-200 border-indigo-400", markupFilter === 'ultraGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <span className="font-bold">{colorCounters.ultraGreen}</span>
+                                <span className="text-muted-foreground">{'>'}=80%</span>
+                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '>= 80%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                            </div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('superGreen')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-sky-200 border-sky-400", markupFilter === 'superGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <span className="font-bold">{colorCounters.superGreen}</span>
+                                <span className="text-muted-foreground">50-79.9%</span>
+                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '50-79.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                            </div>
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('darkGreen')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-green-200 border border-green-400", markupFilter === 'darkGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <div className={cn("w-3 h-3 rounded-full bg-green-200 border-green-400", markupFilter === 'darkGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.darkGreen}</span>
-                                <span className="text-muted-foreground">{'>'}=30%</span>
-                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '>= 30%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                                <span className="text-muted-foreground">30-49.9%</span>
+                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '30-49.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('lightGreen')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-green-100 border border-green-300", markupFilter === 'lightGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <div className={cn("w-3 h-3 rounded-full bg-green-100 border-green-300", markupFilter === 'lightGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.lightGreen}</span>
                                 <span className="text-muted-foreground">20-29.9%</span>
                                 <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '20-29.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('orange')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-orange-100 border border-orange-300", markupFilter === 'orange' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <div className={cn("w-3 h-3 rounded-full bg-orange-100 border-orange-300", markupFilter === 'orange' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.orange}</span>
                                 <span className="text-muted-foreground">10-19.9%</span>
                                 <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '10-19.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('yellow')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300", markupFilter === 'yellow' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <div className={cn("w-3 h-3 rounded-full bg-yellow-100 border-yellow-300", markupFilter === 'yellow' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.yellow}</span>
                                 <span className="text-muted-foreground">5-9.9%</span>
                                 <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '5-9.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('red')}>
-                                <div className={cn("w-3 h-3 rounded-full bg-red-100 border border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <div className={cn("w-3 h-3 rounded-full bg-red-100 border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.red}</span>
                                 <span className="text-muted-foreground">{'<'}5%</span>
                                 <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '< 5%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
@@ -1492,7 +1512,9 @@ export default function HistorialCortesPage() {
                                         className={cn(
                                             (sale.status || '').toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                             isRowColoringActive && typeof sale.markup === 'number' && {
-                                                'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30,
+                                                'bg-indigo-200 hover:bg-indigo-300/80 data-[state=selected]:bg-indigo-300': sale.markup >= 80,
+                                                'bg-sky-200 hover:bg-sky-300/80 data-[state=selected]:bg-sky-300': sale.markup >= 50 && sale.markup < 80,
+                                                'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30 && sale.markup < 50,
                                                 'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': sale.markup >= 20 && sale.markup < 30,
                                                 'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': sale.markup >= 10 && sale.markup < 20,
                                                 'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': sale.markup >= 5 && sale.markup < 10,
@@ -1557,7 +1579,9 @@ export default function HistorialCortesPage() {
                                                 },
                                                 !isRowColoringActive && header.key === 'markup' && (
                                                   (typeof cellValue === 'number' && {
-                                                      'bg-green-200': cellValue >= 30,
+                                                      'bg-indigo-200': cellValue >= 80,
+                                                      'bg-sky-200': cellValue >= 50 && cellValue < 80,
+                                                      'bg-green-200': cellValue >= 30 && cellValue < 50,
                                                       'bg-green-100': cellValue >= 20 && cellValue < 30,
                                                       'bg-orange-100': cellValue >= 10 && cellValue < 20,
                                                       'bg-yellow-100': cellValue >= 5 && cellValue < 10,
