@@ -148,22 +148,37 @@ export default function DirectorioSkusPage() {
     });
 
     try {
+      const fetchAll = async (tableName: string, columns: string, order?: { column: string; ascending: boolean }) => {
+        const BATCH_SIZE = 1000;
+        let records: any[] = [];
+        let from = 0;
+        while (true) {
+          let query = supabasePROD.from(tableName).select(columns);
+
+          if (order) {
+            query = query.order(order.column, { ascending: order.ascending });
+          }
+
+          const { data, error } = await query.range(from, from + BATCH_SIZE - 1);
+
+          if (error) throw error;
+          if (data) {
+            records = records.concat(data);
+          }
+          if (!data || data.length < BATCH_SIZE) {
+            break;
+          }
+          from += BATCH_SIZE;
+        }
+        return records;
+      };
+
       // 1. Fetch all necessary data
-      const { data: skuMData, error: skuMError } = await supabasePROD
-        .from('sku_m')
-        .select('*');
-      if (skuMError) throw skuMError;
-
-      const { data: allSkuAlternoData, error: skuAlternoError } =
-        await supabasePROD.from('sku_alterno').select('*');
-      if (skuAlternoError) throw skuAlternoError;
-
-      const { data: allSkuCostosData, error: allSkuCostosError } =
-        await supabasePROD
-          .from('sku_costos')
-          .select('sku_mdr, landed_cost, proveedor, piezas_xcontenedor, fecha_desde')
-          .order('fecha_desde', { ascending: false });
-      if (allSkuCostosError) throw allSkuCostosError;
+      const [skuMData, allSkuAlternoData, allSkuCostosData] = await Promise.all([
+        fetchAll('sku_m', '*'),
+        fetchAll('sku_alterno', '*'),
+        fetchAll('sku_costos', 'sku_mdr, landed_cost, proveedor, piezas_xcontenedor, fecha_desde', { column: 'fecha_desde', ascending: false })
+      ]);
 
       const latestCosts = new Map<string, any>();
       allSkuCostosData?.forEach((cost) => {
