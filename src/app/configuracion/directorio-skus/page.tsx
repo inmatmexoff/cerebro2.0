@@ -171,16 +171,11 @@ export default function DirectorioSkusPage() {
           latestCosts.set(cost.sku_mdr, cost);
         }
       });
-      
-      const companyToFilter = companyFilter && companyFilter !== 'all' ? companyFilter.toUpperCase() : null;
-      const skuAlternoData = companyToFilter 
-        ? allSkuAlternoData.filter(a => a.empresa && a.empresa.toUpperCase() === companyToFilter)
-        : allSkuAlternoData;
 
       // 2. Join the data
       const skuMMap = new Map(skuMData.map((m) => [m.sku_mdr, m]));
 
-      const exportedData = skuAlternoData.map((alterno) => {
+      const exportedData = allSkuAlternoData.map((alterno) => {
         const master = skuMMap.get(alterno.sku_mdr);
         const cost = latestCosts.get(alterno.sku_mdr);
 
