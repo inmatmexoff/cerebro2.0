@@ -137,7 +137,7 @@ export default function DirectorioSkusPage() {
         .select('*');
       if (skuMError) throw skuMError;
 
-      const { data: skuAlternoData, error: skuAlternoError } =
+      const { data: allSkuAlternoData, error: skuAlternoError } =
         await supabasePROD.from('sku_alterno').select('*');
       if (skuAlternoError) throw skuAlternoError;
 
@@ -154,6 +154,11 @@ export default function DirectorioSkusPage() {
           latestCosts.set(cost.sku_mdr, cost);
         }
       });
+      
+      const companyToFilter = companyFilter && companyFilter !== 'all' ? companyFilter.toUpperCase() : null;
+      const skuAlternoData = companyToFilter 
+        ? allSkuAlternoData.filter(a => a.empresa && a.empresa.toUpperCase() === companyToFilter)
+        : allSkuAlternoData;
 
       // 2. Join the data
       const skuMMap = new Map(skuMData.map((m) => [m.sku_mdr, m]));
@@ -166,7 +171,7 @@ export default function DirectorioSkusPage() {
           'SKU Alterno': alterno.sku,
           Empresa: alterno.empresa,
           'SKU MDR (Nombre Madre)': alterno.sku_mdr,
-          'SKU Oficial (en sku_m)': master?.sku,
+          'SKU Oficial (en sku_m)': master?.sku ?? alterno.sku,
           'Categoria Madre': master?.cat_mdr,
           'Sub Categoria': master?.sub_cat,
           'Tiempo Estimado (min)': master?.esti_time,

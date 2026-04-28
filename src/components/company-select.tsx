@@ -24,6 +24,7 @@ export function CompanySelect({ value, onValueChange }: { value?: string, onValu
             <SelectItem value="HOGARDEN">Hogarden</SelectItem>
             <SelectItem value="PALO DE ROSA">Palo de Rosa</SelectItem>
             <SelectItem value="MTM">MTM</SelectItem>
+            <SelectItem value="MAO">MAO</SelectItem>
         </SelectContent>
         </Select>
     </div>
