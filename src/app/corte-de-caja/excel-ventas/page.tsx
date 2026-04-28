@@ -77,7 +77,7 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DatePicker } from '@/components/ui/date-picker';
+import { DatePicker } from '@/components/date-picker';
 import { CompanySelect } from '@/components/company-select';
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -230,7 +230,7 @@ export default function ExcelVentasPage() {
 
   const [checkedRows, setCheckedRows] = React.useState(new Set<number>());
   const [skuSearchTerm, setSkuSearchTerm] = React.useState('');
-  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit' | 'neg_and_zero' | 'gt_zero_lt_five'>('all');
+  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit' | 'neg_and_zero' | 'gt_zero_lt_five' | 'strictly_positive'>('all');
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   const [editingInfo, setEditingInfo] = useState<{
@@ -869,6 +869,8 @@ export default function ExcelVentasPage() {
         utilidadBrutaMatch = typeof utilidadBrutaValue === 'number' && utilidadBrutaValue < 0;
       } else if (granTotalFilter === 'positive') {
         utilidadBrutaMatch = typeof utilidadBrutaValue === 'number' && utilidadBrutaValue >= 0;
+      } else if (granTotalFilter === 'strictly_positive') {
+        utilidadBrutaMatch = typeof utilidadBrutaValue === 'number' && utilidadBrutaValue > 0;
       } else if (granTotalFilter === 'low_profit') {
         utilidadBrutaMatch = typeof utilidadBrutaValue === 'number' && utilidadBrutaValue < 30;
       } else if (granTotalFilter === 'neg_and_zero') {
@@ -2066,6 +2068,15 @@ export default function ExcelVentasPage() {
                                   >
                                       Mostrar 0 o positivos
                                   </DropdownMenuCheckboxItem>
+                                   <DropdownMenuCheckboxItem
+                                      checked={granTotalFilter === 'strictly_positive'}
+                                      onCheckedChange={(checked) => {
+                                          setGranTotalFilter(checked ? 'strictly_positive' : 'all');
+                                          if (checked) setMarkupFilter('all');
+                                      }}
+                                  >
+                                      Mostrar solo positivos (>0)
+                                  </DropdownMenuCheckboxItem>
                                   <DropdownMenuCheckboxItem
                                       checked={granTotalFilter === 'gt_zero_lt_five'}
                                       onCheckedChange={(checked) => {
@@ -2073,7 +2084,7 @@ export default function ExcelVentasPage() {
                                           if (checked) setMarkupFilter('all');
                                       }}
                                   >
-                                      Mostrar &gt;0 pero &lt;5
+                                      Mostrar >0 pero <5
                                   </DropdownMenuCheckboxItem>
                                   <DropdownMenuCheckboxItem
                                       checked={granTotalFilter === 'low_profit'}
@@ -2082,7 +2093,7 @@ export default function ExcelVentasPage() {
                                           if (checked) setMarkupFilter('all');
                                       }}
                                   >
-                                      Utilidad Bruta &lt; $30
+                                      Utilidad Bruta < $30
                                   </DropdownMenuCheckboxItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuLabel>Otros Filtros</DropdownMenuLabel>
@@ -2093,7 +2104,7 @@ export default function ExcelVentasPage() {
                                           setShowHighShippingCost(checked as boolean)
                                       }
                                   >
-                                      Costo Envío &lt;= -$300
+                                      Costo Envío <= -$300
                                   </DropdownMenuCheckboxItem>
                               </DropdownMenuContent>
                           </DropdownMenu>

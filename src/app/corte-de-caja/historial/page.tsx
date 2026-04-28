@@ -19,7 +19,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { DatePicker } from '@/components/ui/date-picker';
+import { DatePicker } from '@/components/date-picker';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -116,7 +116,7 @@ export default function HistorialCortesPage() {
     direction: 'descending',
   });
   
-  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit' | 'neg_and_zero' | 'gt_zero_lt_five'>('all');
+  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit' | 'neg_and_zero' | 'gt_zero_lt_five' | 'strictly_positive'>('all');
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   
@@ -631,6 +631,8 @@ export default function HistorialCortesPage() {
             utilidadBrutaMatch = (sale.total_final ?? 0) < 0;
         } else if (granTotalFilter === 'positive') {
             utilidadBrutaMatch = (sale.total_final ?? 0) >= 0;
+        } else if (granTotalFilter === 'strictly_positive') {
+            utilidadBrutaMatch = (sale.total_final ?? 0) > 0;
         } else if (granTotalFilter === 'low_profit') {
             utilidadBrutaMatch = (sale.total_final ?? 0) < 30;
         } else if (granTotalFilter === 'neg_and_zero') {
@@ -978,7 +980,7 @@ export default function HistorialCortesPage() {
     { key: 'sub_cat', label: 'Subcategoría' },
     { key: 'num_publi', label: '# de Publicación' },
     { key: 'unidades', label: 'Unidades' },
-    { key: 'ing_xunidad', label: 'Venta Total ML' },
+    { key: 'ing_xunidad', label: 'VENTA TOTAL ML' },
     { key: 'cargo_venta', label: 'Cargo x Venta' },
     { key: 'costo_envio', label: 'Costo Envío' },
     { key: 'ing_xenvio', label: 'Ingreso x Envío' },
@@ -1209,6 +1211,16 @@ export default function HistorialCortesPage() {
                                     0 o positivos
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuCheckboxItem
+                                    checked={granTotalFilter === 'strictly_positive'}
+                                    onCheckedChange={(checked) => {
+                                        setGranTotalFilter(checked ? 'strictly_positive' : 'all');
+                                        if (checked) setMarkupFilter('all');
+                                        setPage(1);
+                                    }}
+                                >
+                                    Solo positivos (>0)
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem
                                     checked={granTotalFilter === 'gt_zero_lt_five'}
                                     onCheckedChange={(checked) => {
                                         setGranTotalFilter(checked ? 'gt_zero_lt_five' : 'all');
@@ -1216,7 +1228,7 @@ export default function HistorialCortesPage() {
                                         setPage(1);
                                     }}
                                 >
-                                    Mostrar &gt;0 pero &lt;5
+                                    Mostrar >0 pero <5
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuCheckboxItem
                                     checked={granTotalFilter === 'low_profit'}
@@ -1226,7 +1238,7 @@ export default function HistorialCortesPage() {
                                         setPage(1);
                                     }}
                                 >
-                                    Utilidad Bruta &lt; $30
+                                    Utilidad Bruta < $30
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuLabel>Otros Filtros</DropdownMenuLabel>
@@ -1239,7 +1251,7 @@ export default function HistorialCortesPage() {
                                         setPage(1);
                                     }}
                                 >
-                                    Costo Envío &lt;= -$300
+                                    Costo Envío <= -$300
                                 </DropdownMenuCheckboxItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
