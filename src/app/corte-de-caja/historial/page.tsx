@@ -1218,7 +1218,7 @@ export default function HistorialCortesPage() {
                                         setPage(1);
                                     }}
                                 >
-                                    Solo positivos (>0)
+                                    Mostrar solo positivos (&gt;0)
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuCheckboxItem
                                     checked={granTotalFilter === 'gt_zero_lt_five'}
@@ -1228,7 +1228,7 @@ export default function HistorialCortesPage() {
                                         setPage(1);
                                     }}
                                 >
-                                    Mostrar >0 pero <5
+                                    Mostrar &gt;0 pero &lt;5
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuCheckboxItem
                                     checked={granTotalFilter === 'low_profit'}
