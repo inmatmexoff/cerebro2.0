@@ -80,16 +80,33 @@ export default function DirectorioSkusPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const { data: skuMData, error: skuMError } = await supabasePROD
-          .from('sku_m')
-          .select('sku_mdr, cat_mdr, sub_cat, sku');
+        // Helper function to fetch all records from a table with pagination
+        const fetchAll = async (tableName: string, columns: string) => {
+          const BATCH_SIZE = 1000;
+          let records: any[] = [];
+          let from = 0;
+          while (true) {
+            const { data, error } = await supabasePROD
+              .from(tableName)
+              .select(columns)
+              .range(from, from + BATCH_SIZE - 1);
 
-        if (skuMError) throw skuMError;
+            if (error) throw error;
+            if (data) {
+              records = records.concat(data);
+            }
+            if (!data || data.length < BATCH_SIZE) {
+              break;
+            }
+            from += BATCH_SIZE;
+          }
+          return records;
+        };
 
-        const { data: skuAlternoData, error: skuAlternoError } =
-          await supabasePROD.from('sku_alterno').select('sku, sku_mdr, empresa');
-
-        if (skuAlternoError) throw skuAlternoError;
+        const [skuMData, skuAlternoData] = await Promise.all([
+          fetchAll('sku_m', 'sku_mdr, cat_mdr, sub_cat, sku'),
+          fetchAll('sku_alterno', 'sku, sku_mdr, empresa'),
+        ]);
 
         setSkuMList(skuMData || []);
         setSkuAlternoList(skuAlternoData || []);
