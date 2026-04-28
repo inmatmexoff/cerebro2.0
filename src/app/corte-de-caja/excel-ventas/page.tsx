@@ -2093,7 +2093,7 @@ export default function ExcelVentasPage() {
                                           if (checked) setMarkupFilter('all');
                                       }}
                                   >
-                                      Utilidad Bruta < $30
+                                      Utilidad Bruta &lt; $30
                                   </DropdownMenuCheckboxItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuLabel>Otros Filtros</DropdownMenuLabel>
@@ -2104,7 +2104,7 @@ export default function ExcelVentasPage() {
                                           setShowHighShippingCost(checked as boolean)
                                       }
                                   >
-                                      Costo Envío <= -$300
+                                      Costo Envío &lt;= -$300
                                   </DropdownMenuCheckboxItem>
                               </DropdownMenuContent>
                           </DropdownMenu>

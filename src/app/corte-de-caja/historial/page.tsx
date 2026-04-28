@@ -1238,7 +1238,7 @@ export default function HistorialCortesPage() {
                                         setPage(1);
                                     }}
                                 >
-                                    Utilidad Bruta < $30
+                                    Utilidad Bruta &lt; $30
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuLabel>Otros Filtros</DropdownMenuLabel>
@@ -1251,7 +1251,7 @@ export default function HistorialCortesPage() {
                                         setPage(1);
                                     }}
                                 >
-                                    Costo Envío <= -$300
+                                    Costo Envío &lt;= -$300
                                 </DropdownMenuCheckboxItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
