@@ -83,6 +83,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 // Define which columns to extract and in what order
+// Q is index 16. Shifted Q, R, S, T, X to R, S, T, U, Y.
 const COLUMN_MAPPING: { [key: string]: number } = {
   A: 0, // num_venta
   B: 1, // fecha_venta
@@ -96,11 +97,12 @@ const COLUMN_MAPPING: { [key: string]: number } = {
   N: 13, // descuentos y bonificaciones
   O: 14, // anu_reembolsos
   P: 15, // total
-  Q: 16, // venta_xpublicidad
-  R: 17, // sku
-  S: 18, // num_publi
-  T: 19, // tienda
-  X: 23, // tip_publi
+  Q: 16, // Orden de compra (New Column Q)
+  R: 17, // venta_xpublicidad (Shifted from Q)
+  S: 18, // sku (Shifted from R)
+  T: 19, // num_publi (Shifted from S)
+  U: 20, // tienda (Shifted from T)
+  Y: 24, // tip_publi (Shifted from X: 23)
 };
 const COLUMN_INDEXES = Object.values(COLUMN_MAPPING);
 
@@ -514,28 +516,29 @@ export default function ExcelVentasPage() {
 
           const headerRow = json[5] || [];
           const finalHeaders = [
-            'Fila',
-            'ID',
-            headerRow[COLUMN_MAPPING.B] || 'Fecha de venta',
-            headerRow[COLUMN_MAPPING.C] || 'ESTADO',
-            headerRow[COLUMN_MAPPING.G] || 'Unidades',
-            headerRow[COLUMN_MAPPING.R] || 'SKU',
-            'Subcategoría',
-            'VENTA TOTAL MERCADO LIBRE',
-            'Cargo por venta e impuestos (MXN)',
-            'Costos de envío (MXN)',
-            headerRow[COLUMN_MAPPING.J] || 'Ingresos por envío (MXN)',
-            headerRow[COLUMN_MAPPING.M] || 'Cargo por diferencia de peso (MXN)',
-            headerRow[COLUMN_MAPPING.N] || 'Descuentos y bonificaciones (MXN)',
-            headerRow[COLUMN_MAPPING.O] || 'Anulaciones y reembolsos (MXN)',
-            headerRow[COLUMN_MAPPING.Q] || 'Venta por Publicidad',
-            headerRow[COLUMN_MAPPING.S] || '# de publicación',
-            headerRow[COLUMN_MAPPING.T] || 'Tienda',
-            headerRow[COLUMN_MAPPING.X] || 'Tipo de publicación',
-            'RECIBES',
-            'Landed Cost Total',
-            'Utilidad Bruta',
-            'Markup (%)',
+            'Fila', // 0
+            'ID', // 1
+            headerRow[COLUMN_MAPPING.B] || 'Fecha de venta', // 2
+            headerRow[COLUMN_MAPPING.C] || 'ESTADO', // 3
+            headerRow[COLUMN_MAPPING.G] || 'Unidades', // 4
+            headerRow[COLUMN_MAPPING.S] || 'SKU', // 5 (Shifted from R)
+            'Subcategoría', // 6
+            'VENTA TOTAL MERCADO LIBRE', // 7
+            'Cargo por venta e impuestos (MXN)', // 8
+            'Costos de envío (MXN)', // 9
+            headerRow[COLUMN_MAPPING.J] || 'Ingresos por envío (MXN)', // 10
+            headerRow[COLUMN_MAPPING.M] || 'Cargo por diferencia de peso (MXN)', // 11
+            headerRow[COLUMN_MAPPING.N] || 'Descuentos y bonificaciones (MXN)', // 12
+            headerRow[COLUMN_MAPPING.O] || 'Anulaciones y reembolsos (MXN)', // 13
+            headerRow[COLUMN_MAPPING.Q] || 'Orden de compra', // 14 (NEW Q)
+            headerRow[COLUMN_MAPPING.R] || 'Venta por Publicidad', // 15 (Shifted from Q)
+            headerRow[COLUMN_MAPPING.T] || '# de publicación', // 16 (Shifted from S)
+            headerRow[COLUMN_MAPPING.U] || 'Tienda', // 17 (Shifted from T)
+            headerRow[COLUMN_MAPPING.Y] || 'Tipo de publicación', // 18 (Shifted from X)
+            'RECIBES', // 19 (Was P: 15 in UI map)
+            'Landed Cost Total', // 20
+            'Utilidad Bruta', // 21
+            'Markup (%)', // 22
           ];
 
           setHeaders(finalHeaders);
@@ -563,7 +566,7 @@ export default function ExcelVentasPage() {
             const skusInChunk = [
               ...new Set(
                 chunk
-                  .map(({ row }) => String(row[COLUMN_MAPPING.R] || ''))
+                  .map(({ row }) => String(row[COLUMN_MAPPING.S] || ''))
                   .filter((sku) => sku)
               ),
             ];
@@ -634,7 +637,7 @@ export default function ExcelVentasPage() {
             const enrichedChunk = chunk.map(({ row, excelRowNum }) => {
               const unidades =
                 parseInt(String(row[COLUMN_MAPPING.G] || '1')) || 1;
-              const sku = String(row[COLUMN_MAPPING.R] || '');
+              const sku = String(row[COLUMN_MAPPING.S] || '');
               const skuMdr = skuToMdrMap.get(sku);
               const subCat = skuMdr ? mdrToSubCatMap.get(skuMdr) : null;
               const landedCostPerUnit = skuMdr
@@ -654,28 +657,29 @@ export default function ExcelVentasPage() {
 
 
               return [
-                excelRowNum,
-                row[COLUMN_MAPPING.A] || '', // ID
-                row[COLUMN_MAPPING.B] || '', // Fecha de venta
-                estado, // ESTADO
-                unidades, // Unidades
-                sku, // SKU
-                subCat, // Subcategoría
-                parseCurrency(row[COLUMN_MAPPING.H]), // VENTA TOTAL MERCADO LIBRE
-                parseCurrency(row[COLUMN_MAPPING.I]), // Cargo por venta e impuestos (MXN)
-                parseCurrency(row[COLUMN_MAPPING.K]), // Costos de envío (MXN)
-                parseCurrency(row[COLUMN_MAPPING.J]), // Ingresos por envío (MXN)
-                parseCurrency(row[COLUMN_MAPPING.M]), // Cargo por diferencia de peso (MXN)
-                parseCurrency(row[COLUMN_MAPPING.N]), // NEW: Descuentos y bonificaciones (MXN)
-                parseCurrency(row[COLUMN_MAPPING.O]), // Anulaciones y reembolsos (MXN)
-                parseBoolean(row[COLUMN_MAPPING.Q]), // Venta por Publicidad
-                row[COLUMN_MAPPING.S] || '', // # de publicación
-                String(row[COLUMN_MAPPING.T] || ''), // Tienda
-                row[COLUMN_MAPPING.X] || '', // Tipo de publicación
-                totalFromExcel, // Total
-                totalLandedCost, // Landed Cost Total
-                parseFloat(utilidadBruta.toFixed(2)), // Utilidad Bruta
-                markup, // Markup (%)
+                excelRowNum, // 0
+                row[COLUMN_MAPPING.A] || '', // ID (1)
+                row[COLUMN_MAPPING.B] || '', // Fecha de venta (2)
+                estado, // ESTADO (3)
+                unidades, // Unidades (4)
+                sku, // SKU (5)
+                subCat, // Subcategoría (6)
+                parseCurrency(row[COLUMN_MAPPING.H]), // VENTA TOTAL MERCADO LIBRE (7)
+                parseCurrency(row[COLUMN_MAPPING.I]), // Cargo por venta e impuestos (MXN) (8)
+                parseCurrency(row[COLUMN_MAPPING.K]), // Costos de envío (MXN) (9)
+                parseCurrency(row[COLUMN_MAPPING.J]), // Ingresos por envío (MXN) (10)
+                parseCurrency(row[COLUMN_MAPPING.M]), // Cargo por diferencia de peso (MXN) (11)
+                parseCurrency(row[COLUMN_MAPPING.N]), // Descuentos y bonificaciones (MXN) (12)
+                parseCurrency(row[COLUMN_MAPPING.O]), // Anulaciones y reembolsos (MXN) (13)
+                row[COLUMN_MAPPING.Q] || '', // Orden de compra (14) - NEW
+                parseBoolean(row[COLUMN_MAPPING.R]), // Venta por Publicidad (15)
+                row[COLUMN_MAPPING.T] || '', // # de publicación (16)
+                String(row[COLUMN_MAPPING.U] || ''), // Tienda (17)
+                row[COLUMN_MAPPING.Y] || '', // Tipo de publicación (18)
+                totalFromExcel, // Total (RECIBES) (19)
+                totalLandedCost, // Landed Cost Total (20)
+                parseFloat(utilidadBruta.toFixed(2)), // Utilidad Bruta (21)
+                markup, // Markup (%) (22)
               ];
             });
 
@@ -1421,6 +1425,7 @@ export default function ExcelVentasPage() {
     setIsSaving(true);
     setError(null);
 
+    // Updated indices to reflect the addition of "Orden de compra" at index 14
     const newIndices = {
       num_venta: 1,
       fecha_venta: 2,
@@ -1434,14 +1439,14 @@ export default function ExcelVentasPage() {
       ing_xenvio: 10,
       cargo_difpeso: 11,
       anu_reembolsos: 13,
-      venta_xpublicidad: 14,
-      num_publi: 15,
-      tienda: 16,
-      tip_publi: 17,
-      total: 18,
-      landed_cost: 19,
-      total_final: 20,
-      markup: 21,
+      venta_xpublicidad: 15, // Shifted from 14
+      num_publi: 16, // Shifted from 15
+      tienda: 17, // Shifted from 16
+      tip_publi: 18, // Shifted from 17
+      total: 19, // Shifted from 18
+      landed_cost: 20, // Shifted from 19
+      total_final: 21, // Shifted from 20
+      markup: 22, // Shifted from 21
     };
     
     const markupIndex = headers.indexOf('Markup (%)');
