@@ -629,7 +629,7 @@ export default function HistorialCortesPage() {
 
         let utilidadBrutaMatch = true;
         if (granTotalFilter === 'negative') {
-            utilidadBrutaMatch = (sale.total_final ?? 0) < 0;
+            utilidatBrutaMatch = (sale.total_final ?? 0) < 0;
         } else if (granTotalFilter === 'positive') {
             utilidadBrutaMatch = (sale.total_final ?? 0) >= 0;
         } else if (granTotalFilter === 'strictly_positive') {
@@ -784,15 +784,15 @@ export default function HistorialCortesPage() {
         }
 
         if (typeof sale.total_final === 'number') {
-            acc[subCat].totalUtilidad += sale.total_final;
+            acc[acc.sub_cat ? acc.sub_cat : subCat].totalUtilidad += sale.total_final;
         }
         if (typeof sale.landed_cost === 'number' && sale.landed_cost > 0) { 
-            acc[subCat].totalLandedCost += sale.landed_cost;
+            acc[acc.sub_cat ? acc.sub_cat : subCat].totalLandedCost += sale.landed_cost;
         }
         if (sale.num_publi) {
-            acc[subCat].publications.add(sale.num_publi);
+            acc[acc.sub_cat ? acc.sub_cat : subCat].publications.add(sale.num_publi);
         }
-        acc[subCat].count += 1;
+        acc[acc.sub_cat ? acc.sub_cat : subCat].count += 1;
         return acc;
     }, {} as Record<string, { totalUtilidad: number; totalLandedCost: number; count: number; publications: Set<string> }>);
 

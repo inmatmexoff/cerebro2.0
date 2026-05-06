@@ -1225,7 +1225,7 @@ export default function ExcelVentasPage() {
 
           setExecutiveKpis({
             gananciaPromedioPorPedido: totalPedidos > 0 ? utilidadBrutaSum / totalPedidos : 0,
-            utilidad promedioPorUnidad: currentTotalUnidades > 0 ? utilidadBrutaSum / currentTotalUnidades : 0,
+            utilidadPromedioPorUnidad: currentTotalUnidades > 0 ? utilidadBrutaSum / currentTotalUnidades : 0,
             porcentajePedidosMargenBajo: totalPedidos > 0 ? (pedidosMargenBajo / totalPedidos) * 100 : 0
           });
   
