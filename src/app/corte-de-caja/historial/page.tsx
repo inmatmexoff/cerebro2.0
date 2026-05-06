@@ -116,7 +116,7 @@ export default function HistorialCortesPage() {
     direction: 'descending',
   });
   
-  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit' | 'neg_and_zero' | 'gt_zero_lt_five' | 'strictly_positive'>('all');
+  const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit' | 'neg_and_zero' | 'gt_zero_lt_five' | 'strictly_positive' | 'cancelled'>('all');
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   
@@ -207,6 +207,9 @@ export default function HistorialCortesPage() {
       }
 
       const totals = salesData.reduce((acc, sale) => {
+          const saleStatus = (sale.status || '').toLowerCase();
+          if (saleStatus.includes('venta cancelada')) return acc;
+
           const unidades = sale.unidades || 1;
           const skuMdr = skuToMdrMap.get(sale.sku);
           const landedCostPerUnit = skuMdr ? mdrToPriceMap.get(skuMdr) || 0 : 0;
@@ -214,8 +217,7 @@ export default function HistorialCortesPage() {
           const totalFromDb = sale.total || 0;
           let utilidadBruta = totalFromDb - totalLandedCost;
           
-          const saleStatus = sale.status || '';
-          if (totalFromDb === 0 && !saleStatus.toLowerCase().startsWith('paquete de')) {
+          if (totalFromDb === 0 && !saleStatus.startsWith('paquete de')) {
               utilidadBruta = 0;
           }
           
@@ -257,7 +259,8 @@ export default function HistorialCortesPage() {
   };
 
   const handleClearFilters = () => {
-    setPage(1);
+    setFilterValue("");
+    setDebouncedFilterValue("");
     setStartDate(null);
     setEndDate(null);
     setCompany(undefined);
@@ -305,7 +308,7 @@ export default function HistorialCortesPage() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
-      setPage(1); // Reset page when search term changes
+      setPage(1); 
     }, 500);
 
     return () => {
@@ -399,25 +402,17 @@ export default function HistorialCortesPage() {
             query = query.eq('tienda', companyFilterValue);
         }
 
-        const { data: initialData, error: initialError, count } = await query.range(0, 0);
-        if (initialError) throw initialError;
+        const { data: allData, error: fetchError, count } = await query;
+        if (fetchError) throw fetchError;
         
         const totalRecords = count || 0;
         setTotalRows(totalRecords);
-        if (totalRecords === 0) {
+        if (totalRecords === 0 || !allData) {
             setSales([]);
             setIsLoading(false);
             return;
         }
 
-        const allData = [];
-        const CHUNK_SIZE = 1000;
-        for (let i = 0; i < totalRecords; i += CHUNK_SIZE) {
-            const { data: chunk, error: chunkError } = await query.range(i, i + CHUNK_SIZE - 1);
-            if (chunkError) throw chunkError;
-            if (chunk) allData.push(...chunk);
-        }
-        
         const salesData = allData;
 
         const skusInPage = [...new Set(salesData.map(s => s.sku).filter(Boolean))];
@@ -536,7 +531,7 @@ export default function HistorialCortesPage() {
             form.setValue('landed_cost', details.landed_cost);
         }
     } catch (e: any) {
-        console.error("Could not fetch SKU details for modal:", e.message);
+        console.error("Could not fetch SKU detalles for modal:", e.message);
         toast({
           variant: "default",
           title: "Aviso",
@@ -626,6 +621,12 @@ export default function HistorialCortesPage() {
 
   const filteredItems = React.useMemo(() => {
     return sales.filter((sale) => {
+        const isCancelled = (sale.status || '').toLowerCase().includes('venta cancelada');
+        
+        if (granTotalFilter === 'cancelled') {
+            return isCancelled;
+        }
+
         let utilidadBrutaMatch = true;
         if (granTotalFilter === 'negative') {
             utilidadBrutaMatch = (sale.total_final ?? 0) < 0;
@@ -702,7 +703,10 @@ export default function HistorialCortesPage() {
 
   const topMarkupSales = React.useMemo(() => {
     return [...filteredItems]
-      .filter(sale => sale.markup !== null && sale.markup !== undefined)
+      .filter(sale => {
+          const isCancelled = (sale.status || '').toLowerCase().includes('venta cancelada');
+          return !isCancelled && sale.markup !== null && sale.markup !== undefined;
+      })
       .sort((a, b) => (b.markup! - a.markup!))
       .slice(0, 5);
   }, [filteredItems]);
@@ -729,16 +733,24 @@ export default function HistorialCortesPage() {
 
   const totalPages = Math.ceil(sortedItems.length / ROWS_PER_PAGE) || 1;
 
-  const utilidadBrutaSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.total_final || 0), 0), [filteredItems]);
-  const totalSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.total || 0), 0), [filteredItems]);
-  const landedCostSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.landed_cost || 0), 0), [filteredItems]);
-  const ingresosPorProductosSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.ing_xunidad || 0), 0), [filteredItems]);
-  const cargoVentaSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.cargo_venta || 0), 0), [filteredItems]);
-  const costoEnvioSum = React.useMemo(() => filteredItems.reduce((acc, item) => acc + (item.costo_envio || 0), 0), [filteredItems]);
+  const filterOutCancelledForTotals = (items: SaleRecord[]) => {
+      if (granTotalFilter === 'cancelled') return items;
+      return items.filter(sale => !(sale.status || '').toLowerCase().includes('venta cancelada'));
+  };
+
+  const utilidadBrutaSum = React.useMemo(() => filterOutCancelledForTotals(filteredItems).reduce((acc, item) => acc + (item.total_final || 0), 0), [filteredItems, granTotalFilter]);
+  const totalSum = React.useMemo(() => filterOutCancelledForTotals(filteredItems).reduce((acc, item) => acc + (item.total || 0), 0), [filteredItems, granTotalFilter]);
+  const landedCostSum = React.useMemo(() => filterOutCancelledForTotals(filteredItems).reduce((acc, item) => acc + (item.landed_cost || 0), 0), [filteredItems, granTotalFilter]);
+  const ingresosPorProductosSum = React.useMemo(() => filterOutCancelledForTotals(filteredItems).reduce((acc, item) => acc + (item.ing_xunidad || 0), 0), [filteredItems, granTotalFilter]);
+  const cargoVentaSum = React.useMemo(() => filterOutCancelledForTotals(filteredItems).reduce((acc, item) => acc + (item.cargo_venta || 0), 0), [filteredItems, granTotalFilter]);
+  const costoEnvioSum = React.useMemo(() => filterOutCancelledForTotals(filteredItems).reduce((acc, item) => acc + (item.costo_envio || 0), 0), [filteredItems, granTotalFilter]);
 
   const colorCounters = React.useMemo(() => {
     const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
     filteredItems.forEach(sale => {
+      const isCancelled = (sale.status || '').toLowerCase().includes('venta cancelada');
+      if (isCancelled && granTotalFilter !== 'cancelled') return;
+
       const markupValue = sale.markup;
       const utilidadBruta = sale.total_final;
        if (typeof markupValue === 'number') {
@@ -757,12 +769,15 @@ export default function HistorialCortesPage() {
     });
 
     return counters;
-  }, [filteredItems]);
+  }, [filteredItems, granTotalFilter]);
   
   const subCategorySummary = React.useMemo(() => {
     if (filteredItems.length === 0) return [];
 
     const summary = filteredItems.reduce((acc, sale) => {
+        const isCancelled = (sale.status || '').toLowerCase().includes('venta cancelada');
+        if (isCancelled && granTotalFilter !== 'cancelled') return acc;
+
         const subCat = sale.sub_cat || 'Sin Subcategoría';
         if (!acc[subCat]) {
             acc[subCat] = { totalUtilidad: 0, totalLandedCost: 0, count: 0, publications: new Set<string>() };
@@ -787,7 +802,7 @@ export default function HistorialCortesPage() {
         count: data.count,
         publications: Array.from(data.publications),
     })).sort((a, b) => b.averageMarkup - a.averageMarkup);
-  }, [filteredItems]);
+  }, [filteredItems, granTotalFilter]);
 
 
   useEffect(() => {
@@ -808,6 +823,9 @@ export default function HistorialCortesPage() {
     const allSkusInFilteredData = new Set<string>();
 
     dataToSummarize.forEach(row => {
+        const isCancelled = (row.status || '').toLowerCase().includes('venta cancelada');
+        if (isCancelled && granTotalFilter !== 'cancelled') return;
+
         const pubId = String(row.num_publi || '').trim();
         const sku = String(row.sku || '').trim();
         
@@ -881,12 +899,13 @@ export default function HistorialCortesPage() {
         red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
     };
     
-    const allPedidosInFiltered = new Set(dataToSummarize.map(i => i.num_venta));
-    const allUnidadesInFiltered = dataToSummarize.reduce((acc, i) => acc + (i.unidades || 0), 0);
+    const validMathSales = filterOutCancelledForTotals(dataToSummarize);
+    const allPedidosInFiltered = new Set(validMathSales.map(i => i.num_venta));
+    const allUnidadesInFiltered = validMathSales.reduce((acc, i) => acc + (i.unidades || 0), 0);
     setTotalPedidos(allPedidosInFiltered.size);
     setTotalUnidades(allUnidadesInFiltered);
 
-    dataToSummarize.forEach(row => {
+    validMathSales.forEach(row => {
         const markupValue = row.markup;
         let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
 
@@ -936,7 +955,7 @@ export default function HistorialCortesPage() {
 
     setColorSummary(summaryWithPercentage);
 
-  }, [filteredItems, utilidadBrutaSum, colorCounters, skuSummarySort]);
+  }, [filteredItems, utilidadBrutaSum, colorCounters, skuSummarySort, granTotalFilter]);
 
   const handleSort = (column: keyof SaleRecord) => {
     if (sortDescriptor.column === column) {
@@ -1240,6 +1259,16 @@ export default function HistorialCortesPage() {
                                 >
                                     Utilidad Bruta &lt; $30
                                 </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem
+                                    checked={granTotalFilter === 'cancelled'}
+                                    onCheckedChange={(checked) => {
+                                        setGranTotalFilter(checked ? 'cancelled' : 'all');
+                                        if (checked) setMarkupFilter('all');
+                                        setPage(1);
+                                    }}
+                                >
+                                    Solo cancelados
+                                </DropdownMenuCheckboxItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuLabel>Otros Filtros</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
@@ -1341,7 +1370,7 @@ export default function HistorialCortesPage() {
                     </div>
                 </div>
                 <div className="pt-4 mt-4 border-t">
-                    <h4 className="text-sm font-medium mb-2">
+                    <h4 className="text-sm font-medium mb-2 uppercase">
                         Resumen de Totales (Filtrado)
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
@@ -1416,28 +1445,10 @@ export default function HistorialCortesPage() {
                               </div>
                           )}
                         </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground uppercase">Utilidad Promedio por Pedido</div>
-                          <div className="font-bold text-lg text-foreground">
-                            {formatCurrency(executiveKpis.gananciaPromedioPorPedido)}
-                          </div>
-                        </div>
-                         <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground uppercase">Utilidad Promedio por Unidad</div>
-                          <div className="font-bold text-lg text-foreground">
-                            {formatCurrency(executiveKpis.utilidadPromedioPorUnidad)}
-                          </div>
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="text-muted-foreground uppercase">% Pedidos Margen Bajo</div>
-                          <div className="font-bold text-lg text-foreground">
-                            {executiveKpis.porcentajePedidosMargenBajo.toFixed(2)}%
-                          </div>
-                        </div>
                     </div>
                 </div>
                  <div className="pt-4 mt-4 border-t">
-                    <h4 className="text-sm font-medium mb-2">Resumen de Rentabilidad (Filtrado)</h4>
+                    <h4 className="text-sm font-medium mb-2 uppercase">Resumen de Rentabilidad (Filtrado)</h4>
                      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('ultraGreen')}>
                                 <div className={cn("w-3 h-3 rounded-full bg-indigo-200 border-indigo-400", markupFilter === 'ultraGreen' && 'ring-2 ring-primary ring-offset-1')}></div>
@@ -1478,7 +1489,7 @@ export default function HistorialCortesPage() {
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('red')}>
                                 <div className={cn("w-3 h-3 rounded-full bg-red-100 border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.red}</span>
-                                <span className="text-muted-foreground">{'<'}5%</span>
+                                <span className="text-muted-foreground">{'<' }5%</span>
                                 <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '< 5%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
                         </div>
@@ -1518,95 +1529,101 @@ export default function HistorialCortesPage() {
                                     </TableCell>
                                 </TableRow>
                             ) : paginatedItems.length > 0 ? (
-                                paginatedItems.map((sale) => (
-                                    <TableRow 
-                                        key={sale.id}
-                                        className={cn(
-                                            (sale.status || '').toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
-                                            isRowColoringActive && typeof sale.markup === 'number' && {
-                                                'bg-indigo-200 hover:bg-indigo-300/80 data-[state=selected]:bg-indigo-300': sale.markup >= 80,
-                                                'bg-sky-200 hover:bg-sky-300/80 data-[state=selected]:bg-sky-300': sale.markup >= 50 && sale.markup < 80,
-                                                'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30 && sale.markup < 50,
-                                                'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': sale.markup >= 20 && sale.markup < 30,
-                                                'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': sale.markup >= 10 && sale.markup < 20,
-                                                'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': sale.markup >= 5 && sale.markup < 10,
-                                                'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': sale.markup < 5 && sale.total_final !== 0,
-                                            },
-                                            isRowColoringActive && typeof sale.markup !== 'number' && sale.total_final !== 0 && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
-                                        )}
-                                    >
-                                    {headers.map((header) => {
-                                        const cellValue = sale[header.key as keyof SaleRecord];
-                                        let formattedValue: React.ReactNode;
-
-                                        if (header.key === 'landed_cost') {
-                                            const cost = cellValue as number | null;
-                                            const showPencil = cost === null || cost === 0 || cost === 1;
-                                            if (showPencil && sale.sku) {
-                                                formattedValue = (
-                                                    <div className="flex items-center justify-end gap-2 -mr-4">
-                                                        <span>{formatCurrency(cost)}</span>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(sale)}>
-                                                            <Pencil className="h-4 w-4 text-primary" />
-                                                        </Button>
-                                                    </div>
-                                                );
-                                            } else {
-                                                formattedValue = formatCurrency(cost);
-                                            }
-                                        } else if (header.key === 'fecha_venta') {
-                                            formattedValue = formatDate(cellValue as string | null);
-                                        } else if (header.key === 'markup') {
-                                            if (typeof cellValue === 'number') {
-                                                formattedValue = `${cellValue.toFixed(2)}%`;
-                                            } else {
-                                                formattedValue = '-';
-                                            }
-                                        } else if (currencyColumns.includes(header.key)) {
-                                            formattedValue = formatCurrency(cellValue as number | null);
-                                        } else if (header.key === 'venta_xpublicidad') {
-                                            formattedValue = (cellValue as boolean) ? 'Sí' : 'No';
-                                        } else if ((header.key === 'num_publi' || header.key === 'sku' || header.key === 'num_venta') && cellValue) {
-                                            formattedValue = (
-                                                <span
-                                                    className="cursor-pointer hover:text-primary hover:font-medium"
-                                                    onClick={() => handleCopyToClipboard(String(cellValue))}
-                                                >
-                                                    {String(cellValue)}
-                                                </span>
-                                            );
-                                        } else if (cellValue === null || cellValue === undefined) {
-                                            formattedValue = '-';
-                                        } else {
-                                            formattedValue = String(cellValue);
-                                        }
-
-                                        return (
-                                            <TableCell 
-                                                key={header.key} 
-                                                className={cn({
-                                                    'text-right': numericColumns.includes(header.key),
-                                                    'font-medium text-red-600': header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) < 0,
-                                                    'font-medium text-green-700': header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) >= 0,
+                                paginatedItems.map((sale) => {
+                                    const isCancelled = (sale.status || '').toLowerCase().includes('venta cancelada');
+                                    
+                                    return (
+                                        <TableRow 
+                                            key={sale.id}
+                                            className={cn(
+                                                (sale.status || '').toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
+                                                isCancelled && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
+                                                !isCancelled && isRowColoringActive && typeof sale.markup === 'number' && {
+                                                    'bg-indigo-200 hover:bg-indigo-300/80 data-[state=selected]:bg-indigo-300': sale.markup >= 80,
+                                                    'bg-sky-200 hover:bg-sky-300/80 data-[state=selected]:bg-sky-300': sale.markup >= 50 && sale.markup < 80,
+                                                    'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30 && sale.markup < 50,
+                                                    'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': sale.markup >= 20 && sale.markup < 30,
+                                                    'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': sale.markup >= 10 && sale.markup < 20,
+                                                    'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': sale.markup >= 5 && sale.markup < 10,
+                                                    'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': sale.markup < 5 && sale.total_final !== 0,
                                                 },
-                                                !isRowColoringActive && header.key === 'markup' && (
-                                                  (typeof cellValue === 'number' && {
-                                                      'bg-indigo-200': cellValue >= 80,
-                                                      'bg-sky-200': cellValue >= 50 && cellValue < 80,
-                                                      'bg-green-200': cellValue >= 30 && cellValue < 50,
-                                                      'bg-green-100': cellValue >= 20 && cellValue < 30,
-                                                      'bg-orange-100': cellValue >= 10 && cellValue < 20,
-                                                      'bg-yellow-100': cellValue >= 5 && cellValue < 10,
-                                                      'bg-red-100': cellValue < 5 && sale.total_final !== 0,
-                                                  }) ||
-                                                  (typeof cellValue !== 'number' && sale.total_final !== 0 && 'bg-red-100')
-                                                ))}>
-                                                {formattedValue}
-                                            </TableCell>
-                                        );
-                                    })}
-                                    </TableRow>
-                                ))
+                                                !isCancelled && isRowColoringActive && typeof sale.markup !== 'number' && sale.total_final !== 0 && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
+                                            )}
+                                        >
+                                        {headers.map((header) => {
+                                            const cellValue = sale[header.key as keyof SaleRecord];
+                                            let formattedValue: React.ReactNode;
+
+                                            if (header.key === 'landed_cost') {
+                                                const cost = cellValue as number | null;
+                                                const showPencil = cost === null || cost === 0 || cost === 1;
+                                                if (showPencil && sale.sku) {
+                                                    formattedValue = (
+                                                        <div className="flex items-center justify-end gap-2 -mr-4">
+                                                            <span>{formatCurrency(cost)}</span>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(sale)}>
+                                                                <Pencil className={cn("h-4 w-4", !isCancelled ? "text-primary" : "text-white")} />
+                                                            </Button>
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    formattedValue = formatCurrency(cost);
+                                                }
+                                            } else if (header.key === 'fecha_venta') {
+                                                formattedValue = formatDate(cellValue as string | null);
+                                            } else if (header.key === 'markup') {
+                                                if (typeof cellValue === 'number') {
+                                                    formattedValue = `${cellValue.toFixed(2)}%`;
+                                                } else {
+                                                    formattedValue = '-';
+                                                }
+                                            } else if (currencyColumns.includes(header.key)) {
+                                                formattedValue = formatCurrency(cellValue as number | null);
+                                            } else if (header.key === 'venta_xpublicidad') {
+                                                formattedValue = (cellValue as boolean) ? 'Sí' : 'No';
+                                            } else if ((header.key === 'num_publi' || header.key === 'sku' || header.key === 'num_venta') && cellValue) {
+                                                formattedValue = (
+                                                    <span
+                                                        className={cn("cursor-pointer hover:font-medium", !isCancelled && "hover:text-primary")}
+                                                        onClick={() => handleCopyToClipboard(String(cellValue))}
+                                                    >
+                                                        {String(cellValue)}
+                                                    </span>
+                                                );
+                                            } else if (cellValue === null || cellValue === undefined) {
+                                                formattedValue = '-';
+                                            } else {
+                                                formattedValue = String(cellValue);
+                                            }
+
+                                            return (
+                                                <TableCell 
+                                                    key={header.key} 
+                                                    className={cn({
+                                                        'text-right': numericColumns.includes(header.key),
+                                                        'font-medium text-red-600': !isCancelled && header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) < 0,
+                                                        'font-medium text-green-700': !isCancelled && header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) >= 0,
+                                                        'text-white': isCancelled
+                                                    },
+                                                    !isCancelled && !isRowColoringActive && header.key === 'markup' && (
+                                                      (typeof cellValue === 'number' && {
+                                                          'bg-indigo-200': cellValue >= 80,
+                                                          'bg-sky-200': cellValue >= 50 && cellValue < 80,
+                                                          'bg-green-200': cellValue >= 30 && cellValue < 50,
+                                                          'bg-green-100': cellValue >= 20 && cellValue < 30,
+                                                          'bg-orange-100': cellValue >= 10 && cellValue < 20,
+                                                          'bg-yellow-100': cellValue >= 5 && cellValue < 10,
+                                                          'bg-red-100': cellValue < 5 && sale.total_final !== 0,
+                                                      }) ||
+                                                      (typeof cellValue !== 'number' && sale.total_final !== 0 && 'bg-red-100')
+                                                    ))}>
+                                                    {formattedValue}
+                                                </TableCell>
+                                            );
+                                        })}
+                                        </TableRow>
+                                    );
+                                })
                             ) : (
                                 <TableRow>
                                      <TableCell colSpan={headers.length} className="h-24 text-center">
@@ -1643,7 +1660,7 @@ export default function HistorialCortesPage() {
                         <TrendingUp className="h-5 w-5 text-primary" />
                         Top 5 Ventas por Markup
                     </CardTitle>
-                    <CardDescription>Las 5 ventas con el mayor markup en los datos filtrados.</CardDescription>
+                    <CardDescription>Las 5 ventas con el mayor markup en los datos filtrados (excluye cancelados).</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {topMarkupSales.length > 0 ? (
