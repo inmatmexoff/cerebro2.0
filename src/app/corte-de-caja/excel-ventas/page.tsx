@@ -233,6 +233,8 @@ export default function ExcelVentasPage() {
   const [granTotalFilter, setGranTotalFilter] = useState<'all' | 'negative' | 'positive' | 'low_profit' | 'neg_and_zero' | 'gt_zero_lt_five' | 'strictly_positive' | 'cancelled'>('all');
   const [showHighShippingCost, setShowHighShippingCost] = useState(false);
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
+  const [includeShippingIncome, setIncludeShippingIncome] = useState(true);
+
   const [editingInfo, setEditingInfo] = useState<{
     rowIndex: number;
     sku: string;
@@ -524,7 +526,7 @@ export default function ExcelVentasPage() {
             'VENTA TOTAL MERCADO LIBRE', // 7
             'Cargo por venta e impuestos (MXN)', // 8
             'Costos de envío (MXN)', // 9
-            headerRow[COLUMN_MAPPING.J] || 'Ingresos por envío (MXN)', // 10
+            'Ingresos por envío (MXN)', // 10
             headerRow[COLUMN_MAPPING.M] || 'Cargo por diferencia de peso (MXN)', // 11
             headerRow[COLUMN_MAPPING.N] || 'Descuentos y bonificaciones (MXN)', // 12
             headerRow[COLUMN_MAPPING.O] || 'Anulaciones y reembolsos (MXN)', // 13
@@ -784,12 +786,13 @@ export default function ExcelVentasPage() {
             }
           }
 
-          // --- Related Sales Detection & Shipping Cost Redistribution (98% -> 99%) ---
+          // --- Related Sales Detection & Shipping Redistribution (98% -> 99%) ---
           setProgress(98);
           await new Promise((resolve) => setTimeout(resolve, 0));
 
           const idIdx = 1;
-          const shippingIdx = 9;
+          const shippingCostIdx = 9;
+          const shippingIncomeIdx = 10;
           const totalIdx = 19;
           const landedIdx = 20;
           const utilIdx = 21;
@@ -816,31 +819,45 @@ export default function ExcelVentasPage() {
                   rowA[23] = true;
                   rowB[23] = true;
 
-                  const costA = rowA[shippingIdx] || 0;
-                  const costB = rowB[shippingIdx] || 0;
+                  // REDISTRIBUTE SHIPPING COSTS
+                  const costA = rowA[shippingCostIdx] || 0;
+                  const costB = rowB[shippingCostIdx] || 0;
 
-                  // Condition: one has value, the other is NULL, 0 or empty
                   if ((costA !== 0 && costB === 0) || (costA === 0 && costB !== 0)) {
                     const sharedCost = (costA + costB) / 2;
-
-                    // Update Row A
-                    const oldCostA = rowA[shippingIdx] || 0;
-                    rowA[shippingIdx] = sharedCost;
+                    
+                    const oldCostA = rowA[shippingCostIdx] || 0;
+                    rowA[shippingCostIdx] = sharedCost;
                     rowA[totalIdx] = (rowA[totalIdx] || 0) - oldCostA + sharedCost;
-                    rowA[utilIdx] = parseFloat(((rowA[totalIdx] || 0) - (rowA[landedIdx] || 0)).toFixed(2));
-                    if (rowA[landedIdx] > 0) {
-                        rowA[markIdx] = (rowA[utilIdx] / rowA[landedIdx]) * 100;
-                    }
 
-                    // Update Row B
-                    const oldCostB = rowB[shippingIdx] || 0;
-                    rowB[shippingIdx] = sharedCost;
+                    const oldCostB = rowB[shippingCostIdx] || 0;
+                    rowB[shippingCostIdx] = sharedCost;
                     rowB[totalIdx] = (rowB[totalIdx] || 0) - oldCostB + sharedCost;
-                    rowB[utilIdx] = parseFloat(((rowB[totalIdx] || 0) - (rowB[landedIdx] || 0)).toFixed(2));
-                    if (rowB[landedIdx] > 0) {
-                        rowB[markIdx] = (rowB[utilIdx] / rowB[landedIdx]) * 100;
-                    }
                   }
+
+                  // REDISTRIBUTE SHIPPING INCOME
+                  const incomeA = rowA[shippingIncomeIdx] || 0;
+                  const incomeB = rowB[shippingIncomeIdx] || 0;
+
+                  if ((incomeA !== 0 && incomeB === 0) || (incomeA === 0 && incomeB !== 0)) {
+                    const sharedIncome = (incomeA + incomeB) / 2;
+
+                    const oldIncA = rowA[shippingIncomeIdx] || 0;
+                    rowA[shippingIncomeIdx] = sharedIncome;
+                    rowA[totalIdx] = (rowA[totalIdx] || 0) - oldIncA + sharedIncome;
+
+                    const oldIncB = rowB[shippingIncomeIdx] || 0;
+                    rowB[shippingIncomeIdx] = sharedIncome;
+                    rowB[totalIdx] = (rowB[totalIdx] || 0) - oldIncB + sharedIncome;
+                  }
+
+                  // RECALCULATE UTILITY AND MARKUP
+                  [rowA, rowB].forEach(row => {
+                      row[utilIdx] = parseFloat(((row[totalIdx] || 0) - (row[landedIdx] || 0)).toFixed(2));
+                      if (row[landedIdx] > 0) {
+                          row[markIdx] = (row[utilIdx] / row[landedIdx]) * 100;
+                      }
+                  });
                 }
               } catch (e) {
                 // Ignore non-numeric IDs
@@ -912,12 +929,35 @@ export default function ExcelVentasPage() {
     const skuIndex = headers.indexOf('SKU');
     const pubIndex = headers.indexOf('# de publicación');
     const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
+    const shippingIncomeIndex = headers.indexOf('Ingresos por envío (MXN)');
     const markupIndex = headers.indexOf('Markup (%)');
     const dateIndex = headers.indexOf('Fecha de venta');
     const companyIndex = headers.indexOf('Tienda');
     const estadoIndex = headers.indexOf('ESTADO');
+    const totalIndex = headers.indexOf('RECIBES');
+    const landedIndex = headers.indexOf('Landed Cost Total');
 
-    return data.filter((row) => {
+    return data.map(row => {
+        // Adjust for "Considerar Ingresos Envío" toggle
+        if (includeShippingIncome) return row;
+
+        const newRow = [...row];
+        const ingEnvio = row[shippingIncomeIdx] || 0;
+        const originalTotal = row[totalIndex] || 0;
+        const newTotal = originalTotal - ingEnvio;
+        newRow[totalIndex] = newTotal;
+
+        const landedCost = row[landedIndex] || 0;
+        const newUtil = newTotal - landedCost;
+        newRow[utilidadBrutaIndex] = parseFloat(newUtil.toFixed(2));
+
+        if (landedCost > 0) {
+            newRow[markupIndex] = (newUtil / landedCost) * 100;
+        } else {
+            newRow[markupIndex] = 0;
+        }
+        return newRow;
+    }).filter((row) => {
       const searchMatch =
         !skuSearchTerm ||
         (skuIndex !== -1 &&
@@ -1020,7 +1060,8 @@ export default function ExcelVentasPage() {
     utilidadBrutaIndex,
     startDate,
     endDate,
-    company
+    company,
+    includeShippingIncome
   ]);
   
   const isFiltered = skuSearchTerm || granTotalFilter !== 'all' || showHighShippingCost || markupFilter !== 'all' || startDate || endDate || (company && company !== 'all');
@@ -1050,37 +1091,37 @@ export default function ExcelVentasPage() {
     const index = headers.indexOf('Utilidad Bruta');
     const estadoIndex = headers.indexOf('ESTADO');
     if (index === -1) return 0;
-    return data.reduce((sum, row) => {
+    return filteredData.reduce((sum, row) => {
       const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
       if (estadoValue.includes('venta cancelada')) return sum;
       const value = row[index];
       return sum + (typeof value === 'number' ? value : 0);
     }, 0);
-  }, [data, headers]);
+  }, [filteredData, headers]);
 
   const unfilteredLandedCostSum = React.useMemo(() => {
     const index = headers.indexOf('Landed Cost Total');
     const estadoIndex = headers.indexOf('ESTADO');
     if (index === -1) return 0;
-    return data.reduce((sum, row) => {
+    return filteredData.reduce((sum, row) => {
       const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
       if (estadoValue.includes('venta cancelada')) return sum;
       const value = row[index];
       return sum + (typeof value === 'number' ? value : 0);
     }, 0);
-  }, [data, headers]);
+  }, [filteredData, headers]);
 
   const unfilteredIngresosPorProductosSum = React.useMemo(() => {
     const index = headers.indexOf('VENTA TOTAL MERCADO LIBRE');
     const estadoIndex = headers.indexOf('ESTADO');
     if (index === -1) return 0;
-    return data.reduce((sum, row) => {
+    return filteredData.reduce((sum, row) => {
       const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
       if (estadoValue.includes('venta cancelada')) return sum;
       const value = row[index];
       return sum + (typeof value === 'number' ? value : 0);
     }, 0);
-  }, [data, headers]);
+  }, [filteredData, headers]);
 
   const subCategorySummary = React.useMemo(() => {
     if (filteredData.length === 0) return [];
@@ -2260,6 +2301,14 @@ export default function ExcelVentasPage() {
                             <Label>Empresa</Label>
                             <CompanySelect value={company} onValueChange={setCompany} />
                         </div>
+                        <div className="flex items-center space-x-2 pb-1">
+                            <Switch 
+                                id="include-shipping-income" 
+                                checked={includeShippingIncome} 
+                                onCheckedChange={setIncludeShippingIncome} 
+                            />
+                            <Label htmlFor="include-shipping-income">Considerar Ingresos Envío</Label>
+                        </div>
                         <div className="flex gap-2">
                             <Button size="sm" variant="ghost" onClick={handleClearFilters}>
                                 Limpiar
@@ -2468,6 +2517,8 @@ export default function ExcelVentasPage() {
                                 />
                             </TableHead>
                             {headers.map((header, index) => {
+                              if (header === 'Ingresos por envío (MXN)' && !includeShippingIncome) return null;
+                              
                               const id = `select-col-${header.replace(
                                 /[^a-zA-Z0-9]/g,
                                 '-'
@@ -2507,6 +2558,7 @@ export default function ExcelVentasPage() {
                             const excelRowNum = row[0];
                             const skuIndex = headers.indexOf('SKU');
                             const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
+                            const shippingIncomeIndex = headers.indexOf('Ingresos por envío (MXN)');
                             const shippingCost = shippingCostIndex > -1 ? row[shippingCostIndex] : 0;
                             const isHighShippingCost = typeof shippingCost === 'number' && shippingCost <= -300;
                             const estadoIndex = headers.indexOf('ESTADO');
@@ -2552,6 +2604,7 @@ export default function ExcelVentasPage() {
                                 </TableCell>
                                 {row.map((cell, cellIndex) => {
                                   const header = headers[cellIndex];
+                                  if (header === 'Ingresos por envío (MXN)' && !includeShippingIncome) return null;
                                   
                                   return (
                                   <TableCell
