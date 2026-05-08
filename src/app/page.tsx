@@ -17,6 +17,16 @@ import { Separator } from "@/components/ui/separator";
 
 const MEXICO_TIMEZONE_OFFSET = 6; // UTC-6
 
+const ORGANIZATIONS = [
+  'MTM',
+  'HOGARDEN',
+  'DO MESKA',
+  'PALO DE ROSA',
+  'INMATMEX',
+  'TAL COMERCIALIZADORA',
+  'MAO'
+];
+
 async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
     try {
       let query = supabasePROD
@@ -24,7 +34,8 @@ async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: 
         .select('*', { count: 'exact', head: true });
   
       if (filters?.company) {
-        query = query.eq('organization', filters.company);
+        const companyFilter = filters.company.replace(/-/g, ' ').toUpperCase();
+        query = query.eq('organization', companyFilter);
       }
   
       if (filters?.startDate || filters?.endDate) {
@@ -64,129 +75,39 @@ async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: 
   
       return count ?? 0;
     } catch (error) {
-      if (error instanceof Error) {
-          console.error("Error in getEtiquetasCount:", error.message);
-      } else {
-          console.error("An unknown error occurred in getEtiquetasCount:", error);
-      }
+      console.error("Exception in getEtiquetasCount:", error);
       return 0;
     }
 }
-  
-async function getLeadingCompany(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
-    if (filters?.company) {
-        return filters.company;
-    }
 
-    try {
-      let query = supabasePROD
-        .from('etiquetas_i')
-        .select('organization');
-  
-      if (filters?.startDate || filters?.endDate) {
-        if (filters.startDate) {
-          const startOfDay = new Date(filters.startDate);
-          startOfDay.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
-          query = query.gte('created_at', startOfDay.toISOString());
-        }
-        if (filters.endDate) {
-          const endOfDayBoundary = new Date(filters.endDate);
-          endOfDayBoundary.setUTCDate(endOfDayBoundary.getUTCDate() + 1);
-          endOfDayBoundary.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
-          query = query.lt('created_at', endOfDayBoundary.toISOString());
-        }
-      } else { // Default to today
-        const now = new Date();
-        let todayStart: Date;
-        
-        if (now.getUTCHours() < MEXICO_TIMEZONE_OFFSET) {
-            const yesterday = new Date(now);
-            yesterday.setUTCDate(now.getUTCDate() - 1);
-            todayStart = new Date(Date.UTC(yesterday.getUTCFullYear(), yesterday.getUTCMonth(), yesterday.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
-        } else {
-            todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
-        }
-        
-        const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-        query = query.gte('created_at', todayStart.toISOString()).lt('created_at', todayEnd.toISOString());
-      }
-  
-      const { data, error } = await query;
-  
-      if (error) {
-        console.error("Error fetching organizations:", error.message);
-        return "N/A";
-      }
-  
-      if (!data || data.length === 0) {
-        return "N/A";
-      }
-  
-      const counts: { [key: string]: number } = data.reduce((acc: { [key: string]: number }, { organization }) => {
-        if (organization) {
-          acc[organization] = (acc[organization] || 0) + 1;
-        }
-        return acc;
-      }, {});
-  
-      if (Object.keys(counts).length === 0) {
-        return "N/A";
-      }
-  
-      const leadingCompany = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
-      
-      return leadingCompany;
-    } catch (error) {
-      if (error instanceof Error) {
-          console.error("Error in getLeadingCompany:", error.message);
-      } else {
-          console.error("An unknown error occurred in getLeadingCompany:", error);
-      }
-      return "N/A";
-    }
-}
-
-async function getMonthlyEtiquetasCount(filters?: { startDate?: Date | null, endDate?: Date | null, company?: string }) {
+async function getMonthlyEtiquetasCount(filters?: { company?: string }) {
     try {
       let query = supabasePROD
         .from("etiquetas_i")
         .select('*', { count: 'exact', head: true });
 
       if (filters?.company) {
-        query = query.eq('organization', filters.company);
+        const companyFilter = filters.company.replace(/-/g, ' ').toUpperCase();
+        query = query.eq('organization', companyFilter);
       }
 
-      if (filters?.startDate || filters?.endDate) {
-        if (filters.startDate) {
-          const startOfDay = new Date(filters.startDate);
-          startOfDay.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
-          query = query.gte('created_at', startOfDay.toISOString());
-        }
-        if (filters.endDate) {
-          const endOfDayBoundary = new Date(filters.endDate);
-          endOfDayBoundary.setUTCDate(endOfDayBoundary.getUTCDate() + 1);
-          endOfDayBoundary.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
-          query = query.lt('created_at', endOfDayBoundary.toISOString());
-        }
-      } else { 
-        const now = new Date();
-        let year: number, month: number;
+      const now = new Date();
+      let year: number, month: number;
 
-        if (now.getUTCHours() < MEXICO_TIMEZONE_OFFSET) {
-            const yesterday = new Date(now);
-            yesterday.setUTCDate(now.getUTCDate() - 1);
-            year = yesterday.getUTCFullYear();
-            month = yesterday.getUTCMonth();
-        } else {
-            year = now.getUTCFullYear();
-            month = now.getUTCMonth();
-        }
-        
-        const monthStart = new Date(Date.UTC(year, month, 1, MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
-        const monthEnd = new Date(Date.UTC(year, month + 1, 1, MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
-
-        query = query.gte('created_at', monthStart.toISOString()).lt('created_at', monthEnd.toISOString());
+      if (now.getUTCHours() < MEXICO_TIMEZONE_OFFSET) {
+          const yesterday = new Date(now);
+          yesterday.setUTCDate(now.getUTCDate() - 1);
+          year = yesterday.getUTCFullYear();
+          month = yesterday.getUTCMonth();
+      } else {
+          year = now.getUTCFullYear();
+          month = now.getUTCMonth();
       }
+      
+      const monthStart = new Date(Date.UTC(year, month, 1, MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
+      const monthEnd = new Date(Date.UTC(year, month + 1, 1, MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
+
+      query = query.gte('created_at', monthStart.toISOString()).lt('created_at', monthEnd.toISOString());
       
       const { count, error } = await query;
 
@@ -197,71 +118,13 @@ async function getMonthlyEtiquetasCount(filters?: { startDate?: Date | null, end
 
       return count ?? 0;
     } catch (error) {
-      if (error instanceof Error) {
-          console.error("Error in getMonthlyEtiquetasCount:", error.message);
-      } else {
-          console.error("An unknown error occurred in getMonthlyEtiquetasCount:", error);
-      }
+      console.error("Exception in getMonthlyEtiquetasCount:", error);
       return 0;
     }
 }
 
 async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDate?: Date | null }) {
     try {
-      let query = supabasePROD
-        .from('etiquetas_i')
-        .select('organization');
-  
-      if (filters?.startDate || filters?.endDate) {
-        if (filters.startDate) {
-          const startOfDay = new Date(filters.startDate);
-          startOfDay.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
-          query = query.gte('created_at', startOfDay.toISOString());
-        }
-        if (filters.endDate) {
-          const endOfDayBoundary = new Date(filters.endDate);
-          endOfDayBoundary.setUTCDate(endOfDayBoundary.getUTCDate() + 1);
-          endOfDayBoundary.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
-          query = query.lt('created_at', endOfDayBoundary.toISOString());
-        }
-      } else { // Default to today
-        const now = new Date();
-        let todayStart: Date;
-        
-        if (now.getUTCHours() < MEXICO_TIMEZONE_OFFSET) {
-            const yesterday = new Date(now);
-            yesterday.setUTCDate(now.getUTCDate() - 1);
-            todayStart = new Date(Date.UTC(yesterday.getUTCFullYear(), yesterday.getUTCMonth(), yesterday.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
-        } else {
-            todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
-        }
-        
-        const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-        query = query.gte('created_at', todayStart.toISOString()).lt('created_at', todayEnd.toISOString());
-      }
-  
-      const { data, error } = await query;
-  
-      if (error) {
-        console.error("Error fetching organizations for chart:", error.message);
-        return [];
-      }
-  
-      if (!data || data.length === 0) {
-        return [];
-      }
-  
-      const counts: { [key: string]: number } = data.reduce((acc: { [key: string]: number }, { organization }) => {
-        if (organization) {
-          acc[organization] = (acc[organization] || 0) + 1;
-        }
-        return acc;
-      }, {});
-  
-      if (Object.keys(counts).length === 0) {
-        return [];
-      }
-
       const colorMap: { [key: string]: string } = {
         'MTM': '#1B5E20',                 // Verde Oscuro
         'HOGARDEN': '#90EE90',           // Verde Claro
@@ -269,29 +132,66 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
         'PALO DE ROSA': '#FFB6C1',        // Rosa
         'INMATMEX': '#FFA500',             // Naranja
         'TAL COMERCIALIZADORA': '#4682B4', // Azul
+        'MAO': '#E57373',                  // Rojo suave
       };
-  
-      const result = Object.entries(counts)
-        .filter(([_, value]) => value > 0)
-        .map(([label, value]) => {
-          const upperLabel = label.toUpperCase();
-          return ({
-              id: upperLabel,
-              value,
-              label: upperLabel,
-              color: colorMap[upperLabel] || '#cccccc'
-          })
-      });
 
-      result.sort((a, b) => a.label.localeCompare(b.label));
+      // Perform parallel count queries for each organization to avoid timeouts
+      const results = await Promise.all(ORGANIZATIONS.map(async (org) => {
+        let query = supabasePROD
+          .from('etiquetas_i')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization', org);
+
+        if (filters?.startDate || filters?.endDate) {
+          if (filters.startDate) {
+            const startOfDay = new Date(filters.startDate);
+            startOfDay.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
+            query = query.gte('created_at', startOfDay.toISOString());
+          }
+          if (filters.endDate) {
+            const endOfDayBoundary = new Date(filters.endDate);
+            endOfDayBoundary.setUTCDate(endOfDayBoundary.getUTCDate() + 1);
+            endOfDayBoundary.setUTCHours(MEXICO_TIMEZONE_OFFSET, 0, 0, 0);
+            query = query.lt('created_at', endOfDayBoundary.toISOString());
+          }
+        } else { // Default to today
+          const now = new Date();
+          let todayStart: Date;
+          
+          if (now.getUTCHours() < MEXICO_TIMEZONE_OFFSET) {
+              const yesterday = new Date(now);
+              yesterday.setUTCDate(now.getUTCDate() - 1);
+              todayStart = new Date(Date.UTC(yesterday.getUTCFullYear(), yesterday.getUTCMonth(), yesterday.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
+          } else {
+              todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), MEXICO_TIMEZONE_OFFSET, 0, 0, 0));
+          }
+          
+          const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+          query = query.gte('created_at', todayStart.toISOString()).lt('created_at', todayEnd.toISOString());
+        }
+
+        const { count, error } = await query;
+        if (error) {
+           console.warn(`Error counting for ${org}:`, error.message);
+           return null;
+        }
+        return { org, count: count || 0 };
+      }));
+
+      const finalData = results
+        .filter((r): r is { org: string; count: number } => r !== null && r.count > 0)
+        .map((r) => ({
+            id: r.org,
+            value: r.count,
+            label: r.org,
+            color: colorMap[r.org] || '#cccccc'
+        }));
+
+      finalData.sort((a, b) => a.label.localeCompare(b.label));
       
-      return result;
+      return finalData;
     } catch (error) {
-      if (error instanceof Error) {
-          console.error("Error in getEtiquetasPorEmpresa:", error.message);
-      } else {
-          console.error("An unknown error occurred in getEtiquetasPorEmpresa:", error);
-      }
+      console.error("Exception in getEtiquetasPorEmpresa:", error);
       return [];
     }
 }
@@ -304,11 +204,11 @@ export default function DashboardPage() {
     const [etiquetasCount, setEtiquetasCount] = React.useState<number | string>('...');
     const [leadingCompany, setLeadingCompany] = React.useState<string>('...');
     const [monthlyEtiquetasCount, setMonthlyEtiquetasCount] = React.useState<number | string>('...');
-    const chartDataRef = React.useRef<any[]>([]);
+    const [chartData, setChartData] = React.useState<any[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [chartIsVisible, setChartIsVisible] = React.useState(true);
     
-    const isFilterApplied = !!(startDate || endDate || company);
+    const isFilterApplied = !!(startDate || endDate || (company && company !== 'all'));
     const countCardTitle = isFilterApplied ? 'ETIQUETAS (FILTRADO)' : 'ETIQUETAS (HOY)';
     const monthlyCardTitle = 'ETIQUETAS (MES)';
     const leaderCardTitle = isFilterApplied ? 'LÍDER (FILTRADO)' : 'EMPRESA LÍDER';
@@ -319,26 +219,34 @@ export default function DashboardPage() {
         setLeadingCompany('...');
         setMonthlyEtiquetasCount('...');
 
-        const companyFilter = filters.company 
-            ? filters.company.replace(/-/g, ' ').toUpperCase() 
-            : undefined;
+        const effectiveCompanyFilter = filters.company === 'all' ? undefined : filters.company;
 
-        const { company: originalCompany, ...dateFilters } = filters;
+        try {
+            const [count, monthlyCount, etiquetasPorEmpresa] = await Promise.all([
+              getEtiquetasCount({ ...filters, company: effectiveCompanyFilter }),
+              getMonthlyEtiquetasCount({ company: effectiveCompanyFilter }),
+              getEtiquetasPorEmpresa({ startDate: filters.startDate, endDate: filters.endDate }),
+            ]);
+        
+            setEtiquetasCount(count);
+            setMonthlyEtiquetasCount(monthlyCount);
+            setChartData(etiquetasPorEmpresa);
 
-        const effectiveCompanyFilter = companyFilter || (filters.company ? filters.company.toUpperCase() : undefined);
+            // Determine leading company from the chart data
+            if (effectiveCompanyFilter) {
+                setLeadingCompany(effectiveCompanyFilter.replace(/-/g, ' ').toUpperCase());
+            } else if (etiquetasPorEmpresa.length > 0) {
+                const leader = etiquetasPorEmpresa.reduce((a, b) => a.value > b.value ? a : b);
+                setLeadingCompany(leader.label);
+            } else {
+                setLeadingCompany("N/A");
+            }
 
-        const [count, leader, monthlyCount, etiquetasPorEmpresa] = await Promise.all([
-          getEtiquetasCount({ ...filters, company: effectiveCompanyFilter }),
-          getLeadingCompany({ ...filters, company: effectiveCompanyFilter }),
-          getMonthlyEtiquetasCount({ ...filters, company: effectiveCompanyFilter }),
-          getEtiquetasPorEmpresa(dateFilters),
-        ]);
-    
-        setEtiquetasCount(count);
-        setLeadingCompany(leader);
-        setMonthlyEtiquetasCount(monthlyCount);
-        chartDataRef.current = etiquetasPorEmpresa;
-        setIsLoading(false);
+        } catch (err) {
+            console.error("Error in dashboard fetchData:", err);
+        } finally {
+            setIsLoading(false);
+        }
       }, []);
 
     React.useEffect(() => {
@@ -347,7 +255,7 @@ export default function DashboardPage() {
 
     const handleFilter = async () => {
         setChartIsVisible(false);
-        await fetchData({ startDate, endDate, company: company === 'all' ? undefined : company });
+        await fetchData({ startDate, endDate, company });
         setChartIsVisible(true);
     };
 
@@ -493,11 +401,11 @@ export default function DashboardPage() {
             {isLoading ? (
               <p className="text-gray-500 font-semibold">Cargando...</p>
             ) : chartIsVisible ? (
-              chartDataRef.current.length > 0 ? (
+              chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={chartDataRef.current}
+                      data={chartData}
                       dataKey="value"
                       nameKey="label"
                       cx="50%"
@@ -507,7 +415,7 @@ export default function DashboardPage() {
                       labelLine={false}
                       label={renderCustomizedLabel}
                     >
-                      {chartDataRef.current.map((entry, index) => (
+                      {chartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
