@@ -530,7 +530,7 @@ export default function ExcelVentasPage() {
             headerRow[COLUMN_MAPPING.M] || 'Cargo por diferencia de peso (MXN)', // 11
             headerRow[COLUMN_MAPPING.N] || 'Descuentos y bonificaciones (MXN)', // 12
             headerRow[COLUMN_MAPPING.O] || 'Anulaciones y reembolsos (MXN)', // 13
-            headerRow[COLUMN_MAPPING.Q] || 'Orden de compra', // 14
+            'Orden de compra', // 14
             headerRow[COLUMN_MAPPING.R] || 'Venta por Publicidad', // 15
             headerRow[COLUMN_MAPPING.T] || '# de publicación', // 16
             headerRow[COLUMN_MAPPING.U] || 'Tienda', // 17
@@ -866,7 +866,7 @@ export default function ExcelVentasPage() {
           }
 
           // Final step (99% -> 100%)
-          setProgress(99);
+          setProgress(100);
           await new Promise((resolve) => setTimeout(resolve, 0));
 
           const skuIndex = finalHeaders.indexOf('SKU');
@@ -897,7 +897,6 @@ export default function ExcelVentasPage() {
           }
 
           setData(allEnrichedData);
-          setProgress(100);
 
         } catch (e: any) {
             console.error(e);
@@ -942,7 +941,7 @@ export default function ExcelVentasPage() {
         if (includeShippingIncome) return row;
 
         const newRow = [...row];
-        const ingEnvio = row[shippingIncomeIdx] || 0;
+        const ingEnvio = row[shippingIncomeIndex] || 0;
         const originalTotal = row[totalIndex] || 0;
         const newTotal = originalTotal - ingEnvio;
         newRow[totalIndex] = newTotal;
@@ -1364,7 +1363,6 @@ export default function ExcelVentasPage() {
   );
   const costoEnvioSum = createSumCalculator('Costos de envío (MXN)');
   const totalSum = createSumCalculator('RECIBES');
-  const descuentosSum = createSumCalculator('Descuentos y bonificaciones (MXN)');
 
   const colorCounters = React.useMemo(() => {
     const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
@@ -2176,7 +2174,7 @@ export default function ExcelVentasPage() {
                                           if (checked) setMarkupFilter('all');
                                       }}
                                   >
-                                      Mostrar solo negativos
+                                      Mostrar negativos
                                   </DropdownMenuCheckboxItem>
                                   <DropdownMenuCheckboxItem
                                       checked={granTotalFilter === 'neg_and_zero'}
@@ -2203,7 +2201,7 @@ export default function ExcelVentasPage() {
                                           if (checked) setMarkupFilter('all');
                                       }}
                                   >
-                                      Mostrar solo positivos (&gt;0)
+                                      Solo positivos (&gt;0)
                                   </DropdownMenuCheckboxItem>
                                   <DropdownMenuCheckboxItem
                                       checked={granTotalFilter === 'gt_zero_lt_five'}
@@ -2558,7 +2556,6 @@ export default function ExcelVentasPage() {
                             const excelRowNum = row[0];
                             const skuIndex = headers.indexOf('SKU');
                             const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
-                            const shippingIncomeIndex = headers.indexOf('Ingresos por envío (MXN)');
                             const shippingCost = shippingCostIndex > -1 ? row[shippingCostIndex] : 0;
                             const isHighShippingCost = typeof shippingCost === 'number' && shippingCost <= -300;
                             const estadoIndex = headers.indexOf('ESTADO');
