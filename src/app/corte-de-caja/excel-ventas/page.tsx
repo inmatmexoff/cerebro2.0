@@ -96,12 +96,12 @@ const COLUMN_MAPPING: { [key: string]: number } = {
   N: 13, // descuentos y bonificaciones
   O: 14, // anu_reembolsos
   P: 15, // total
-  Q: 16, // Orden de compra (New Column Q)
-  R: 17, // venta_xpublicidad (Shifted from Q)
-  S: 18, // sku (Shifted from R)
-  T: 19, // num_publi (Shifted from S)
-  U: 20, // tienda (Shifted from T)
-  Y: 24, // tip_publi (Shifted from X: 23)
+  Q: 16, // Orden de compra
+  R: 17, // venta_xpublicidad
+  S: 18, // sku
+  T: 19, // num_publi
+  U: 20, // tienda
+  Y: 24, // tip_publi
 };
 
 // Helper to parse currency strings like "$ 1,234.50" into numbers
@@ -394,7 +394,7 @@ export default function ExcelVentasPage() {
         const costoVentaMLIndex = headers.indexOf('VENTA TOTAL MERCADO LIBRE');
         const cargoVentaIndex = headers.indexOf('Cargo por venta e impuestos (MXN)');
         const costoEnvioIndex = headers.indexOf('Costos de envío (MXN)');
-        const totalIndex = headers.indexOf('Total');
+        const totalIndex = headers.indexOf('RECIBES');
 
         const originalCostoVentaML = rowData[costoVentaMLIndex] || 0;
         const originalCargoVenta = rowData[cargoVentaIndex] || 0;
@@ -780,6 +780,70 @@ export default function ExcelVentasPage() {
                       allEnrichedData[i][markupIndex] = newMarkup;
                   }
                 }
+              }
+            }
+          }
+
+          // --- Related Sales Detection & Shipping Cost Redistribution (98% -> 99%) ---
+          setProgress(98);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          const idIdx = 1;
+          const shippingIdx = 9;
+          const totalIdx = 19;
+          const landedIdx = 20;
+          const utilIdx = 21;
+          const markIdx = 22;
+
+          for (let i = 0; i < allEnrichedData.length; i++) {
+            const rowA = allEnrichedData[i];
+            const idAStr = String(rowA[idIdx] || '').trim();
+            if (!idAStr) continue;
+
+            for (let j = i + 1; j < allEnrichedData.length; j++) {
+              const rowB = allEnrichedData[j];
+              const idBStr = String(rowB[idIdx] || '').trim();
+              if (!idBStr) continue;
+
+              try {
+                // Use BigInt for precise comparison of long ML IDs
+                const idA = BigInt(idAStr);
+                const idB = BigInt(idBStr);
+                const diff = idA - idB;
+
+                if (diff === 2n || diff === -2n) {
+                  // MARK AS RELATED (visual highlight at index 23)
+                  rowA[23] = true;
+                  rowB[23] = true;
+
+                  const costA = rowA[shippingIdx] || 0;
+                  const costB = rowB[shippingIdx] || 0;
+
+                  // Condition: one has value, the other is NULL, 0 or empty
+                  if ((costA !== 0 && costB === 0) || (costA === 0 && costB !== 0)) {
+                    const sharedCost = (costA + costB) / 2;
+
+                    // Update Row A
+                    const oldCostA = rowA[shippingIdx] || 0;
+                    rowA[shippingIdx] = sharedCost;
+                    rowA[totalIdx] = (rowA[totalIdx] || 0) - oldCostA + sharedCost;
+                    rowA[utilIdx] = parseFloat(((rowA[totalIdx] || 0) - (rowA[landedIdx] || 0)).toFixed(2));
+                    if (rowA[landedIdx] > 0) {
+                        rowA[markIdx] = (rowA[utilIdx] / rowA[landedIdx]) * 100;
+                    }
+
+                    // Update Row B
+                    const oldCostB = rowB[shippingIdx] || 0;
+                    rowB[shippingIdx] = sharedCost;
+                    rowB[totalIdx] = (rowB[totalIdx] || 0) - oldCostB + sharedCost;
+                    rowB[utilIdx] = parseFloat(((rowB[totalIdx] || 0) - (rowB[landedIdx] || 0)).toFixed(2));
+                    if (rowB[landedIdx] > 0) {
+                        rowB[markIdx] = (rowB[utilIdx] / rowB[landedIdx]) * 100;
+                    }
+                  }
+                }
+              } catch (e) {
+                // Ignore non-numeric IDs
               }
             }
           }
@@ -2449,6 +2513,7 @@ export default function ExcelVentasPage() {
                             const estadoValue = estadoIndex > -1 ? String(row[estadoIndex] || '') : '';
                             const isPackage = estadoValue.toLowerCase().startsWith('paquete de');
                             const isCancelled = estadoValue.toLowerCase().includes('venta cancelada');
+                            const isRelated = row[23] === true;
                             const markupIndex = headers.indexOf('Markup (%)');
                             const markupValue = markupIndex > -1 ? row[markupIndex] : null;
                             const utilidadBrutaValue = utilidadBrutaIndex > -1 ? row[utilidadBrutaIndex] : null;
@@ -2463,10 +2528,11 @@ export default function ExcelVentasPage() {
                                 key={rowIndex} 
                                 id={`excel-row-${excelRowNum}`}
                                 className={cn(
+                                  isRelated && 'bg-[#f3e8ff] hover:bg-[#e9d5ff] data-[state=selected]:bg-[#d8b4fe]',
                                   isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                   isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200',
                                   isCancelled && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
-                                  !isCancelled && isRowColoringActive && typeof markupValue === 'number' && {
+                                  !isCancelled && isRowColoringActive && typeof markupValue === 'number' && !isRelated && {
                                     'bg-indigo-200 hover:bg-indigo-300/80 data-[state=selected]:bg-indigo-300': markupValue >= 80,
                                     'bg-sky-200 hover:bg-sky-300/80 data-[state=selected]:bg-sky-300': markupValue >= 50 && markupValue < 80,
                                     'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': markupValue >= 30 && markupValue < 50,
@@ -2475,7 +2541,7 @@ export default function ExcelVentasPage() {
                                     'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': markupValue >= 5 && markupValue < 10,
                                     'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue < 5 && utilidadBrutaValue !== 0,
                                   },
-                                  !isCancelled && isRowColoringActive && typeof markupValue !== 'number' && utilidadBrutaValue !== 0 && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
+                                  !isCancelled && isRowColoringActive && typeof markupValue !== 'number' && utilidadBrutaValue !== 0 && !isRelated && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
                               )}>
                                 <TableCell>
                                     <Checkbox
@@ -2503,7 +2569,7 @@ export default function ExcelVentasPage() {
                                         cell >= 0,
                                       'text-white': isCancelled
                                     },
-                                    !isCancelled && !isRowColoringActive && header === 'Markup (%)' && (
+                                    !isCancelled && !isRowColoringActive && !isRelated && header === 'Markup (%)' && (
                                       (typeof cell === 'number' && {
                                         'bg-indigo-200': cell >= 80,
                                         'bg-sky-200': cell >= 50 && cell < 80,
@@ -2796,7 +2862,7 @@ export default function ExcelVentasPage() {
                                                                 >
                                                                 {item.pubId}
                                                                 </span>
-                                                            </TableCell>
+                              </TableCell>
                                                             <TableCell className="text-right text-muted-foreground">{item.unidades}</TableCell>
                                                             <TableCell className="text-right text-muted-foreground">{item.totalPorUnidad.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
                                                             <TableCell className={cn("text-right text-sm", item.total >= 0 ? "text-green-700" : "text-red-700")}>{item.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>

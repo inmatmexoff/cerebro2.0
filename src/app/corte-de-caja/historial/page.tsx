@@ -259,8 +259,8 @@ export default function HistorialCortesPage() {
   };
 
   const handleClearFilters = () => {
-    setFilterValue("");
-    setDebouncedFilterValue("");
+    setSearchTerm("");
+    setDebouncedSearchTerm("");
     setStartDate(null);
     setEndDate(null);
     setCompany(undefined);
@@ -495,7 +495,35 @@ export default function HistorialCortesPage() {
             };
         });
 
-        setSales(enrichedData as SaleRecord[]);
+        // --- Related Sales Detection (Visual only for Historial) ---
+        const salesWithRelations = enrichedData.map(s => ({ ...s, isRelated: false }));
+        
+        for (let i = 0; i < salesWithRelations.length; i++) {
+            const saleA = salesWithRelations[i];
+            const idAStr = String(saleA.num_venta || '').trim();
+            if (!idAStr) continue;
+
+            for (let j = i + 1; j < salesWithRelations.length; j++) {
+                const saleB = salesWithRelations[j];
+                const idBStr = String(saleB.num_venta || '').trim();
+                if (!idBStr) continue;
+
+                try {
+                    const idA = BigInt(idAStr);
+                    const idB = BigInt(idBStr);
+                    const diff = idA - idB;
+
+                    if (diff === 2n || diff === -2n) {
+                        (saleA as any).isRelated = true;
+                        (saleB as any).isRelated = true;
+                    }
+                } catch (e) {
+                    // Ignore non-numeric IDs
+                }
+            }
+        }
+
+        setSales(salesWithRelations as SaleRecord[]);
 
     } catch (err: any) {
         setError('No se pudo cargar el historial de ventas.');
@@ -629,7 +657,7 @@ export default function HistorialCortesPage() {
 
         let utilidadBrutaMatch = true;
         if (granTotalFilter === 'negative') {
-            utilidatBrutaMatch = (sale.total_final ?? 0) < 0;
+            utilidadBrutaMatch = (sale.total_final ?? 0) < 0;
         } else if (granTotalFilter === 'positive') {
             utilidadBrutaMatch = (sale.total_final ?? 0) >= 0;
         } else if (granTotalFilter === 'strictly_positive') {
@@ -784,15 +812,15 @@ export default function HistorialCortesPage() {
         }
 
         if (typeof sale.total_final === 'number') {
-            acc[acc.sub_cat ? acc.sub_cat : subCat].totalUtilidad += sale.total_final;
+            acc[subCat].totalUtilidad += sale.total_final;
         }
         if (typeof sale.landed_cost === 'number' && sale.landed_cost > 0) { 
-            acc[acc.sub_cat ? acc.sub_cat : subCat].totalLandedCost += sale.landed_cost;
+            acc[subCat].totalLandedCost += sale.landed_cost;
         }
         if (sale.num_publi) {
-            acc[acc.sub_cat ? acc.sub_cat : subCat].publications.add(sale.num_publi);
+            acc[subCat].publications.add(sale.num_publi);
         }
-        acc[acc.sub_cat ? acc.sub_cat : subCat].count += 1;
+        acc[subCat].count += 1;
         return acc;
     }, {} as Record<string, { totalUtilidad: number; totalLandedCost: number; count: number; publications: Set<string> }>);
 
@@ -1531,14 +1559,16 @@ export default function HistorialCortesPage() {
                             ) : paginatedItems.length > 0 ? (
                                 paginatedItems.map((sale) => {
                                     const isCancelled = (sale.status || '').toLowerCase().includes('venta cancelada');
+                                    const isRelated = (sale as any).isRelated === true;
                                     
                                     return (
                                         <TableRow 
                                             key={sale.id}
                                             className={cn(
+                                                isRelated && 'bg-[#f3e8ff] hover:bg-[#e9d5ff] data-[state=selected]:bg-[#d8b4fe]',
                                                 (sale.status || '').toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                                 isCancelled && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
-                                                !isCancelled && isRowColoringActive && typeof sale.markup === 'number' && {
+                                                !isCancelled && isRowColoringActive && typeof sale.markup === 'number' && !isRelated && {
                                                     'bg-indigo-200 hover:bg-indigo-300/80 data-[state=selected]:bg-indigo-300': sale.markup >= 80,
                                                     'bg-sky-200 hover:bg-sky-300/80 data-[state=selected]:bg-sky-300': sale.markup >= 50 && sale.markup < 80,
                                                     'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30 && sale.markup < 50,
@@ -1547,7 +1577,7 @@ export default function HistorialCortesPage() {
                                                     'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': sale.markup >= 5 && sale.markup < 10,
                                                     'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': sale.markup < 5 && sale.total_final !== 0,
                                                 },
-                                                !isCancelled && isRowColoringActive && typeof sale.markup !== 'number' && sale.total_final !== 0 && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
+                                                !isCancelled && isRowColoringActive && typeof sale.markup !== 'number' && sale.total_final !== 0 && !isRelated && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
                                             )}
                                         >
                                         {headers.map((header) => {
@@ -1605,7 +1635,7 @@ export default function HistorialCortesPage() {
                                                         'font-medium text-green-700': !isCancelled && header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) >= 0,
                                                         'text-white': isCancelled
                                                     },
-                                                    !isCancelled && !isRowColoringActive && header.key === 'markup' && (
+                                                    !isCancelled && !isRowColoringActive && !isRelated && header.key === 'markup' && (
                                                       (typeof cellValue === 'number' && {
                                                           'bg-indigo-200': cellValue >= 80,
                                                           'bg-sky-200': cellValue >= 50 && cellValue < 80,
