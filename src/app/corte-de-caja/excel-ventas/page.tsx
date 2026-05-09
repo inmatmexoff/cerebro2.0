@@ -514,27 +514,26 @@ export default function ExcelVentasPage() {
             );
           }
 
-          const headerRow = json[5] || [];
           const finalHeaders = [
             'Fila', // 0
             'ID', // 1
-            headerRow[COLUMN_MAPPING.B] || 'Fecha de venta', // 2
-            headerRow[COLUMN_MAPPING.C] || 'ESTADO', // 3
-            headerRow[COLUMN_MAPPING.G] || 'Unidades', // 4
-            headerRow[COLUMN_MAPPING.S] || 'SKU', // 5
+            'Fecha de venta', // 2
+            'ESTADO', // 3
+            'Unidades', // 4
+            'SKU', // 5
             'Subcategoría', // 6
             'VENTA TOTAL MERCADO LIBRE', // 7
             'Cargo por venta e impuestos (MXN)', // 8
             'Costos de envío (MXN)', // 9
             'Ingresos por envío (MXN)', // 10
-            headerRow[COLUMN_MAPPING.M] || 'Cargo por diferencia de peso (MXN)', // 11
-            headerRow[COLUMN_MAPPING.N] || 'Descuentos y bonificaciones (MXN)', // 12
-            headerRow[COLUMN_MAPPING.O] || 'Anulaciones y reembolsos (MXN)', // 13
+            'Cargo por diferencia de peso (MXN)', // 11
+            'Descuentos y bonificaciones (MXN)', // 12
+            'Anulaciones y reembolsos (MXN)', // 13
             'Orden de compra', // 14
-            headerRow[COLUMN_MAPPING.R] || 'Venta por Publicidad', // 15
-            headerRow[COLUMN_MAPPING.T] || '# de publicación', // 16
-            headerRow[COLUMN_MAPPING.U] || 'Tienda', // 17
-            headerRow[COLUMN_MAPPING.Y] || 'Tipo de publicación', // 18
+            'Venta por Publicidad', // 15
+            '# de publicación', // 16
+            'Tienda', // 17
+            'Tipo de publicación', // 18
             'RECIBES', // 19
             'Landed Cost Total', // 20
             'Utilidad Bruta', // 21
@@ -1069,10 +1068,9 @@ export default function ExcelVentasPage() {
     return React.useMemo(() => {
       const index = headers.indexOf(columnName);
       const estadoIndex = headers.indexOf('ESTADO');
-      if (index === -1) return 0;
+      if (index === -1 || estadoIndex === -1) return 0;
       return filteredData.reduce((sum, row) => {
-        const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
-        const isCancelled = estadoValue.includes('venta cancelada');
+        const isCancelled = String(row[estadoIndex] || '').toLowerCase().includes('venta cancelada');
         
         // Exclude cancelled sales from financial totals unless we are explicitly filtering for them
         if (isCancelled && granTotalFilter !== 'cancelled') {
@@ -1089,10 +1087,10 @@ export default function ExcelVentasPage() {
   const unfilteredUtilidadBrutaSum = React.useMemo(() => {
     const index = headers.indexOf('Utilidad Bruta');
     const estadoIndex = headers.indexOf('ESTADO');
-    if (index === -1) return 0;
+    if (index === -1 || estadoIndex === -1) return 0;
     return filteredData.reduce((sum, row) => {
-      const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
-      if (estadoValue.includes('venta cancelada')) return sum;
+      const isCancelled = String(row[estadoIndex] || '').toLowerCase().includes('venta cancelada');
+      if (isCancelled) return sum;
       const value = row[index];
       return sum + (typeof value === 'number' ? value : 0);
     }, 0);
@@ -1101,10 +1099,10 @@ export default function ExcelVentasPage() {
   const unfilteredLandedCostSum = React.useMemo(() => {
     const index = headers.indexOf('Landed Cost Total');
     const estadoIndex = headers.indexOf('ESTADO');
-    if (index === -1) return 0;
+    if (index === -1 || estadoIndex === -1) return 0;
     return filteredData.reduce((sum, row) => {
-      const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
-      if (estadoValue.includes('venta cancelada')) return sum;
+      const isCancelled = String(row[estadoIndex] || '').toLowerCase().includes('venta cancelada');
+      if (isCancelled) return sum;
       const value = row[index];
       return sum + (typeof value === 'number' ? value : 0);
     }, 0);
@@ -1113,10 +1111,10 @@ export default function ExcelVentasPage() {
   const unfilteredIngresosPorProductosSum = React.useMemo(() => {
     const index = headers.indexOf('VENTA TOTAL MERCADO LIBRE');
     const estadoIndex = headers.indexOf('ESTADO');
-    if (index === -1) return 0;
+    if (index === -1 || estadoIndex === -1) return 0;
     return filteredData.reduce((sum, row) => {
-      const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
-      if (estadoValue.includes('venta cancelada')) return sum;
+      const isCancelled = String(row[estadoIndex] || '').toLowerCase().includes('venta cancelada');
+      if (isCancelled) return sum;
       const value = row[index];
       return sum + (typeof value === 'number' ? value : 0);
     }, 0);
@@ -1130,11 +1128,11 @@ export default function ExcelVentasPage() {
     const pubIndex = headers.indexOf('# de publicación');
     const estadoIndex = headers.indexOf('ESTADO');
 
-    if (subCatIndex === -1 || utilidadBrutaIndex === -1 || landedCostTotalIndex === -1 || pubIndex === -1) return [];
+    if (subCatIndex === -1 || utilidadBrutaIndex === -1 || landedCostTotalIndex === -1 || pubIndex === -1 || estadoIndex === -1) return [];
 
     const summary = filteredData.reduce((acc, sale) => {
-        const estadoValue = estadoIndex !== -1 ? String(sale[estadoIndex] || '').toLowerCase() : '';
-        if (estadoValue.includes('venta cancelada') && granTotalFilter !== 'cancelled') return acc;
+        const isCancelled = String(sale[estadoIndex] || '').toLowerCase().includes('venta cancelada');
+        if (isCancelled && granTotalFilter !== 'cancelled') return acc;
 
         const subCat = sale[subCatIndex] || 'Sin Subcategoría';
         if (!acc[subCat]) {
@@ -1176,7 +1174,7 @@ export default function ExcelVentasPage() {
       const idIndex = headers.indexOf('ID');
       const estadoIndex = headers.indexOf('ESTADO');
   
-      if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && utilidadBrutaIndex > -1 && markupIndex > -1) {
+      if (pubIndex > -1 && skuIndex > -1 && unidadesIndex > -1 && utilidadBrutaIndex > -1 && markupIndex > -1 && estadoIndex > -1) {
           const summary: { [key: string]: { pubId: string; sku: string; unidades: number; total: number; } } = {};
           const dataToSummarize = markupFilter === 'all' ? filteredData : filteredData.filter(row => {
             const markupValue = row[markupIndex];
@@ -1198,8 +1196,8 @@ export default function ExcelVentasPage() {
           });
   
           dataToSummarize.forEach(row => {
-              const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
-              if (estadoValue.includes('venta cancelada') && granTotalFilter !== 'cancelled') return;
+              const isCancelled = String(row[estadoIndex] || '').toLowerCase().includes('venta cancelada');
+              if (isCancelled && granTotalFilter !== 'cancelled') return;
 
               const pubId = String(row[pubIndex] || '').trim();
               const sku = String(row[skuIndex] || '').trim();
@@ -1218,8 +1216,8 @@ export default function ExcelVentasPage() {
           const summaryValues = Object.values(summary);
           
           const totalOfUtilidadBruta = dataToSummarize.reduce((sum, row) => {
-              const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
-              if (estadoValue.includes('venta cancelada') && granTotalFilter !== 'cancelled') return sum;
+              const isCancelled = String(row[estadoIndex] || '').toLowerCase().includes('venta cancelada');
+              if (isCancelled && granTotalFilter !== 'cancelled') return sum;
               return sum + (row[utilidadBrutaIndex] as number || 0);
           }, 0);
   
@@ -1278,8 +1276,8 @@ export default function ExcelVentasPage() {
           let currentTotalUnidades = 0;
           
           filteredData.forEach(row => {
-              const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
-              if (estadoValue.includes('venta cancelada') && granTotalFilter !== 'cancelled') return;
+              const isCancelled = String(row[estadoIndex] || '').toLowerCase().includes('venta cancelada');
+              if (isCancelled && granTotalFilter !== 'cancelled') return;
 
               const pubId = String(row[pubIndex] || '').trim();
               const sku = String(row[skuIndex] || '').trim();
@@ -1367,14 +1365,14 @@ export default function ExcelVentasPage() {
   const colorCounters = React.useMemo(() => {
     const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
     const estadoIndex = headers.indexOf('ESTADO');
-    if (filteredData.length === 0) return counters;
+    if (filteredData.length === 0 || estadoIndex === -1) return counters;
 
     const markupIndex = headers.indexOf('Markup (%)');
     if (markupIndex === -1) return counters;
 
     filteredData.forEach(row => {
-      const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
-      if (estadoValue.includes('venta cancelada') && granTotalFilter !== 'cancelled') return;
+      const isCancelled = String(row[estadoIndex] || '').toLowerCase().includes('venta cancelada');
+      if (isCancelled && granTotalFilter !== 'cancelled') return;
 
       const markupValue = row[markupIndex];
       const utilidadBruta = row[utilidadBrutaIndex];
@@ -1998,8 +1996,8 @@ export default function ExcelVentasPage() {
       .filter(row => {
           const markupIndex = headers.indexOf('Markup (%)');
           const estadoIndex = headers.indexOf('ESTADO');
-          const estadoValue = estadoIndex !== -1 ? String(row[estadoIndex] || '').toLowerCase() : '';
-          return markupIndex > -1 && typeof row[markupIndex] === 'number' && !estadoValue.includes('venta cancelada');
+          const isCancelled = estadoIndex !== -1 && String(row[estadoIndex] || '').toLowerCase().includes('venta cancelada');
+          return markupIndex > -1 && typeof row[markupIndex] === 'number' && !isCancelled;
       })
       .sort((a, b) => {
           const markupIndex = headers.indexOf('Markup (%)');
@@ -3226,8 +3224,10 @@ export default function ExcelVentasPage() {
               <ul className="list-disc pl-5 mt-2 space-y-1 text-sm text-muted-foreground">
                 {lowMarkupUncheckedRows.map((row) => {
                   const fila = row[0];
-                  const sku = row[headers.indexOf('SKU')];
-                  const markup = row[headers.indexOf('Markup (%)')];
+                  const skuIndex = headers.indexOf('SKU');
+                  const markupIndex = headers.indexOf('Markup (%)');
+                  const sku = skuIndex !== -1 ? row[skuIndex] : 'N/A';
+                  const markup = markupIndex !== -1 ? row[markupIndex] : 0;
                   return (
                     <li key={fila}>
                       Fila Excel{' '}
