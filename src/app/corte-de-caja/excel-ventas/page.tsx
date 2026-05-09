@@ -70,7 +70,7 @@ import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
@@ -254,7 +254,7 @@ export default function ExcelVentasPage() {
   const [filteredSkus, setFilteredSkus] = useState<string[]>([]);
   const [skuSummary, setSkuSummary] = useState<any[]>([]);
   const [colorSummary, setColorSummary] = useState<any[]>([]);
-  const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red' | 'superGreen' | 'ultraGreen'>('all');
+  const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red' | 'superGreen' | 'ultraGreen' | 'negative'>('all');
   const [activeTab, setActiveTab] = useState<'sku' | 'color' | 'subcategoria'>('color');
   const [validationIssues, setValidationIssues] = useState<{ emptySkus: { rows: number[] }, invalidLandedCosts: { rows: number[] } } | null>(null);
 
@@ -460,7 +460,7 @@ export default function ExcelVentasPage() {
     });
   };
   
-  const handleMarkupFilterClick = (filter: 'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red' | 'superGreen' | 'ultraGreen') => {
+  const handleMarkupFilterClick = (filter: 'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red' | 'superGreen' | 'ultraGreen' | 'negative') => {
     const newFilter = markupFilter === filter ? 'all' : filter;
     if (newFilter !== 'all') {
         setGranTotalFilter('all');
@@ -1011,10 +1011,17 @@ export default function ExcelVentasPage() {
                   case 'lightGreen': markupMatch = markupValue >= 20 && markupValue < 30; break;
                   case 'orange': markupMatch = markupValue >= 10 && markupValue < 20; break;
                   case 'yellow': markupMatch = markupValue >= 5 && markupValue < 10; break;
-                  case 'red': markupMatch = markupValue < 5 && utilidadBruta !== 0; break;
+                  case 'red': markupMatch = markupValue >= 0 && markupValue < 5 && utilidadBruta !== 0; break;
+                  case 'negative': markupMatch = markupValue < 0; break;
               }
           } else {
-            markupMatch = markupFilter === 'red' && utilidadBruta !== 0;
+            if (markupFilter === 'negative') {
+                markupMatch = typeof utilidadBruta === 'number' && utilidadBruta < 0;
+            } else if (markupFilter === 'red') {
+                markupMatch = typeof utilidadBruta === 'number' && utilidadBruta > 0;
+            } else {
+                markupMatch = false;
+            }
           }
       }
       
@@ -1180,7 +1187,8 @@ export default function ExcelVentasPage() {
             const markupValue = row[markupIndex];
             const utilidadBruta = row[utilidadBrutaIndex];
             if (typeof markupValue !== 'number') {
-              if (markupFilter === 'red') return utilidadBruta !== 0;
+              if (markupFilter === 'negative') return typeof utilidadBruta === 'number' && utilidadBruta < 0;
+              if (markupFilter === 'red') return typeof utilidadBruta === 'number' && utilidadBruta > 0;
               return false;
             }
             switch (markupFilter) {
@@ -1190,7 +1198,8 @@ export default function ExcelVentasPage() {
                   case 'lightGreen': return markupValue >= 20 && markupValue < 30;
                   case 'orange': return markupValue >= 10 && markupValue < 20;
                   case 'yellow': return markupValue >= 5 && markupValue < 10;
-                  case 'red': return markupValue < 5 && utilidadBruta !== 0;
+                  case 'red': return markupValue >= 0 && markupValue < 5 && utilidadBruta !== 0;
+                  case 'negative': return markupValue < 0;
                   default: return false;
               }
           });
@@ -1267,7 +1276,8 @@ export default function ExcelVentasPage() {
               lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0, pedidos: new Set<string>() },
               orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0, pedidos: new Set<string>() },
               yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0, pedidos: new Set<string>() },
-              red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0, pedidos: new Set<string>() },
+              red: { label: '0-4.9%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0, pedidos: new Set<string>() },
+              negative: { label: '< 0%', colorClass: 'bg-red-600 border-red-800 text-white', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, count: 0, pedidos: new Set<string>() },
           };
 
           const allUniquePubs = new Set<string>();
@@ -1299,9 +1309,11 @@ export default function ExcelVentasPage() {
                   else if (markupValue >= 20) category = summaryByColor.lightGreen;
                   else if (markupValue >= 10) category = summaryByColor.orange;
                   else if (markupValue >= 5) category = summaryByColor.yellow;
-                  else if (markupValue < 5 && utilidadBrutaValue !== 0) category = summaryByColor.red;
-              } else if (utilidadBrutaValue !== 0) {
-                  category = summaryByColor.red;
+                  else if (markupValue >= 0 && utilidadBrutaValue !== 0) category = summaryByColor.red;
+                  else if (markupValue < 0) category = summaryByColor.negative;
+              } else if (utilidadBrutaValue !== null && utilidadBrutaValue !== 0) {
+                  if (utilidadBrutaValue < 0) category = summaryByColor.negative;
+                  else category = summaryByColor.red;
               }
       
               if (category) {
@@ -1323,7 +1335,7 @@ export default function ExcelVentasPage() {
           setTotalUnidades(currentTotalUnidades);
 
           const totalPedidos = allUniquePedidos.size;
-          const pedidosMargenBajo = summaryByColor.red.pedidos.size;
+          const pedidosMargenBajo = summaryByColor.negative.pedidos.size + summaryByColor.red.pedidos.size;
 
           setExecutiveKpis({
             gananciaPromedioPorPedido: totalPedidos > 0 ? utilidadBrutaSum / totalPedidos : 0,
@@ -1363,7 +1375,7 @@ export default function ExcelVentasPage() {
   const totalSum = createSumCalculator('RECIBES');
 
   const colorCounters = React.useMemo(() => {
-    const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
+    const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0, negative: 0 };
     const estadoIndex = headers.indexOf('ESTADO');
     if (filteredData.length === 0 || estadoIndex === -1) return counters;
 
@@ -1383,11 +1395,16 @@ export default function ExcelVentasPage() {
         else if (markupValue >= 20) counters.lightGreen++;
         else if (markupValue >= 10) counters.orange++;
         else if (markupValue >= 5) counters.yellow++;
-        else if (markupValue < 5) {
+        else if (markupValue >= 0) {
             if (utilidadBruta !== 0) counters.red++;
+        } else {
+            counters.negative++;
         }
       } else {
-        if (utilidadBruta !== 0) counters.red++;
+        if (utilidadBruta !== null && utilidadBruta !== 0) {
+            if (utilidadBruta < 0) counters.negative++;
+            else counters.red++;
+        }
       }
     });
 
@@ -2483,8 +2500,14 @@ export default function ExcelVentasPage() {
                               <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('red')}>
                                   <div className={cn("w-3 h-3 rounded-full bg-red-100 border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
                                   <span className="font-bold">{colorCounters.red}</span>
-                                  <span className="text-muted-foreground">{'<' }5%</span>
-                                  <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '< 5%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                                  <span className="text-muted-foreground">0-4.9%</span>
+                                  <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '0-4.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                              </div>
+                              <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('negative')}>
+                                  <div className={cn("w-3 h-3 rounded-full bg-red-600 border-red-800", markupFilter === 'negative' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                  <span className="font-bold">{colorCounters.negative}</span>
+                                  <span className="text-muted-foreground">{'<' }0%</span>
+                                  <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '< 0%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                               </div>
                           </div>
                       </div>
@@ -2586,9 +2609,10 @@ export default function ExcelVentasPage() {
                                     'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': markupValue >= 20 && markupValue < 30,
                                     'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': markupValue >= 10 && markupValue < 20,
                                     'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': markupValue >= 5 && markupValue < 10,
-                                    'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue < 5 && utilidadBrutaValue !== 0,
+                                    'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue >= 0 && markupValue < 5 && utilidadBrutaValue !== 0,
+                                    'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700': markupValue < 0,
                                   },
-                                  !isCancelled && isRowColoringActive && typeof markupValue !== 'number' && utilidadBrutaValue !== 0 && !isRelated && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
+                                  !isCancelled && isRowColoringActive && typeof markupValue !== 'number' && utilidadBrutaValue !== 0 && !isRelated && (utilidadBrutaValue < 0 ? 'bg-red-600 text-white' : 'bg-red-100')
                               )}>
                                 <TableCell>
                                     <Checkbox
@@ -2615,7 +2639,7 @@ export default function ExcelVentasPage() {
                                         header === 'Utilidad Bruta' &&
                                         typeof cell === 'number' &&
                                         cell >= 0,
-                                      'text-white': isCancelled
+                                      'text-white': isCancelled || (!isCancelled && typeof markupValue === 'number' && markupValue < 0 && isRowColoringActive)
                                     },
                                     !isCancelled && !isRowColoringActive && !isRelated && header === 'Markup (%)' && (
                                       (typeof cell === 'number' && {
@@ -2625,8 +2649,9 @@ export default function ExcelVentasPage() {
                                         'bg-green-100': cell >= 20 && cell < 30,
                                         'bg-orange-100': cell >= 10 && cell < 20,
                                         'bg-yellow-100': cell >= 5 && cell < 10,
-                                        'bg-red-100': cell < 5 && row[utilidadBrutaIndex] !== 0,
-                                      }) || (typeof cell !== 'number' && row[utilidadBrutaIndex] !== 0 && 'bg-red-100')
+                                        'bg-red-100': cell >= 0 && cell < 5 && row[utilidadBrutaIndex] !== 0,
+                                        'bg-red-600 text-white': cell < 0,
+                                      }) || (typeof cell !== 'number' && row[utilidadBrutaIndex] !== 0 && (row[utilidadBrutaIndex] < 0 ? 'bg-red-600 text-white' : 'bg-red-100'))
                                     ))}
                                   >
                                     {(() => {
