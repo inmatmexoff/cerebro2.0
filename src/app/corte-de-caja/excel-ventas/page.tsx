@@ -2587,6 +2587,7 @@ export default function ExcelVentasPage() {
                             const markupIndex = headers.indexOf('Markup (%)');
                             const markupValue = markupIndex > -1 ? row[markupIndex] : null;
                             const utilidadBrutaValue = utilidadBrutaIndex > -1 ? row[utilidadBrutaIndex] : null;
+                            const isNegative = (typeof markupValue === 'number' && markupValue < 0) || (typeof markupValue !== 'number' && typeof utilidadBrutaValue === 'number' && utilidadBrutaValue < 0);
                             const editableColsForManualEntry = [
                                 'VENTA TOTAL MERCADO LIBRE',
                                 'Cargo por venta e impuestos (MXN)',
@@ -2601,8 +2602,10 @@ export default function ExcelVentasPage() {
                                   isRelated && 'bg-[#f3e8ff] hover:bg-[#e9d5ff] data-[state=selected]:bg-[#d8b4fe]',
                                   isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                   isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200',
-                                  isCancelled && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
-                                  !isCancelled && isRowColoringActive && typeof markupValue === 'number' && !isRelated && {
+                                  // Highlight in Red if cancelled OR if it's a negative markup (and coloring is active)
+                                  (isCancelled || (isRowColoringActive && isNegative)) && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
+                                  // Normal markup colors apply only if NOT Red and NOT related
+                                  !isCancelled && !isNegative && isRowColoringActive && typeof markupValue === 'number' && !isRelated && {
                                     'bg-indigo-200 hover:bg-indigo-300/80 data-[state=selected]:bg-indigo-300': markupValue >= 80,
                                     'bg-sky-200 hover:bg-sky-300/80 data-[state=selected]:bg-sky-300': markupValue >= 50 && markupValue < 80,
                                     'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': markupValue >= 30 && markupValue < 50,
@@ -2610,9 +2613,8 @@ export default function ExcelVentasPage() {
                                     'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': markupValue >= 10 && markupValue < 20,
                                     'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': markupValue >= 5 && markupValue < 10,
                                     'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue >= 0 && markupValue < 5 && utilidadBrutaValue !== 0,
-                                    'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700': markupValue < 0,
                                   },
-                                  !isCancelled && isRowColoringActive && typeof markupValue !== 'number' && utilidadBrutaValue !== 0 && !isRelated && (utilidadBrutaValue < 0 ? 'bg-red-600 text-white' : 'bg-red-100')
+                                  !isCancelled && !isNegative && isRowColoringActive && typeof markupValue !== 'number' && utilidadBrutaValue > 0 && !isRelated && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
                               )}>
                                 <TableCell>
                                     <Checkbox
@@ -2630,16 +2632,16 @@ export default function ExcelVentasPage() {
                                     key={cellIndex}
                                     className={cn({
                                       'text-red-800 font-medium':
-                                        !isCancelled &&
+                                        !isCancelled && !(isNegative && isRowColoringActive) &&
                                         header === 'Utilidad Bruta' &&
                                         typeof cell === 'number' &&
                                         cell < 0,
                                       'text-green-800 font-medium':
-                                        !isCancelled &&
+                                        !isCancelled && !(isNegative && isRowColoringActive) &&
                                         header === 'Utilidad Bruta' &&
                                         typeof cell === 'number' &&
                                         cell >= 0,
-                                      'text-white': isCancelled || (!isCancelled && typeof markupValue === 'number' && markupValue < 0 && isRowColoringActive)
+                                      'text-white': isCancelled || (isNegative && isRowColoringActive)
                                     },
                                     !isCancelled && !isRowColoringActive && !isRelated && header === 'Markup (%)' && (
                                       (typeof cell === 'number' && {
@@ -2658,7 +2660,7 @@ export default function ExcelVentasPage() {
                                       if (header === '# de publicación' && cell) {
                                         return (
                                           <span
-                                            className={cn("cursor-pointer hover:font-medium", !isCancelled && "hover:text-primary")}
+                                            className={cn("cursor-pointer hover:font-medium", !(isCancelled || (isNegative && isRowColoringActive)) && "hover:text-primary")}
                                             onClick={() => handleCopyToClipboard(String(cell))}
                                           >
                                             {String(cell)}
@@ -2693,7 +2695,7 @@ export default function ExcelVentasPage() {
                                                 handleEditClick(row)
                                               }
                                             >
-                                              <Pencil className={cn("h-4 w-4", !isCancelled ? "text-primary" : "text-white")} />
+                                              <Pencil className={cn("h-4 w-4", !(isCancelled || (isNegative && isRowColoringActive)) ? "text-primary" : "text-white")} />
                                             </Button>
                                           </div>
                                         );
@@ -2709,7 +2711,7 @@ export default function ExcelVentasPage() {
                                               className="h-8 w-8"
                                               onClick={() => handleManualEntryClick(row)}
                                             >
-                                              <Pencil className={cn("h-4 w-4", !isCancelled ? "text-primary" : "text-white")} />
+                                              <Pencil className={cn("h-4 w-4", !(isCancelled || (isNegative && isRowColoringActive)) ? "text-primary" : "text-white")} />
                                             </Button>
                                           </div>
                                         )

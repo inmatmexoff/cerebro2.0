@@ -1204,7 +1204,7 @@ export default function HistorialCortesPage() {
                         </CardDescription>
                     </div>
                     <div className="flex items-center gap-2 w-full md:w-auto">
-                        <div className="relative w-full md:w-auto flex-grow">
+                        <div className="relative w-full md:max-w-xs flex-grow">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="Buscar por SKU, ID, # de Publicación..."
@@ -1560,6 +1560,7 @@ export default function HistorialCortesPage() {
                                 paginatedItems.map((sale) => {
                                     const isCancelled = (sale.status || '').toLowerCase().includes('venta cancelada');
                                     const isRelated = (sale as any).isRelated === true;
+                                    const isNegative = (typeof sale.markup === 'number' && sale.markup < 0) || (typeof sale.markup !== 'number' && typeof sale.total_final === 'number' && sale.total_final < 0);
                                     
                                     return (
                                         <TableRow 
@@ -1567,8 +1568,9 @@ export default function HistorialCortesPage() {
                                             className={cn(
                                                 isRelated && 'bg-[#f3e8ff] hover:bg-[#e9d5ff] data-[state=selected]:bg-[#d8b4fe]',
                                                 (sale.status || '').toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
-                                                isCancelled && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
-                                                !isCancelled && isRowColoringActive && typeof sale.markup === 'number' && !isRelated && {
+                                                // High priority for Red (Cancelled or Negative Markup)
+                                                (isCancelled || (isRowColoringActive && isNegative)) && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
+                                                !isCancelled && !isNegative && isRowColoringActive && typeof sale.markup === 'number' && !isRelated && {
                                                     'bg-indigo-200 hover:bg-indigo-300/80 data-[state=selected]:bg-indigo-300': sale.markup >= 80,
                                                     'bg-sky-200 hover:bg-sky-300/80 data-[state=selected]:bg-sky-300': sale.markup >= 50 && sale.markup < 80,
                                                     'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': sale.markup >= 30 && sale.markup < 50,
@@ -1577,7 +1579,7 @@ export default function HistorialCortesPage() {
                                                     'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': sale.markup >= 5 && sale.markup < 10,
                                                     'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': sale.markup < 5 && sale.total_final !== 0,
                                                 },
-                                                !isCancelled && isRowColoringActive && typeof sale.markup !== 'number' && sale.total_final !== 0 && !isRelated && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
+                                                !isCancelled && !isNegative && isRowColoringActive && typeof sale.markup !== 'number' && sale.total_final > 0 && !isRelated && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
                                             )}
                                         >
                                         {headers.map((header) => {
@@ -1592,7 +1594,7 @@ export default function HistorialCortesPage() {
                                                         <div className="flex items-center justify-end gap-2 -mr-4">
                                                             <span>{formatCurrency(cost)}</span>
                                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(sale)}>
-                                                                <Pencil className={cn("h-4 w-4", !isCancelled ? "text-primary" : "text-white")} />
+                                                                <Pencil className={cn("h-4 w-4", !(isCancelled || (isNegative && isRowColoringActive)) ? "text-primary" : "text-white")} />
                                                             </Button>
                                                         </div>
                                                     );
@@ -1614,7 +1616,7 @@ export default function HistorialCortesPage() {
                                             } else if ((header.key === 'num_publi' || header.key === 'sku' || header.key === 'num_venta') && cellValue) {
                                                 formattedValue = (
                                                     <span
-                                                        className={cn("cursor-pointer hover:font-medium", !isCancelled && "hover:text-primary")}
+                                                        className={cn("cursor-pointer hover:font-medium", !(isCancelled || (isNegative && isRowColoringActive)) && "hover:text-primary")}
                                                         onClick={() => handleCopyToClipboard(String(cellValue))}
                                                     >
                                                         {String(cellValue)}
@@ -1631,9 +1633,9 @@ export default function HistorialCortesPage() {
                                                     key={header.key} 
                                                     className={cn({
                                                         'text-right': numericColumns.includes(header.key),
-                                                        'font-medium text-red-600': !isCancelled && header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) < 0,
-                                                        'font-medium text-green-700': !isCancelled && header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) >= 0,
-                                                        'text-white': isCancelled
+                                                        'font-medium text-red-600': !(isCancelled || (isNegative && isRowColoringActive)) && header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) < 0,
+                                                        'font-medium text-green-700': !(isCancelled || (isNegative && isRowColoringActive)) && header.key === 'total_final' && (cellValue as number | null) !== null && (cellValue as number) >= 0,
+                                                        'text-white': isCancelled || (isNegative && isRowColoringActive)
                                                     },
                                                     !isCancelled && !isRowColoringActive && !isRelated && header.key === 'markup' && (
                                                       (typeof cellValue === 'number' && {
@@ -1644,8 +1646,9 @@ export default function HistorialCortesPage() {
                                                           'bg-orange-100': cellValue >= 10 && cellValue < 20,
                                                           'bg-yellow-100': cellValue >= 5 && cellValue < 10,
                                                           'bg-red-100': cellValue < 5 && sale.total_final !== 0,
+                                                          'bg-red-600 text-white': cellValue < 0,
                                                       }) ||
-                                                      (typeof cellValue !== 'number' && sale.total_final !== 0 && 'bg-red-100')
+                                                      (typeof cellValue !== 'number' && sale.total_final !== 0 && (sale.total_final < 0 ? 'bg-red-600 text-white' : 'bg-red-100'))
                                                     ))}>
                                                     {formattedValue}
                                                 </TableCell>
