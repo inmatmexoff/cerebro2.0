@@ -19,7 +19,7 @@ import {
   Maximize,
   Minimize,
   ChevronDown,
-  LayoutColumns,
+  Columns2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -2178,7 +2178,7 @@ export default function ExcelVentasPage() {
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="outline" size="sm" className="h-9">
-                                <LayoutColumns className="mr-2 h-4 w-4" />
+                                <Columns2 className="mr-2 h-4 w-4" />
                                 Columnas
                               </Button>
                             </DropdownMenuTrigger>
@@ -2686,7 +2686,7 @@ export default function ExcelVentasPage() {
                                       'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': markupValue >= 30 && markupValue < 50,
                                       'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': markupValue >= 20 && markupValue < 30,
                                       'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': markupValue >= 10 && markupValue < 20,
-                                      'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': markupValue >= 5 && markupValue < 10,
+                                      'bg-yellow-100 hover:bg-yellow-300/80 data-[state=selected]:bg-yellow-300': markupValue >= 5 && markupValue < 10,
                                       'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue >= 0 && markupValue < 5 && utilidadBrutaValue !== 0,
                                     },
                                     !isCancelled && !isNegative && isRowColoringActive && typeof markupValue !== 'number' && utilidadBrutaValue > 0 && !isRelated && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
