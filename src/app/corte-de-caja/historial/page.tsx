@@ -480,7 +480,7 @@ export default function HistorialCortesPage() {
             let utilidadBruta = totalFromDb - totalLandedCost;
             
             const saleStatus = sale.status || '';
-            if (totalFromDb === 0 && !saleStatus.toLowerCase().startsWith('paquete de')) {
+            if (totalFromDb === 0 && !saleStatus.toLowerCase().includes('venta cancelada') && !saleStatus.toLowerCase().startsWith('paquete de')) {
                 utilidadBruta = 0;
             }
 
@@ -607,7 +607,7 @@ export default function HistorialCortesPage() {
                     let newUtilidadBruta = totalFromDb - newTotalLandedCost;
 
                     const saleStatus = s.status || '';
-                    if (totalFromDb === 0 && !saleStatus.toLowerCase().startsWith('paquete de')) {
+                    if (totalFromDb === 0 && !saleStatus.toLowerCase().includes('venta cancelada') && !saleStatus.toLowerCase().startsWith('paquete de')) {
                         newUtilidadBruta = 0;
                     }
 
@@ -781,10 +781,13 @@ export default function HistorialCortesPage() {
   const costoEnvioSum = React.useMemo(() => filterOutCancelledForTotals(filteredItems).reduce((acc, item) => acc + (item.costo_envio || 0), 0), [filteredItems, granTotalFilter]);
 
   const colorCounters = React.useMemo(() => {
-    const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0, negative: 0 };
+    const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0, negative: 0, cancelled: 0 };
     filteredItems.forEach(sale => {
       const isCancelled = (sale.status || '').toLowerCase().includes('venta cancelada');
-      if (isCancelled && granTotalFilter !== 'cancelled') return;
+      if (isCancelled) {
+          counters.cancelled++;
+          if (granTotalFilter !== 'cancelled') return;
+      }
 
       const markupValue = sale.markup;
       const utilidadBruta = sale.total_final;
@@ -1542,6 +1545,11 @@ export default function HistorialCortesPage() {
                                 <span className="text-muted-foreground">{'<' }0%</span>
                                 <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '< 0%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setGranTotalFilter(granTotalFilter === 'cancelled' ? 'all' : 'cancelled')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-black border-black", granTotalFilter === 'cancelled' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <span className="font-bold">{colorCounters.cancelled}</span>
+                                <span className="text-muted-foreground text-xs uppercase">Cancelados</span>
+                            </div>
                         </div>
                 </div>
             </CardHeader>
@@ -1749,7 +1757,7 @@ export default function HistorialCortesPage() {
                 <Tabs 
                 defaultValue="color" 
                 value={activeTab} 
-                onValueChange={(value) => setActiveTab(value as 'sku' | 'color' | 'subcategoria')} 
+                onOpenChange={(value) => setActiveTab(value as 'sku' | 'color' | 'subcategoria')} 
                 className="mt-6"
                 >
                 <TabsList className="grid w-full grid-cols-3">

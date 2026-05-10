@@ -650,7 +650,7 @@ export default function ExcelVentasPage() {
               
               let utilidadBruta = totalFromExcel - totalLandedCost;
               const estado = row[COLUMN_MAPPING.C] ? String(row[COLUMN_MAPPING.C]).trim() : '';
-              if (totalFromExcel === 0 && !estado.toLowerCase().startsWith('paquete de')) {
+              if (totalFromExcel === 0 && !estado.toLowerCase().includes('venta cancelada') && !estado.toLowerCase().startsWith('paquete de')) {
                 utilidadBruta = 0;
               }
 
@@ -1377,7 +1377,7 @@ export default function ExcelVentasPage() {
   const totalSum = createSumCalculator('RECIBES');
 
   const colorCounters = React.useMemo(() => {
-    const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0, negative: 0 };
+    const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0, negative: 0, cancelled: 0 };
     const estadoIndex = headers.indexOf('ESTADO');
     if (filteredData.length === 0 || estadoIndex === -1) return counters;
 
@@ -1386,7 +1386,10 @@ export default function ExcelVentasPage() {
 
     filteredData.forEach(row => {
       const isCancelled = String(row[estadoIndex] || '').toLowerCase().includes('venta cancelada');
-      if (isCancelled && granTotalFilter !== 'cancelled') return;
+      if (isCancelled) {
+          counters.cancelled++;
+          if (granTotalFilter !== 'cancelled') return;
+      }
 
       const markupValue = row[markupIndex];
       const utilidadBruta = row[utilidadBrutaIndex];
@@ -1824,7 +1827,7 @@ export default function ExcelVentasPage() {
         
         const estadoIndex = headers.indexOf('ESTADO');
         const estado = (estadoIndex !== -1 && row[estadoIndex]) ? String(row[estadoIndex]).trim() : '';
-        if (totalFromExcel === 0 && !estado.toLowerCase().startsWith('paquete de')) {
+        if (totalFromExcel === 0 && !estado.toLowerCase().includes('venta cancelada') && !estado.toLowerCase().startsWith('paquete de')) {
             newUtilidadBruta = 0;
         }
 
@@ -2543,6 +2546,11 @@ export default function ExcelVentasPage() {
                                   <span className="font-bold">{colorCounters.negative}</span>
                                   <span className="text-muted-foreground">{'<' }0%</span>
                                   <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '< 0%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                              </div>
+                              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setGranTotalFilter(granTotalFilter === 'cancelled' ? 'all' : 'cancelled')}>
+                                  <div className={cn("w-3 h-3 rounded-full bg-black border-black", granTotalFilter === 'cancelled' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                  <span className="font-bold">{colorCounters.cancelled}</span>
+                                  <span className="text-muted-foreground text-xs uppercase">Cancelados</span>
                               </div>
                           </div>
                       </div>
