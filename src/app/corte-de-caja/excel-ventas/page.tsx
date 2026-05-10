@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useCallback } from 'react';
@@ -20,6 +19,7 @@ import {
   Maximize,
   Minimize,
   ChevronDown,
+  LayoutColumns,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -2168,12 +2168,45 @@ export default function ExcelVentasPage() {
                           <div className="relative w-full sm:w-auto">
                               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                               <Input
-                                  placeholder="Buscar SKU, Fila, # de Publicación..."
+                                  placeholder="Buscar SKU, Fila..."
                                   value={skuSearchTerm}
                                   onChange={(e) => setSkuSearchTerm(e.target.value)}
                                   className="pl-8 w-full sm:w-48 h-9"
                               />
                           </div>
+                          
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-9">
+                                <LayoutColumns className="mr-2 h-4 w-4" />
+                                Columnas
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="max-h-[70vh] overflow-y-auto">
+                              <DropdownMenuLabel>Visibilidad de Columnas</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              {headers.map((header, idx) => {
+                                if (header === 'Ingresos por envío (MXN)' && !includeShippingIncome) return null;
+                                return (
+                                  <DropdownMenuCheckboxItem
+                                    key={idx}
+                                    checked={selectedColumns.has(header)}
+                                    onCheckedChange={(checked) => {
+                                      setSelectedColumns((prev) => {
+                                        const next = new Set(prev);
+                                        if (checked) next.add(header);
+                                        else next.delete(header);
+                                        return next;
+                                      });
+                                    }}
+                                  >
+                                    {header}
+                                  </DropdownMenuCheckboxItem>
+                                )
+                              })}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
                           <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                   <Button variant="outline" size="sm" className="h-9">
@@ -2532,7 +2565,7 @@ export default function ExcelVentasPage() {
                                       Columnas <ChevronDown className="ml-2 h-4 w-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="max-h-[70vh] overflow-y-auto">
+                                  <DropdownMenuContent align="end" className="max-h-[70vh] overflow-y-auto z-[150]">
                                     <DropdownMenuLabel>Visibilidad de Columnas</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
                                     {headers.map((header, idx) => {
