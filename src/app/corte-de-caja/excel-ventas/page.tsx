@@ -2602,9 +2602,11 @@ export default function ExcelVentasPage() {
                                   isRelated && 'bg-[#f3e8ff] hover:bg-[#e9d5ff] data-[state=selected]:bg-[#d8b4fe]',
                                   isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
                                   isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200',
-                                  // Highlight in Red if cancelled OR if it's a negative markup (and coloring is active)
-                                  (isCancelled || (isRowColoringActive && isNegative)) && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
-                                  // Normal markup colors apply only if NOT Red and NOT related
+                                  // Highlight in BLACK if cancelled
+                                  isCancelled && 'bg-black text-white hover:bg-zinc-800 data-[state=selected]:bg-zinc-800',
+                                  // Highlight in Red if negative markup (and coloring is active and NOT cancelled)
+                                  !isCancelled && isRowColoringActive && isNegative && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
+                                  // Normal markup colors apply only if NOT Red/Black and NOT related
                                   !isCancelled && !isNegative && isRowColoringActive && typeof markupValue === 'number' && !isRelated && {
                                     'bg-indigo-200 hover:bg-indigo-300/80 data-[state=selected]:bg-indigo-300': markupValue >= 80,
                                     'bg-sky-200 hover:bg-sky-300/80 data-[state=selected]:bg-sky-300': markupValue >= 50 && markupValue < 80,

@@ -69,13 +69,12 @@ async function getEtiquetasCount(filters?: { startDate?: Date | null, endDate?: 
       const { count, error } = await query;
   
       if (error) {
-        console.error("Error fetching etiquetas count:", error.message);
-        return 0;
+        throw new Error(error.message || "Unknown error fetching labels count");
       }
   
       return count ?? 0;
-    } catch (error) {
-      console.error("Exception in getEtiquetasCount:", error);
+    } catch (error: any) {
+      console.error("Exception in getEtiquetasCount:", error.message || error);
       return 0;
     }
 }
@@ -112,13 +111,12 @@ async function getMonthlyEtiquetasCount(filters?: { company?: string }) {
       const { count, error } = await query;
 
       if (error) {
-        console.error("Error fetching monthly etiquetas count:", error.message);
-        return 0;
+        throw new Error(error.message || "Unknown error fetching monthly labels count");
       }
 
       return count ?? 0;
-    } catch (error) {
-      console.error("Exception in getMonthlyEtiquetasCount:", error);
+    } catch (error: any) {
+      console.error("Exception in getMonthlyEtiquetasCount:", error.message || error);
       return 0;
     }
 }
@@ -172,7 +170,7 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
 
         const { count, error } = await query;
         if (error) {
-           console.warn(`Error counting for ${org}:`, error.message);
+           console.warn(`Error counting for ${org}:`, error.message || error);
            return null;
         }
         return { org, count: count || 0 };
@@ -190,8 +188,8 @@ async function getEtiquetasPorEmpresa(filters?: { startDate?: Date | null, endDa
       finalData.sort((a, b) => a.label.localeCompare(b.label));
       
       return finalData;
-    } catch (error) {
-      console.error("Exception in getEtiquetasPorEmpresa:", error);
+    } catch (error: any) {
+      console.error("Exception in getEtiquetasPorEmpresa:", error.message || error);
       return [];
     }
 }
@@ -242,8 +240,8 @@ export default function DashboardPage() {
                 setLeadingCompany("N/A");
             }
 
-        } catch (err) {
-            console.error("Error in dashboard fetchData:", err);
+        } catch (err: any) {
+            console.error("Error in dashboard fetchData:", err.message || err);
         } finally {
             setIsLoading(false);
         }

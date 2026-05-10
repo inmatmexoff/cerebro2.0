@@ -121,7 +121,7 @@ export default function HistorialCortesPage() {
   const [isRowColoringActive, setIsRowColoringActive] = useState(true);
   
   const [activeTab, setActiveTab] = useState<'sku' | 'color' | 'subcategoria'>('color');
-  const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red' | 'superGreen' | 'ultraGreen'>('all');
+  const [markupFilter, setMarkupFilter] = useState<'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red' | 'superGreen' | 'ultraGreen' | 'negative'>('all');
   const [skuSummary, setSkuSummary] = useState<any[]>([]);
   const [colorSummary, setColorSummary] = useState<any[]>([]);
   const [filteredPublications, setFilteredPublications] = useState<string[]>([]);
@@ -292,7 +292,7 @@ export default function HistorialCortesPage() {
     });
   };
   
-  const handleMarkupFilterClick = (filter: 'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red' | 'superGreen' | 'ultraGreen') => {
+  const handleMarkupFilterClick = (filter: 'all' | 'darkGreen' | 'lightGreen' | 'orange' | 'yellow' | 'red' | 'superGreen' | 'ultraGreen' | 'negative') => {
     const newFilter = markupFilter === filter ? 'all' : filter;
     if (newFilter !== 'all') {
         setGranTotalFilter('all');
@@ -685,9 +685,16 @@ export default function HistorialCortesPage() {
                     case 'orange': markupMatch = markupValue >= 10 && markupValue < 20; break;
                     case 'yellow': markupMatch = markupValue >= 5 && markupValue < 10; break;
                     case 'red': markupMatch = markupValue < 5 && utilidadBruta !== 0; break;
+                    case 'negative': markupMatch = markupValue < 0; break;
                 }
             } else {
-                markupMatch = markupFilter === 'red' && utilidadBruta !== 0;
+                if (markupFilter === 'negative') {
+                    markupMatch = typeof utilidadBruta === 'number' && utilidadBruta < 0;
+                } else if (markupFilter === 'red') {
+                    markupMatch = typeof utilidadBruta === 'number' && utilidadBruta > 0;
+                } else {
+                    markupMatch = false;
+                }
             }
         }
 
@@ -774,7 +781,7 @@ export default function HistorialCortesPage() {
   const costoEnvioSum = React.useMemo(() => filterOutCancelledForTotals(filteredItems).reduce((acc, item) => acc + (item.costo_envio || 0), 0), [filteredItems, granTotalFilter]);
 
   const colorCounters = React.useMemo(() => {
-    const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0 };
+    const counters = { ultraGreen: 0, superGreen: 0, darkGreen: 0, lightGreen: 0, orange: 0, yellow: 0, red: 0, negative: 0 };
     filteredItems.forEach(sale => {
       const isCancelled = (sale.status || '').toLowerCase().includes('venta cancelada');
       if (isCancelled && granTotalFilter !== 'cancelled') return;
@@ -788,11 +795,16 @@ export default function HistorialCortesPage() {
         else if (markupValue >= 20) counters.lightGreen++;
         else if (markupValue >= 10) counters.orange++;
         else if (markupValue >= 5) counters.yellow++;
-        else if (markupValue < 5) {
+        else if (markupValue >= 0) {
             if (utilidadBruta !== 0) counters.red++;
+        } else {
+            counters.negative++;
         }
       } else {
-          if (utilidadBruta !== 0) counters.red++;
+        if (utilidadBruta !== null && utilidadBruta !== 0) {
+            if (utilidadBruta < 0) counters.negative++;
+            else counters.red++;
+        }
       }
     });
 
@@ -924,7 +936,8 @@ export default function HistorialCortesPage() {
         lightGreen: { label: '20-29.9%', colorClass: 'bg-green-100 border-green-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
         orange: { label: '10-19.9%', colorClass: 'bg-orange-100 border-orange-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
         yellow: { label: '5-9.9%', colorClass: 'bg-yellow-100 border-yellow-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
-        red: { label: '< 5%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
+        red: { label: '0-4.9%', colorClass: 'bg-red-100 border-red-300', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
+        negative: { label: '< 0%', colorClass: 'bg-red-600 border-red-800 text-white', publications: new Set<string>(), skus: new Set<string>(), unidades: 0, total: 0, pedidos: new Set<string>() },
     };
     
     const validMathSales = filterOutCancelledForTotals(dataToSummarize);
@@ -935,6 +948,7 @@ export default function HistorialCortesPage() {
 
     validMathSales.forEach(row => {
         const markupValue = row.markup;
+        const utilidadBrutaValue = row.total_final;
         let category: (typeof summaryByColor)[keyof typeof summaryByColor] | null = null;
 
         if (typeof markupValue === 'number') {
@@ -944,9 +958,11 @@ export default function HistorialCortesPage() {
             else if (markupValue >= 20) category = summaryByColor.lightGreen;
             else if (markupValue >= 10) category = summaryByColor.orange;
             else if (markupValue >= 5) category = summaryByColor.yellow;
-            else if (markupValue < 5 && row.total_final !== 0) category = summaryByColor.red;
-        } else if (row.total_final !== 0) {
-            category = summaryByColor.red;
+            else if (markupValue >= 0 && utilidadBrutaValue !== 0) category = summaryByColor.red;
+            else if (markupValue < 0) category = summaryByColor.negative;
+        } else if (utilidadBrutaValue !== null && utilidadBrutaValue !== 0) {
+            if (utilidadBrutaValue < 0) category = summaryByColor.negative;
+            else category = summaryByColor.red;
         }
 
         if (category) {
@@ -964,7 +980,7 @@ export default function HistorialCortesPage() {
         }
     });
 
-    const pedidosMargenBajo = summaryByColor.red.pedidos.size;
+    const pedidosMargenBajo = summaryByColor.negative.pedidos.size + summaryByColor.red.pedidos.size;
 
     setExecutiveKpis({
       gananciaPromedioPorPedido: allPedidosInFiltered.size > 0 ? utilidadBrutaSum / allPedidosInFiltered.size : 0,
@@ -1517,8 +1533,14 @@ export default function HistorialCortesPage() {
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('red')}>
                                 <div className={cn("w-3 h-3 rounded-full bg-red-100 border-red-300", markupFilter === 'red' && 'ring-2 ring-primary ring-offset-1')}></div>
                                 <span className="font-bold">{colorCounters.red}</span>
-                                <span className="text-muted-foreground">{'<' }5%</span>
-                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '< 5%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                                <span className="text-muted-foreground">0-4.9%</span>
+                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '0-4.9%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
+                            </div>
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleMarkupFilterClick('negative')}>
+                                <div className={cn("w-3 h-3 rounded-full bg-red-600 border-red-800", markupFilter === 'negative' && 'ring-2 ring-primary ring-offset-1')}></div>
+                                <span className="font-bold">{colorCounters.negative}</span>
+                                <span className="text-muted-foreground">{'<' }0%</span>
+                                <span className="font-semibold text-primary/80">({(colorSummary.find(c => c.label === '< 0%')?.percentageOfTotal ?? 0).toFixed(1)}%)</span>
                             </div>
                         </div>
                 </div>
@@ -1568,8 +1590,10 @@ export default function HistorialCortesPage() {
                                             className={cn(
                                                 isRelated && 'bg-[#f3e8ff] hover:bg-[#e9d5ff] data-[state=selected]:bg-[#d8b4fe]',
                                                 (sale.status || '').toLowerCase().startsWith('paquete de') && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
-                                                // High priority for Red (Cancelled or Negative Markup)
-                                                (isCancelled || (isRowColoringActive && isNegative)) && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
+                                                // High priority for BLACK (Cancelled)
+                                                isCancelled && 'bg-black text-white hover:bg-zinc-800 data-[state=selected]:bg-zinc-800',
+                                                // Highlight in Red if negative markup (and coloring is active and NOT cancelled)
+                                                !isCancelled && isRowColoringActive && isNegative && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
                                                 !isCancelled && !isNegative && isRowColoringActive && typeof sale.markup === 'number' && !isRelated && {
                                                     'bg-indigo-200 hover:bg-indigo-300/80 data-[state=selected]:bg-indigo-300': sale.markup >= 80,
                                                     'bg-sky-200 hover:bg-sky-300/80 data-[state=selected]:bg-sky-300': sale.markup >= 50 && sale.markup < 80,
