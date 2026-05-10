@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useCallback } from 'react';
@@ -18,6 +19,7 @@ import {
   TrendingUp,
   Maximize,
   Minimize,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -2513,248 +2515,288 @@ export default function ExcelVentasPage() {
                       </div>
                     </CardHeader>
                 </div>
-                <Card className={cn("mt-6", isFocusMode && "fixed inset-0 z-[100] m-0 h-screen w-screen rounded-none border-none")}>
-                  <CardContent className={cn(isFocusMode && "p-0 h-full flex flex-col")}>
-                    {isFocusMode && (
-                        <div className="p-2 border-b flex justify-between items-center bg-background">
-                            <h3 className="font-semibold text-lg px-2">Vista Enfocada de la Tabla</h3>
-                            <Button variant="outline" size="sm" onClick={() => setIsFocusMode(false)}>
-                                <Minimize className="mr-2 h-4 w-4" />
-                                Vista Normal
-                            </Button>
-                        </div>
-                    )}
-                    <div ref={tableContainerRef} className={cn("w-full overflow-auto", isFocusMode ? "flex-1" : "h-[70vh] mt-6")}>
-                      <Table>
-                        <TableHeader className="sticky top-0 bg-background z-10">
-                          <TableRow>
-                            <TableHead>
-                                <Checkbox
-                                    checked={isAllVisibleChecked}
-                                    onCheckedChange={(checked) => handleToggleAllVisible(checked as boolean)}
-                                    aria-label="Seleccionar todas las filas visibles"
-                                />
-                            </TableHead>
-                            {headers.map((header, index) => {
-                              if (header === 'Ingresos por envío (MXN)' && !includeShippingIncome) return null;
-                              
-                              const id = `select-col-${header.replace(
-                                /[^a-zA-Z0-9]/g,
-                                '-'
-                              )}-${index}`;
-                              return (
-                                <TableHead key={index}>
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox
-                                      id={id}
-                                      checked={selectedColumns.has(header)}
-                                      onCheckedChange={(checked) => {
-                                        setSelectedColumns((prev) => {
-                                          const next = new Set(prev);
-                                          if (checked === true) {
-                                            next.add(header);
-                                          } else {
-                                            next.delete(header);
-                                          }
-                                          return next;
-                                        });
-                                      }}
-                                    />
-                                    <label
-                                      htmlFor={id}
-                                      className="cursor-pointer"
-                                    >
-                                      {header}
-                                    </label>
-                                  </div>
-                                </TableHead>
-                              );
-                            })}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredData.map((row, rowIndex) => {
-                            const excelRowNum = row[0];
-                            const skuIndex = headers.indexOf('SKU');
-                            const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
-                            const shippingCost = shippingCostIndex > -1 ? row[shippingCostIndex] : 0;
-                            const isHighShippingCost = typeof shippingCost === 'number' && shippingCost <= -300;
-                            const estadoIndex = headers.indexOf('ESTADO');
-                            const estadoValue = estadoIndex > -1 ? String(row[estadoIndex] || '') : '';
-                            const isPackage = estadoValue.toLowerCase().startsWith('paquete de');
-                            const isCancelled = estadoValue.toLowerCase().includes('venta cancelada');
-                            const isRelated = row[23] === true;
-                            const markupIndex = headers.indexOf('Markup (%)');
-                            const markupValue = markupIndex > -1 ? row[markupIndex] : null;
-                            const utilidadBrutaValue = utilidadBrutaIndex > -1 ? row[utilidadBrutaIndex] : null;
-                            const isNegative = (typeof markupValue === 'number' && markupValue < 0) || (typeof markupValue !== 'number' && typeof utilidadBrutaValue === 'number' && utilidadBrutaValue < 0);
-                            const editableColsForManualEntry = [
-                                'VENTA TOTAL MERCADO LIBRE',
-                                'Cargo por venta e impuestos (MXN)',
-                                'Costos de envío (MXN)'
-                            ];
-
-                            return (
-                              <TableRow 
-                                key={rowIndex} 
-                                id={`excel-row-${excelRowNum}`}
-                                className={cn(
-                                  isRelated && 'bg-[#f3e8ff] hover:bg-[#e9d5ff] data-[state=selected]:bg-[#d8b4fe]',
-                                  isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
-                                  isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200',
-                                  // Highlight in BLACK if cancelled
-                                  isCancelled && 'bg-black text-white hover:bg-zinc-800 data-[state=selected]:bg-zinc-800',
-                                  // Highlight in Red if negative markup (and coloring is active and NOT cancelled)
-                                  !isCancelled && isRowColoringActive && isNegative && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
-                                  // Normal markup colors apply only if NOT Red/Black and NOT related
-                                  !isCancelled && !isNegative && isRowColoringActive && typeof markupValue === 'number' && !isRelated && {
-                                    'bg-indigo-200 hover:bg-indigo-300/80 data-[state=selected]:bg-indigo-300': markupValue >= 80,
-                                    'bg-sky-200 hover:bg-sky-300/80 data-[state=selected]:bg-sky-300': markupValue >= 50 && markupValue < 80,
-                                    'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': markupValue >= 30 && markupValue < 50,
-                                    'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': markupValue >= 20 && markupValue < 30,
-                                    'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': markupValue >= 10 && markupValue < 20,
-                                    'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': markupValue >= 5 && markupValue < 10,
-                                    'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue >= 0 && markupValue < 5 && utilidadBrutaValue !== 0,
-                                  },
-                                  !isCancelled && !isNegative && isRowColoringActive && typeof markupValue !== 'number' && utilidadBrutaValue > 0 && !isRelated && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
-                              )}>
-                                <TableCell>
-                                    <Checkbox
-                                        checked={checkedRows.has(excelRowNum)}
-                                        onCheckedChange={(checked) => handleRowCheck(excelRowNum, checked as boolean)}
-                                        aria-label={`Seleccionar fila ${excelRowNum}`}
-                                    />
-                                </TableCell>
-                                {row.map((cell, cellIndex) => {
-                                  const header = headers[cellIndex];
-                                  if (header === 'Ingresos por envío (MXN)' && !includeShippingIncome) return null;
-                                  
-                                  return (
-                                  <TableCell
-                                    key={cellIndex}
-                                    className={cn({
-                                      'text-red-800 font-medium':
-                                        !isCancelled && !(isNegative && isRowColoringActive) &&
-                                        header === 'Utilidad Bruta' &&
-                                        typeof cell === 'number' &&
-                                        cell < 0,
-                                      'text-green-800 font-medium':
-                                        !isCancelled && !(isNegative && isRowColoringActive) &&
-                                        header === 'Utilidad Bruta' &&
-                                        typeof cell === 'number' &&
-                                        cell >= 0,
-                                      'text-white': isCancelled || (isNegative && isRowColoringActive)
-                                    },
-                                    !isCancelled && !isRowColoringActive && !isRelated && header === 'Markup (%)' && (
-                                      (typeof cell === 'number' && {
-                                        'bg-indigo-200': cell >= 80,
-                                        'bg-sky-200': cell >= 50 && cell < 80,
-                                        'bg-green-200': cell >= 30 && cell < 50,
-                                        'bg-green-100': cell >= 20 && cell < 30,
-                                        'bg-orange-100': cell >= 10 && cell < 20,
-                                        'bg-yellow-100': cell >= 5 && cell < 10,
-                                        'bg-red-100': cell >= 0 && cell < 5 && row[utilidadBrutaIndex] !== 0,
-                                        'bg-red-600 text-white': cell < 0,
-                                      }) || (typeof cell !== 'number' && row[utilidadBrutaIndex] !== 0 && (row[utilidadBrutaIndex] < 0 ? 'bg-red-600 text-white' : 'bg-red-100'))
-                                    ))}
-                                  >
-                                    {(() => {
-                                      if (header === '# de publicación' && cell) {
-                                        return (
-                                          <span
-                                            className={cn("cursor-pointer hover:font-medium", !(isCancelled || (isNegative && isRowColoringActive)) && "hover:text-primary")}
-                                            onClick={() => handleCopyToClipboard(String(cell))}
+                
+                <div className={cn(isFocusMode && "fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm p-4 md:p-10 flex items-center justify-center")}>
+                  <Card className={cn("mt-6 w-full", isFocusMode ? "h-full m-0 shadow-2xl rounded-2xl border flex flex-col overflow-hidden" : "")}>
+                    <CardContent className={cn(isFocusMode ? "p-0 flex-1 flex flex-col overflow-hidden" : "pt-0")}>
+                      {isFocusMode && (
+                          <div className="p-4 border-b flex flex-col sm:flex-row justify-between items-center bg-background rounded-t-2xl gap-4">
+                              <div className="text-left w-full sm:w-auto">
+                                <h3 className="font-bold text-xl px-2">Vista Enfocada de la Tabla</h3>
+                                <p className="text-sm text-muted-foreground px-2">Usa los selectores en el encabezado para ocultar/mostrar columnas.</p>
+                              </div>
+                              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm" className="rounded-full">
+                                      Columnas <ChevronDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="max-h-[70vh] overflow-y-auto">
+                                    <DropdownMenuLabel>Visibilidad de Columnas</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {headers.map((header, idx) => {
+                                       if (header === 'Ingresos por envío (MXN)' && !includeShippingIncome) return null;
+                                       return (
+                                          <DropdownMenuCheckboxItem
+                                            key={idx}
+                                            checked={selectedColumns.has(header)}
+                                            onCheckedChange={(checked) => {
+                                              setSelectedColumns((prev) => {
+                                                const next = new Set(prev);
+                                                if (checked) next.add(header);
+                                                else next.delete(header);
+                                                return next;
+                                              });
+                                            }}
                                           >
-                                            {String(cell)}
-                                          </span>
-                                        );
-                                      }
+                                            {header}
+                                          </DropdownMenuCheckboxItem>
+                                       )
+                                    })}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                                <Button variant="outline" size="sm" onClick={() => setIsFocusMode(false)} className="rounded-full">
+                                    <Minimize className="mr-2 h-4 w-4" />
+                                    Volver a Vista Normal
+                                </Button>
+                              </div>
+                          </div>
+                      )}
+                      <div ref={tableContainerRef} className={cn("w-full overflow-auto", isFocusMode ? "flex-1" : "h-[70vh] mt-6")}>
+                        <Table>
+                          <TableHeader className="sticky top-0 bg-background z-10">
+                            <TableRow>
+                              <TableHead>
+                                  <Checkbox
+                                      checked={isAllVisibleChecked}
+                                      onCheckedChange={(checked) => handleToggleAllVisible(checked as boolean)}
+                                      aria-label="Seleccionar todas las filas visibles"
+                                  />
+                              </TableHead>
+                              {headers.map((header, index) => {
+                                if (header === 'Ingresos por envío (MXN)' && !includeShippingIncome) return null;
+                                if (!selectedColumns.has(header)) return null;
+                                
+                                const id = `select-col-${header.replace(
+                                  /[^a-zA-Z0-9]/g,
+                                  '-'
+                                )}-${index}`;
+                                return (
+                                  <TableHead key={index} className="whitespace-nowrap">
+                                    <div className="flex items-center gap-2">
+                                      <Checkbox
+                                        id={id}
+                                        checked={selectedColumns.has(header)}
+                                        onCheckedChange={(checked) => {
+                                          setSelectedColumns((prev) => {
+                                            const next = new Set(prev);
+                                            if (checked === true) {
+                                              next.add(header);
+                                            } else {
+                                              next.delete(header);
+                                            }
+                                            return next;
+                                          });
+                                        }}
+                                      />
+                                      <label
+                                        htmlFor={id}
+                                        className="cursor-pointer"
+                                      >
+                                        {header}
+                                      </label>
+                                    </div>
+                                  </TableHead>
+                                );
+                              })}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredData.map((row, rowIndex) => {
+                              const excelRowNum = row[0];
+                              const skuIndex = headers.indexOf('SKU');
+                              const shippingCostIndex = headers.indexOf('Costos de envío (MXN)');
+                              const shippingCost = shippingCostIndex > -1 ? row[shippingCostIndex] : 0;
+                              const isHighShippingCost = typeof shippingCost === 'number' && shippingCost <= -300;
+                              const estadoIndex = headers.indexOf('ESTADO');
+                              const estadoValue = estadoIndex > -1 ? String(row[estadoIndex] || '') : '';
+                              const isPackage = estadoValue.toLowerCase().startsWith('paquete de');
+                              const isCancelled = estadoValue.toLowerCase().includes('venta cancelada');
+                              const isRelated = row[23] === true;
+                              const markupIndex = headers.indexOf('Markup (%)');
+                              const markupValue = markupIndex > -1 ? row[markupIndex] : null;
+                              const utilidadBrutaValue = utilidadBrutaIndex > -1 ? row[utilidadBrutaIndex] : null;
+                              const isNegative = (typeof markupValue === 'number' && markupValue < 0) || (typeof markupValue !== 'number' && typeof utilidadBrutaValue === 'number' && utilidadBrutaValue < 0);
+                              const editableColsForManualEntry = [
+                                  'VENTA TOTAL MERCADO LIBRE',
+                                  'Cargo por venta e impuestos (MXN)',
+                                  'Costos de envío (MXN)'
+                              ];
 
-                                      if (header === 'Fila' && typeof cell === 'number') {
-                                        return cell.toFixed(0);
-                                      }
-                                      
-                                      if (
-                                        header === 'Landed Cost Total' &&
-                                        row[skuIndex] 
-                                      ) {
-                                        return (
-                                          <div className="flex items-center justify-between gap-2">
-                                            <span>
-                                              {(parseCurrency(cell) ?? 0).toLocaleString(
-                                                'es-MX',
-                                                {
-                                                  minimumFractionDigits: 2,
-                                                  maximumFractionDigits: 2,
-                                                }
-                                              )}
-                                            </span>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-8 w-8"
-                                              onClick={() =>
-                                                handleEditClick(row)
-                                              }
-                                            >
-                                              <Pencil className={cn("h-4 w-4", !(isCancelled || (isNegative && isRowColoringActive)) ? "text-primary" : "text-white")} />
-                                            </Button>
-                                          </div>
-                                        );
-                                      }
-
-                                      if (editableColsForManualEntry.includes(header) && (cell === null || cell === 0 || cell === '')) {
-                                        return (
-                                          <div className="flex items-center justify-between gap-2">
-                                            <span>{typeof cell === 'number' ? cell.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-8 w-8"
-                                              onClick={() => handleManualEntryClick(row)}
-                                            >
-                                              <Pencil className={cn("h-4 w-4", !(isCancelled || (isNegative && isRowColoringActive)) ? "text-primary" : "text-white")} />
-                                            </Button>
-                                          </div>
-                                        )
-                                      }
-
-
-                                      if (header === 'Markup (%)' && typeof cell === 'number') {
-                                          return `${cell.toFixed(2)}%`;
-                                      }
-
-                                      if (cell instanceof Date) {
-                                        return cell.toLocaleDateString('es-MX', {
-                                          year: 'numeric',
-                                          month: '2-digit',
-                                          day: '2-digit',
-                                        });
-                                      }
-
-                                      if (typeof cell === 'number') {
-                                        return cell.toLocaleString('es-MX', {
-                                          minimumFractionDigits: 2,
-                                          maximumFractionDigits: 2,
-                                        });
-                                      }
-                                      if (typeof cell === 'boolean') {
-                                          return cell ? 'Sí' : 'No';
-                                      }
-
-                                      return String(cell ?? '');
-                                    })()}
+                              return (
+                                <TableRow 
+                                  key={rowIndex} 
+                                  id={`excel-row-${excelRowNum}`}
+                                  className={cn(
+                                    isRelated && 'bg-[#f3e8ff] hover:bg-[#e9d5ff] data-[state=selected]:bg-[#d8b4fe]',
+                                    isPackage && 'bg-gray-100 hover:bg-gray-200/80 data-[state=selected]:bg-gray-200',
+                                    isHighShippingCost && 'bg-amber-100 hover:bg-amber-200/80 data-[state=selected]:bg-amber-200',
+                                    // Highlight in BLACK if cancelled
+                                    isCancelled && 'bg-black text-white hover:bg-zinc-800 data-[state=selected]:bg-zinc-800',
+                                    // Highlight in Red if negative markup (and coloring is active and NOT cancelled)
+                                    !isCancelled && isRowColoringActive && isNegative && 'bg-red-600 text-white hover:bg-red-700 data-[state=selected]:bg-red-700',
+                                    // Normal markup colors apply only if NOT Red/Black and NOT related
+                                    !isCancelled && !isNegative && isRowColoringActive && typeof markupValue === 'number' && !isRelated && {
+                                      'bg-indigo-200 hover:bg-indigo-300/80 data-[state=selected]:bg-indigo-300': markupValue >= 80,
+                                      'bg-sky-200 hover:bg-sky-300/80 data-[state=selected]:bg-sky-300': markupValue >= 50 && markupValue < 80,
+                                      'bg-green-200 hover:bg-green-300/80 data-[state=selected]:bg-green-300': markupValue >= 30 && markupValue < 50,
+                                      'bg-green-100 hover:bg-green-200/80 data-[state=selected]:bg-green-200': markupValue >= 20 && markupValue < 30,
+                                      'bg-orange-100 hover:bg-orange-200/80 data-[state=selected]:bg-orange-200': markupValue >= 10 && markupValue < 20,
+                                      'bg-yellow-100 hover:bg-yellow-200/80 data-[state=selected]:bg-yellow-200': markupValue >= 5 && markupValue < 10,
+                                      'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200': markupValue >= 0 && markupValue < 5 && utilidadBrutaValue !== 0,
+                                    },
+                                    !isCancelled && !isNegative && isRowColoringActive && typeof markupValue !== 'number' && utilidadBrutaValue > 0 && !isRelated && 'bg-red-100 hover:bg-red-200/80 data-[state=selected]:bg-red-200'
+                                )}>
+                                  <TableCell>
+                                      <Checkbox
+                                          checked={checkedRows.has(excelRowNum)}
+                                          onCheckedChange={(checked) => handleRowCheck(excelRowNum, checked as boolean)}
+                                          aria-label={`Seleccionar fila ${excelRowNum}`}
+                                      />
                                   </TableCell>
-                                  )
-                                })}
-                              </TableRow>
-                            )
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
+                                  {row.map((cell, cellIndex) => {
+                                    const header = headers[cellIndex];
+                                    if (header === 'Ingresos por envío (MXN)' && !includeShippingIncome) return null;
+                                    if (!selectedColumns.has(header)) return null;
+                                    
+                                    return (
+                                    <TableCell
+                                      key={cellIndex}
+                                      className={cn({
+                                        'text-red-800 font-medium':
+                                          !isCancelled && !(isNegative && isRowColoringActive) &&
+                                          header === 'Utilidad Bruta' &&
+                                          typeof cell === 'number' &&
+                                          cell < 0,
+                                        'text-green-800 font-medium':
+                                          !isCancelled && !(isNegative && isRowColoringActive) &&
+                                          header === 'Utilidad Bruta' &&
+                                          typeof cell === 'number' &&
+                                          cell >= 0,
+                                        'text-white': isCancelled || (isNegative && isRowColoringActive)
+                                      },
+                                      !isCancelled && !isRowColoringActive && !isRelated && header === 'Markup (%)' && (
+                                        (typeof cell === 'number' && {
+                                          'bg-indigo-200': cell >= 80,
+                                          'bg-sky-200': cell >= 50 && cell < 80,
+                                          'bg-green-200': cell >= 30 && cell < 50,
+                                          'bg-green-100': cell >= 20 && cell < 30,
+                                          'bg-orange-100': cell >= 10 && cell < 20,
+                                          'bg-yellow-100': cell >= 5 && cell < 10,
+                                          'bg-red-100': cell >= 0 && cell < 5 && row[utilidadBrutaIndex] !== 0,
+                                          'bg-red-600 text-white': cell < 0,
+                                        }) || (typeof cell !== 'number' && row[utilidadBrutaIndex] !== 0 && (row[utilidadBrutaIndex] < 0 ? 'bg-red-600 text-white' : 'bg-red-100'))
+                                      ))}
+                                    >
+                                      {(() => {
+                                        if (header === '# de publicación' && cell) {
+                                          return (
+                                            <span
+                                              className={cn("cursor-pointer hover:font-medium", !(isCancelled || (isNegative && isRowColoringActive)) && "hover:text-primary")}
+                                              onClick={() => handleCopyToClipboard(String(cell))}
+                                            >
+                                              {String(cell)}
+                                            </span>
+                                          );
+                                        }
+
+                                        if (header === 'Fila' && typeof cell === 'number') {
+                                          return cell.toFixed(0);
+                                        }
+                                        
+                                        if (
+                                          header === 'Landed Cost Total' &&
+                                          row[skuIndex] 
+                                        ) {
+                                          return (
+                                            <div className="flex items-center justify-between gap-2">
+                                              <span>
+                                                {(parseCurrency(cell) ?? 0).toLocaleString(
+                                                  'es-MX',
+                                                  {
+                                                    minimumFractionDigits: 2,
+                                                    maximumFractionDigits: 2,
+                                                  }
+                                                )}
+                                              </span>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() =>
+                                                  handleEditClick(row)
+                                                }
+                                              >
+                                                <Pencil className={cn("h-4 w-4", !(isCancelled || (isNegative && isRowColoringActive)) ? "text-primary" : "text-white")} />
+                                              </Button>
+                                            </div>
+                                          );
+                                        }
+
+                                        if (editableColsForManualEntry.includes(header) && (cell === null || cell === 0 || cell === '')) {
+                                          return (
+                                            <div className="flex items-center justify-between gap-2">
+                                              <span>{typeof cell === 'number' ? cell.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() => handleManualEntryClick(row)}
+                                              >
+                                                <Pencil className={cn("h-4 w-4", !(isCancelled || (isNegative && isRowColoringActive)) ? "text-primary" : "text-white")} />
+                                              </Button>
+                                            </div>
+                                          )
+                                        }
+
+
+                                        if (header === 'Markup (%)' && typeof cell === 'number') {
+                                            return `${cell.toFixed(2)}%`;
+                                        }
+
+                                        if (cell instanceof Date) {
+                                          return cell.toLocaleDateString('es-MX', {
+                                            year: 'numeric',
+                                            month: '2-digit',
+                                            day: '2-digit',
+                                          });
+                                        }
+
+                                        if (typeof cell === 'number') {
+                                          return cell.toLocaleString('es-MX', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          });
+                                        }
+                                        if (typeof cell === 'boolean') {
+                                            return cell ? 'Sí' : 'No';
+                                        }
+
+                                        return String(cell ?? '');
+                                      })()}
+                                    </TableCell>
+                                    )
+                                  })}
+                                </TableRow>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
 
                 <div className={cn(isFocusMode && "hidden")}>
                     {validationIssues && (
