@@ -10,7 +10,7 @@ import {
   Barcode,
   Receipt,
   ChevronRight,
-  ChevronsLeft,
+  PanelLeft,
   Cable,
   ArchiveRestore,
   History,
@@ -192,7 +192,7 @@ export function AppSidebar() {
       </nav>
       <div className="mt-auto p-2 border-t">
         <Button variant="ghost" className="w-full" onClick={toggleSidebar}>
-            <ChevronsLeft className={cn("h-5 w-5 shrink-0 transition-transform duration-300", isCollapsed && "rotate-180")} />
+            <PanelLeft className={cn("h-5 w-5 shrink-0 transition-transform duration-300", isCollapsed && "rotate-180")} />
         </Button>
       </div>
     </aside>
